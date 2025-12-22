@@ -1099,7 +1099,15 @@ export default function TodoPage() {
                                           withBorder
                                           radius="sm"
                                           p="xs"
-                                          onClick={() => openEdit(todo.id)}
+                                          onClick={(e) => {
+                                            if (hasChildren) {
+                                              e.stopPropagation();
+                                              toggleExpanded(todo.id);
+                                            } else {
+                                              openEdit(todo.id);
+                                            }
+                                          }}
+                                          onDoubleClick={() => openEdit(todo.id)}
                                           style={{
                                             cursor: "pointer",
                                             background: selectedId === todo.id ? "var(--mantine-color-gray-1)" : "white",
@@ -1147,8 +1155,16 @@ export default function TodoPage() {
                                                 )}
                                               </Group>
                                               {assignee && (
-                                                <Avatar size={20} radius="xl" color={assignee.color ?? "blue"}>
-                                                  {assignee.initials ?? assignee.name.slice(0, 1)}
+                                                <Avatar
+                                                  size="sm"
+                                                  radius="xl"
+                                                  color={assignee.color ?? "blue"}
+                                                  styles={{
+                                                    root: { width: 'auto', minWidth: 32, padding: '0 4px' },
+                                                    placeholder: { fontSize: '10px', fontWeight: 700 }
+                                                  }}
+                                                >
+                                                  {assignee.name}
                                                 </Avatar>
                                               )}
                                             </Group>

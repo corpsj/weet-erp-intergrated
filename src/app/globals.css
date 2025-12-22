@@ -60,7 +60,6 @@ a {
   font-family: var(--font-display), sans-serif;
   letter-spacing: -0.02em;
   background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
-  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -78,7 +77,6 @@ a {
     opacity: 0;
     transform: translateY(10px);
   }
-
   to {
     opacity: 1;
     transform: translateY(0);
