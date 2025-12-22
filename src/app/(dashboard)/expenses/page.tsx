@@ -20,7 +20,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconRefresh, IconSend, IconCheck, IconX, IconCash, IconTrash, IconPaperclip, IconReceipt } from "@tabler/icons-react";
+import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar, IconPlus, IconRefresh, IconTrash, IconPaperclip } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -32,7 +32,7 @@ type ExpenseClaim = {
   spent_at: string;
   category: string | null;
   note: string | null;
-  status: "submitted" | "approved" | "rejected" | "paid";
+  status: "unpaid" | "paid";
   created_at: string;
 };
 
@@ -55,17 +55,11 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 const statusColor = (status: ExpenseClaim["status"]) => {
   if (status === "paid") return "green";
-  if (status === "approved") return "blue";
-  if (status === "rejected") return "red";
-  if (status === "submitted") return "yellow";
-  return "gray";
+  return "orange";
 };
 
 const statusLabel = (status: ExpenseClaim["status"]) => {
-  if (status === "paid") return "지급완료";
-  if (status === "approved") return "승인";
-  if (status === "rejected") return "반려";
-  return "승인 대기";
+  return status === "paid" ? "지급 완료" : "미지급";
 };
 
 export default function ExpensesPage() {
@@ -242,21 +236,18 @@ export default function ExpensesPage() {
   }, [amount, category, editing, load, note, pendingFile, spentAt, title, uploadReceipt]);
 
   const action = useCallback(
-    async (item: ExpenseClaim, nextAction: "approve" | "reject" | "pay") => {
+    async (item: ExpenseClaim, nextStatus: "unpaid" | "paid") => {
       try {
         const response = await fetchWithAuth(`/api/expenses/${item.id}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ action: nextAction }),
+          body: JSON.stringify({ status: nextStatus }),
         });
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) throw new Error(payload?.message ?? "처리 실패");
         const updated = payload?.item as ExpenseClaim;
         setItems((prev) => prev.map((x) => (x.id === item.id ? updated : x)));
-        if (editing?.id === item.id) {
-          setEditing(updated);
-        }
-        notifications.show({ title: "처리 완료", message: "상태가 업데이트되었습니다.", color: "blue" });
+        notifications.show({ title: "상태 변경", message: `상태가 ${statusLabel(nextStatus)}로 변경되었습니다.`, color: "blue" });
       } catch (error) {
         notifications.show({
           title: "처리 실패",
@@ -265,7 +256,7 @@ export default function ExpensesPage() {
         });
       }
     },
-    [editing]
+    []
   );
 
   const remove = useCallback(async (id: string) => {
@@ -291,11 +282,11 @@ export default function ExpensesPage() {
       (acc, item) => {
         const amt = Number(item.amount) || 0;
         acc.total += amt;
-        if (item.status === "submitted") acc.pending += amt;
-        if (item.status === "approved" || item.status === "paid") acc.approved += amt;
+        if (item.status === "unpaid") acc.unpaidTotal += amt;
+        if (item.status === "paid") acc.paidTotal += amt;
         return acc;
       },
-      { total: 0, pending: 0, approved: 0 }
+      { total: 0, unpaidTotal: 0, paidTotal: 0 }
     );
   }, [items]);
 
@@ -313,9 +304,10 @@ export default function ExpensesPage() {
         withBorder
         style={{
           transition: "transform 0.1s, box-shadow 0.1s",
-          cursor: "default",
+          cursor: "pointer",
           marginBottom: "var(--mantine-spacing-xs)",
         }}
+        onClick={() => void openEdit(item)}
         className="expense-card"
       >
         <Group justify="space-between" wrap="nowrap">
@@ -343,33 +335,31 @@ export default function ExpensesPage() {
               </Text>
             </Stack>
 
-            <Group gap="xs" wrap="nowrap" style={{ width: 220, justifyContent: "flex-end" }}>
-              <Badge variant="dot" color={statusColor(item.status)} size="sm">
+            <Group gap="xs" wrap="nowrap" style={{ width: 140, justifyContent: "flex-end" }}>
+              <Badge
+                variant="filled"
+                color={statusColor(item.status)}
+                size="md"
+                style={{ cursor: "pointer", userSelect: "none" }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void action(item, item.status === "unpaid" ? "paid" : "unpaid");
+                }}
+              >
                 {statusLabel(item.status)}
               </Badge>
-              <Group gap={4}>
-                <Button size="compact-xs" variant="light" color="gray" onClick={() => void openEdit(item)}>
-                  상세
-                </Button>
-                {item.status === "submitted" && (
-                  <>
-                    <Button size="compact-xs" variant="light" color="blue" leftSection={<IconCheck size={14} />} onClick={() => void action(item, "approve")}>
-                      승인
-                    </Button>
-                    <Button size="compact-xs" variant="light" color="red" leftSection={<IconX size={14} />} onClick={() => void action(item, "reject")}>
-                      반려
-                    </Button>
-                  </>
-                )}
-                {item.status === "approved" && (
-                  <Button size="compact-xs" variant="light" color="green" leftSection={<IconCash size={14} />} onClick={() => void action(item, "pay")}>
-                    지급
-                  </Button>
-                )}
-                <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)} title="삭제">
-                  <IconTrash size={15} />
-                </ActionIcon>
-              </Group>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void remove(item.id);
+                }}
+                title="삭제"
+              >
+                <IconTrash size={15} />
+              </ActionIcon>
             </Group>
           </Group>
         </Group>
@@ -394,7 +384,7 @@ export default function ExpensesPage() {
       <Stack gap="md">
         <Group justify="space-between">
           <Group gap={6}>
-            {["all", "submitted", "approved", "paid", "rejected"].map((s) => (
+            {["all", "unpaid", "paid"].map((s) => (
               <Badge
                 key={s}
                 variant={statusFilter === s ? "filled" : "light"}
@@ -474,37 +464,13 @@ export default function ExpensesPage() {
             </Paper>
           </Box>
 
-          <Group justify="space-between" mt="md">
-            <Group gap="xs">
-              {editing && (
-                <>
-                  {editing.status === "submitted" && (
-                    <>
-                      <Button color="blue" variant="filled" leftSection={<IconCheck size={16} />} onClick={() => void action(editing, "approve")}>
-                        승인
-                      </Button>
-                      <Button color="red" variant="light" leftSection={<IconX size={16} />} onClick={() => void action(editing, "reject")}>
-                        반려
-                      </Button>
-                    </>
-                  )}
-                  {editing.status === "approved" && (
-                    <Button color="green" variant="filled" leftSection={<IconCash size={16} />} onClick={() => void action(editing, "pay")}>
-                      지급 완료 처리
-                    </Button>
-                  )}
-                </>
-              )}
-            </Group>
-
-            <Group gap="xs">
-              <Button variant="subtle" color="gray" onClick={() => setOpened(false)}>
-                닫기
-              </Button>
-              <Button color="gray" onClick={() => void save()} loading={saving}>
-                기초 정보 저장
-              </Button>
-            </Group>
+          <Group justify="flex-end" mt="md" gap="xs">
+            <Button variant="subtle" color="gray" onClick={() => setOpened(false)}>
+              닫기
+            </Button>
+            <Button color="gray" onClick={() => void save()} loading={saving}>
+              내용 저장
+            </Button>
           </Group>
         </Stack>
       </Modal>

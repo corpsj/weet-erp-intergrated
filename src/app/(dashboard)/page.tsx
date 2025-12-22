@@ -83,8 +83,8 @@ export default function HubPage() {
           (acc, item) => {
             const amt = Number(item.amount) || 0;
             acc.total += amt;
-            if (item.status === "submitted") acc.pending += amt;
-            if (item.status === "approved" || item.status === "paid") acc.approved += amt;
+            if (item.status === "unpaid") acc.pending += amt;
+            if (item.status === "paid") acc.approved += amt;
             return acc;
           },
           { total: 0, pending: 0, approved: 0 }

@@ -20,21 +20,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (typeof body?.category === "string") patch.category = body.category.trim() || null;
   if (typeof body?.note === "string") patch.note = body.note;
 
-  const action = typeof body?.action === "string" ? body.action : null;
-  if (action === "submit") {
-    patch.status = "submitted";
-  } else if (action === "approve") {
-    patch.status = "approved";
-    patch.approved_by = auth.userId;
-    patch.approved_at = nowIso();
-  } else if (action === "reject") {
-    patch.status = "rejected";
-    patch.rejected_by = auth.userId;
-    patch.rejected_at = nowIso();
-  } else if (action === "pay") {
+  const status = typeof body?.status === "string" ? body.status : null;
+  if (status === "paid") {
     patch.status = "paid";
     patch.paid_by = auth.userId;
     patch.paid_at = nowIso();
+  } else if (status === "unpaid") {
+    patch.status = "unpaid";
+    patch.paid_by = null;
+    patch.paid_at = null;
   }
 
   patch.updated_at = nowIso();
