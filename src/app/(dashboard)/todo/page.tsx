@@ -1208,26 +1208,47 @@ export default function TodoPage() {
                                                       onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
                                                       style={{
                                                         cursor: "pointer",
-                                                        background: "white",
+                                                        background: subDone ? "var(--mantine-color-gray-0)" : "white",
+                                                        opacity: subDone ? 0.8 : 1,
                                                         boxShadow: "var(--mantine-shadow-xs)",
                                                         borderColor: subDone ? "var(--mantine-color-gray-2)" : undefined,
                                                       }}
                                                     >
-                                                      <Stack gap={4}>
-                                                        <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
-                                                          {sub.title}
-                                                        </Text>
-                                                        <Group justify="space-between" wrap="nowrap">
-                                                          <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
-                                                            {priorityLabels[sub.priority]}
-                                                          </Badge>
-                                                          {subAssignee && (
-                                                            <Avatar size={16} radius="xl">
-                                                              {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
-                                                            </Avatar>
-                                                          )}
-                                                        </Group>
-                                                      </Stack>
+                                                      <Group gap="xs" align="flex-start" wrap="nowrap">
+                                                        <Checkbox
+                                                          size="xs"
+                                                          checked={subDone}
+                                                          onClick={(e) => e.stopPropagation()}
+                                                          onChange={(e) => toggleDone(sub, e.currentTarget.checked)}
+                                                          mt={2}
+                                                        />
+                                                        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                                                          <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
+                                                            {sub.title}
+                                                          </Text>
+                                                          <Group justify="space-between" wrap="nowrap">
+                                                            <Group gap={4}>
+                                                              <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
+                                                                {priorityLabels[sub.priority]}
+                                                              </Badge>
+                                                              {!subDone && sub.status !== "todo" && (
+                                                                <Badge size="10px" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
+                                                                  {statusColumns.find(c => c.id === sub.status)?.label}
+                                                                </Badge>
+                                                              )}
+                                                            </Group>
+                                                            {subAssignee && (
+                                                              <Avatar
+                                                                size={16}
+                                                                radius="xl"
+                                                                color={subAssignee.color ?? "blue"}
+                                                              >
+                                                                {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
+                                                              </Avatar>
+                                                            )}
+                                                          </Group>
+                                                        </Stack>
+                                                      </Group>
                                                     </Paper>
                                                   </Box>
                                                 );
