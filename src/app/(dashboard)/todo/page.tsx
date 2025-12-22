@@ -1163,11 +1163,9 @@ export default function TodoPage() {
                                               mt={4}
                                               onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
                                               style={{
-                                                marginLeft: 20,
+                                                marginLeft: 16,
                                                 cursor: "pointer",
                                                 background: "white",
-                                                borderColor: "var(--mantine-color-blue-3)",
-                                                borderLeftWidth: 3,
                                                 boxShadow: "var(--mantine-shadow-xs)",
                                               }}
                                             >
