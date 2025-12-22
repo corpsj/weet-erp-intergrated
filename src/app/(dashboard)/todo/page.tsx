@@ -563,6 +563,10 @@ export default function TodoPage() {
     }, {});
   }, [users]);
 
+  const sortedUsers = useMemo(() => {
+    return [...users].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+  }, [users]);
+
   const todoById = useMemo(() => {
     return todos.reduce<Record<string, Todo>>((acc, todo) => {
       acc[todo.id] = todo;
@@ -1382,7 +1386,7 @@ export default function TodoPage() {
       </Group>
 
       <Paper withBorder radius="md" p="xs">
-        <Group gap="xs" align="center" wrap="wrap">
+        <Stack gap="xs">
           <TextInput
             placeholder="검색"
             aria-label="업무 검색"
@@ -1390,19 +1394,44 @@ export default function TodoPage() {
             leftSection={<IconSearch size={16} />}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
-            style={{ flex: 1, minWidth: 220 }}
           />
-          <Select
-            placeholder="담당자"
-            aria-label="담당자 필터"
-            size="sm"
-            data={assigneeSelectData}
-            value={assigneeFilter}
-            onChange={(value) => setAssigneeFilter((value as AssigneeFilter) ?? "anyone")}
-            allowDeselect={false}
-            style={{ minWidth: 160 }}
-          />
-        </Group>
+          <Group gap={6} wrap="wrap">
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mr={4}>담당자 필터:</Text>
+            <Badge
+              variant={assigneeFilter === "all" ? "filled" : "light"}
+              color="gray"
+              size="sm"
+              radius="sm"
+              style={{ cursor: "pointer" }}
+              onClick={() => setAssigneeFilter("all")}
+            >
+              전체
+            </Badge>
+            <Badge
+              variant={assigneeFilter === "anyone" ? "filled" : "light"}
+              color="gray"
+              size="sm"
+              radius="sm"
+              style={{ cursor: "pointer" }}
+              onClick={() => setAssigneeFilter("anyone")}
+            >
+              누구나
+            </Badge>
+            {sortedUsers.map((user) => (
+              <Badge
+                key={user.id}
+                variant={assigneeFilter === user.id ? "filled" : "light"}
+                color="gray"
+                size="sm"
+                radius="sm"
+                style={{ cursor: "pointer" }}
+                onClick={() => setAssigneeFilter(user.id)}
+              >
+                {user.name}
+              </Badge>
+            ))}
+          </Group>
+        </Stack>
       </Paper>
 
       <Box pos="relative" style={{ height: "calc(100vh - 200px)" }}>
