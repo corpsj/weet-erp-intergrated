@@ -241,24 +241,11 @@ export default function ExpensesPage() {
 
       setUploading(true);
       try {
-        const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-        const objectPath = `expenses/${editing.id}/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-        const { error } = await supabase.storage.from("receipts").upload(objectPath, file, {
-          contentType: file.type || "application/octet-stream",
-          upsert: false,
-        });
-
-        if (error) throw new Error(error.message);
-
+        const form = new FormData();
+        form.set("file", file);
         const response = await fetchWithAuth(`/api/expenses/${editing.id}/receipts`, {
           method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            object_path: objectPath,
-            filename: file.name,
-            content_type: file.type,
-            size_bytes: file.size,
-          }),
+          body: form,
         });
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) throw new Error(payload?.message ?? "등록 실패");
@@ -417,4 +404,3 @@ export default function ExpensesPage() {
     </Box>
   );
 }
-

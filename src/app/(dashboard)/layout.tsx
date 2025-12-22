@@ -1,6 +1,6 @@
 "use client";
 
-import { AppShell, Burger, Group, NavLink, Text, Box, Divider, Button, Paper } from "@mantine/core";
+import { AppShell, Burger, Group, NavLink, Text, Box, Divider, Button, Paper, Stack } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
   IconCalendar,
@@ -17,15 +17,35 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
-const navItems = [
-  { label: "허브", icon: IconHome, link: "/" },
-  { label: "캘린더", icon: IconCalendar, link: "/calendar" },
-  { label: "To-Do", icon: IconCheckbox, link: "/todo" },
-  { label: "견적", icon: IconCalculator, link: "/estimate" },
-  { label: "계정 공유", icon: IconKey, link: "/vault" },
-  { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
-  { label: "프로필", icon: IconUser, link: "/profile" },
-  { label: "설정", icon: IconSettings, link: "/settings" },
+const groupedNavItems = [
+  {
+    group: "워크페이스",
+    items: [
+      { label: "허브", icon: IconHome, link: "/" },
+      { label: "캘린더", icon: IconCalendar, link: "/calendar" },
+      { label: "To-Do", icon: IconCheckbox, link: "/todo" },
+    ],
+  },
+  {
+    group: "ERP 솔루션",
+    items: [
+      { label: "견적", icon: IconCalculator, link: "/estimate" },
+      { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
+    ],
+  },
+  {
+    group: "보안 도구",
+    items: [
+      { label: "계정 공유", icon: IconKey, link: "/vault" },
+    ],
+  },
+  {
+    group: "관리",
+    items: [
+      { label: "프로필", icon: IconUser, link: "/profile" },
+      { label: "설정", icon: IconSettings, link: "/settings" },
+    ],
+  },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -171,24 +191,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </AppShell.Header>
 
       <AppShell.Navbar p="md">
-        <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-          메뉴
-        </Text>
-        <Divider my="sm" />
-        {navItems.map((item) => (
-          <NavLink
-            key={item.link}
-            component={Link}
-            href={item.link}
-            label={item.label}
-            leftSection={<item.icon size={18} stroke={1.5} />}
-            active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
-            variant="light"
-            mb={6}
-            onClick={close}
-          />
-        ))}
+        <Stack gap="xs">
+          {groupedNavItems.map((group) => (
+            <Box key={group.group} mb="sm">
+              <Text size="xs" c="dimmed" fw={700} tt="uppercase" px="sm" mb={4} style={{ letterSpacing: "0.05em" }}>
+                {group.group}
+              </Text>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.link}
+                  component={Link}
+                  href={item.link}
+                  label={item.label}
+                  leftSection={<item.icon size={18} stroke={1.5} />}
+                  active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
+                  variant="light"
+                  onClick={close}
+                  style={{ borderRadius: "var(--mantine-radius-sm)" }}
+                />
+              ))}
+            </Box>
+          ))}
+        </Stack>
       </AppShell.Navbar>
+
 
       <AppShell.Main>{children}</AppShell.Main>
     </AppShell>

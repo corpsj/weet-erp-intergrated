@@ -66,27 +66,6 @@ create policy "expense_receipts_all" on expense_receipts for all
   using (true)
   with check (true);
 
--- Supabase Storage bucket for receipts
-insert into storage.buckets (id, name, public)
-values ('receipts', 'receipts', false)
-on conflict (id) do nothing;
-
-alter table storage.objects enable row level security;
-
-drop policy if exists "receipts_select" on storage.objects;
-create policy "receipts_select" on storage.objects for select
-  using (bucket_id = 'receipts');
-
-drop policy if exists "receipts_insert" on storage.objects;
-create policy "receipts_insert" on storage.objects for insert
-  with check (bucket_id = 'receipts');
-
-drop policy if exists "receipts_update" on storage.objects;
-create policy "receipts_update" on storage.objects for update
-  using (bucket_id = 'receipts')
-  with check (bucket_id = 'receipts');
-
-drop policy if exists "receipts_delete" on storage.objects;
-create policy "receipts_delete" on storage.objects for delete
-  using (bucket_id = 'receipts');
-
+-- NOTE: Supabase hosted 환경에서는 `storage.objects` 소유자가 아니면 정책/버킷을 SQL로 수정할 수 없습니다.
+-- 영수증 업로드는 서버(API)에서 Service Role로 처리하도록 구현되어 있으며,
+-- Storage bucket(`receipts`) 생성은 Supabase Dashboard에서 1회 생성하세요.

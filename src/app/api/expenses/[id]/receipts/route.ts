@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/app/api/expenses/_auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import crypto from "node:crypto";
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const auth = await requireUserId(request);
@@ -26,27 +27,43 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   if (!id) return NextResponse.json({ message: "id is required" }, { status: 400 });
 
-  const body: any = await request.json().catch(() => null);
-  const objectPath = typeof body?.object_path === "string" ? body.object_path : null;
-  const filename = typeof body?.filename === "string" ? body.filename : null;
-  const contentType = typeof body?.content_type === "string" ? body.content_type : null;
-  const sizeBytes = typeof body?.size_bytes === "number" ? body.size_bytes : null;
+  const contentTypeHeader = request.headers.get("content-type") ?? "";
 
-  if (!objectPath) return NextResponse.json({ message: "object_path is required" }, { status: 400 });
+  if (contentTypeHeader.toLowerCase().includes("multipart/form-data")) {
+    const form = await request.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return NextResponse.json({ message: "file is required" }, { status: 400 });
+    }
 
-  const { data, error } = await supabaseAdmin
-    .from("expense_receipts")
-    .insert({
-      claim_id: id,
-      object_path: objectPath,
-      filename,
-      content_type: contentType,
-      size_bytes: sizeBytes,
-    })
-    .select("*")
-    .single();
+    const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+    const objectPath = `expenses/${id}/${Date.now()}-${crypto.randomUUID()}.${ext}`;
 
-  if (error) return NextResponse.json({ message: error.message }, { status: 400 });
-  return NextResponse.json({ item: data }, { status: 201 });
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const { error: uploadError } = await supabaseAdmin.storage.from("receipts").upload(objectPath, buffer, {
+      contentType: file.type || "application/octet-stream",
+      upsert: false,
+    });
+
+    if (uploadError) {
+      return NextResponse.json({ message: uploadError.message }, { status: 400 });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("expense_receipts")
+      .insert({
+        claim_id: id,
+        object_path: objectPath,
+        filename: file.name,
+        content_type: file.type || null,
+        size_bytes: file.size,
+      })
+      .select("*")
+      .single();
+
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+    return NextResponse.json({ item: data }, { status: 201 });
+  }
+
+  return NextResponse.json({ message: "Unsupported content-type" }, { status: 415 });
 }
-

@@ -279,3 +279,5 @@ drop policy if exists expense_receipts_all on expense_receipts;
 create policy "expense_receipts_all" on expense_receipts for all
   using (true)
   with check (true);
+
+-- NOTE: Storage bucket/policy는 Supabase Dashboard에서 관리하세요.
