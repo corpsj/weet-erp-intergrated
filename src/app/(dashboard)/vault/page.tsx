@@ -245,7 +245,7 @@ export default function VaultPage() {
         </Table.Td>
         <Table.Td>
           <Group gap="xs" wrap="nowrap" align="center">
-            <Text size="sm" ff="monospace" style={{ flex: 1, minWidth: 120 }}>
+            <Text size="sm" ff="monospace">
               {revealed[item.id] ? revealed[item.id] : "••••••••"}
             </Text>
             <ActionIcon
