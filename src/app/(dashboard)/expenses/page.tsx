@@ -20,7 +20,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconRefresh, IconSend, IconCheck, IconX, IconCash, IconTrash, IconPaperclip } from "@tabler/icons-react";
+import { IconPlus, IconRefresh, IconSend, IconCheck, IconX, IconCash, IconTrash, IconPaperclip, IconReceipt } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -285,182 +285,183 @@ export default function ExpensesPage() {
     return items.filter((item) => item.status === statusFilter);
   }, [items, statusFilter]);
 
-  return filteredItems.map((item) => (
-    <Paper
-      key={item.id}
-      p="sm"
-      radius="md"
-      withBorder
-      style={{
-        transition: "transform 0.1s, box-shadow 0.1s",
-        cursor: "default",
-        marginBottom: "var(--mantine-spacing-xs)",
-      }}
-      className="expense-card"
-    >
-      <Group justify="space-between" wrap="nowrap">
-        <Group gap="md" style={{ flex: 1 }}>
-          <Box style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "rgba(0,0,0,0.03)" }}>
-            <IconReceipt size={20} color="var(--mantine-color-gray-6)" />
-          </Box>
-          <Stack gap={0}>
-            <Text fw={600} size="sm">
-              {item.title}
-            </Text>
-            <Text size="xs" c="dimmed">
-              {item.category ?? "기타"}
-            </Text>
-          </Stack>
-        </Group>
+  const rows = useMemo(() => {
+    return filteredItems.map((item) => (
+      <Paper
+        key={item.id}
+        p="sm"
+        radius="md"
+        withBorder
+        style={{
+          transition: "transform 0.1s, box-shadow 0.1s",
+          cursor: "default",
+          marginBottom: "var(--mantine-spacing-xs)",
+        }}
+        className="expense-card"
+      >
+        <Group justify="space-between" wrap="nowrap">
+          <Group gap="md" style={{ flex: 1 }}>
+            <Box style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "rgba(0,0,0,0.03)" }}>
+              <IconReceipt size={20} color="var(--mantine-color-gray-6)" />
+            </Box>
+            <Stack gap={0}>
+              <Text fw={600} size="sm">
+                {item.title}
+              </Text>
+              <Text size="xs" c="dimmed">
+                {item.category ?? "기타"}
+              </Text>
+            </Stack>
+          </Group>
 
-        <Group gap="xl" wrap="nowrap" style={{ flexShrink: 0 }}>
-          <Stack gap={0} align="flex-end">
-            <Text fw={700} size="sm">
-              {Number(item.amount).toLocaleString()}원
-            </Text>
-            <Text size="xs" c="dimmed">
-              {dayjs(item.spent_at).format("YY.MM.DD")}
-            </Text>
-          </Stack>
+          <Group gap="xl" wrap="nowrap" style={{ flexShrink: 0 }}>
+            <Stack gap={0} align="flex-end">
+              <Text fw={700} size="sm">
+                {Number(item.amount).toLocaleString()}원
+              </Text>
+              <Text size="xs" c="dimmed">
+                {dayjs(item.spent_at).format("YY.MM.DD")}
+              </Text>
+            </Stack>
 
-          <Group gap="xs" wrap="nowrap" style={{ width: 220, justifyContent: "flex-end" }}>
-            <Badge variant="dot" color={statusColor(item.status)} size="sm">
-              {statusLabel(item.status)}
-            </Badge>
-            <Group gap={4}>
-              <Button size="compact-xs" variant="light" color="gray" onClick={() => void openEdit(item)}>
-                열기
-              </Button>
-              {item.status === "draft" && (
-                <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "submit")}>
-                  <IconSend size={15} />
-                </ActionIcon>
-              )}
-              {item.status === "submitted" && (
-                <>
-                  <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "approve")}>
-                    <IconCheck size={15} />
+            <Group gap="xs" wrap="nowrap" style={{ width: 220, justifyContent: "flex-end" }}>
+              <Badge variant="dot" color={statusColor(item.status)} size="sm">
+                {statusLabel(item.status)}
+              </Badge>
+              <Group gap={4}>
+                <Button size="compact-xs" variant="light" color="gray" onClick={() => void openEdit(item)}>
+                  열기
+                </Button>
+                {item.status === "draft" && (
+                  <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "submit")}>
+                    <IconSend size={15} />
                   </ActionIcon>
-                  <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void action(item, "reject")}>
-                    <IconX size={15} />
+                )}
+                {item.status === "submitted" && (
+                  <>
+                    <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "approve")}>
+                      <IconCheck size={15} />
+                    </ActionIcon>
+                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void action(item, "reject")}>
+                      <IconX size={15} />
+                    </ActionIcon>
+                  </>
+                )}
+                {item.status === "approved" && (
+                  <ActionIcon variant="subtle" color="green" size="sm" onClick={() => void action(item, "pay")}>
+                    <IconCash size={15} />
                   </ActionIcon>
-                </>
-              )}
-              {item.status === "approved" && (
-                <ActionIcon variant="subtle" color="green" size="sm" onClick={() => void action(item, "pay")}>
-                  <IconCash size={15} />
+                )}
+                <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)}>
+                  <IconTrash size={15} />
                 </ActionIcon>
-              )}
-              <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)}>
-                <IconTrash size={15} />
-              </ActionIcon>
+              </Group>
             </Group>
           </Group>
         </Group>
-      </Group>
-    </Paper>
-  ));
-}, [action, openEdit, filteredItems, remove]);
+      </Paper>
+    ));
+  }, [action, openEdit, filteredItems, remove]);
 
-return (
-  <Container size={800} py="xl">
-    <Group justify="space-between" mb="lg">
-      <div>
-        <Title order={2}>경비 청구</Title>
-        <Text c="dimmed" size="sm">
-          개인별 청구 내역을 관리하고 승인/지급을 처리합니다.
-        </Text>
-      </div>
-      <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate} size="md">
-        경비 등록
-      </Button>
-    </Group>
-
-    <Stack gap="md">
-      <Group justify="space-between">
-        <Group gap={6}>
-          {["all", "draft", "submitted", "approved", "paid", "rejected"].map((s) => (
-            <Badge
-              key={s}
-              variant={statusFilter === s ? "filled" : "light"}
-              color={s === "all" ? "gray" : statusColor(s as any)}
-              size="md"
-              style={{ cursor: "pointer" }}
-              onClick={() => setStatusFilter(s as any)}
-            >
-              {s === "all" ? "전체" : statusLabel(s as any)}
-            </Badge>
-          ))}
-        </Group>
-        <Button leftSection={<IconRefresh size={16} />} variant="light" color="gray" size="xs" onClick={() => void load()} loading={loading}>
-          새로고침
+  return (
+    <Container size={800} py="xl">
+      <Group justify="space-between" mb="lg">
+        <div>
+          <Title order={2}>경비 청구</Title>
+          <Text c="dimmed" size="sm">
+            개인별 청구 내역을 관리하고 승인/지급을 처리합니다.
+          </Text>
+        </div>
+        <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate} size="md">
+          경비 등록
         </Button>
       </Group>
 
-      <Box>
-        {rows}
-        {!filteredItems.length && !loading && (
-          <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
-            <Text size="sm" c="dimmed">
-              등록된 경비가 없거나 필터와 일치하는 항목이 없습니다.
-            </Text>
-          </Paper>
-        )}
-      </Box>
-    </Stack>
-
-    <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "경비 상세" : "경비 등록"} centered size="lg">
-      <Stack gap="sm">
-        <TextInput label="제목" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
-        <Group grow>
-          <TextInput label="금액(원)" value={amount} onChange={(e) => setAmount(e.currentTarget.value)} required />
-          <DateInput label="사용일" value={spentAt} onChange={(v) => setSpentAt(v as Date | null)} valueFormat="YYYY-MM-DD" required />
-        </Group>
-        <TextInput label="카테고리" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="예: 교통/식대/소모품" />
-        <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
-
-        <Paper withBorder p="md" radius="md">
-          <Group justify="space-between" align="center" mb="xs">
-            <Text size="sm" fw={700}>영수증</Text>
-            <FileButton onChange={(file) => file && void uploadReceipt(file)} accept="image/*">
-              {(props) => (
-                <Button {...props} size="xs" variant="light" color="gray" leftSection={<IconPaperclip size={14} />} loading={uploading}>
-                  업로드
-                </Button>
-              )}
-            </FileButton>
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Group gap={6}>
+            {["all", "draft", "submitted", "approved", "paid", "rejected"].map((s) => (
+              <Badge
+                key={s}
+                variant={statusFilter === s ? "filled" : "light"}
+                color={s === "all" ? "gray" : statusColor(s as any)}
+                size="md"
+                style={{ cursor: "pointer" }}
+                onClick={() => setStatusFilter(s as any)}
+              >
+                {s === "all" ? "전체" : statusLabel(s as any)}
+              </Badge>
+            ))}
           </Group>
-          {editing ? (
-            receipts.length ? (
-              <Stack gap={6}>
-                {receipts.map((r) => (
-                  <Text key={r.id} size="sm" c="dimmed">
-                    {r.filename ?? r.object_path}
-                  </Text>
-                ))}
-              </Stack>
+          <Button leftSection={<IconRefresh size={16} />} variant="light" color="gray" size="xs" onClick={() => void load()} loading={loading}>
+            새로고침
+          </Button>
+        </Group>
+
+        <Box>
+          {rows}
+          {!filteredItems.length && !loading && (
+            <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
+              <Text size="sm" c="dimmed">
+                등록된 경비가 없거나 필터와 일치하는 항목이 없습니다.
+              </Text>
+            </Paper>
+          )}
+        </Box>
+      </Stack>
+
+      <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "경비 상세" : "경비 등록"} centered size="lg">
+        <Stack gap="sm">
+          <TextInput label="제목" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
+          <Group grow>
+            <TextInput label="금액(원)" value={amount} onChange={(e) => setAmount(e.currentTarget.value)} required />
+            <DateInput label="사용일" value={spentAt} onChange={(v) => setSpentAt(v as Date | null)} valueFormat="YYYY-MM-DD" required />
+          </Group>
+          <TextInput label="카테고리" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="예: 교통/식대/소모품" />
+          <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
+
+          <Paper withBorder p="md" radius="md">
+            <Group justify="space-between" align="center" mb="xs">
+              <Text size="sm" fw={700}>영수증</Text>
+              <FileButton onChange={(file) => file && void uploadReceipt(file)} accept="image/*">
+                {(props) => (
+                  <Button {...props} size="xs" variant="light" color="gray" leftSection={<IconPaperclip size={14} />} loading={uploading}>
+                    업로드
+                  </Button>
+                )}
+              </FileButton>
+            </Group>
+            {editing ? (
+              receipts.length ? (
+                <Stack gap={6}>
+                  {receipts.map((r) => (
+                    <Text key={r.id} size="sm" c="dimmed">
+                      {r.filename ?? r.object_path}
+                    </Text>
+                  ))}
+                </Stack>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  업로드된 영수증이 없습니다.
+                </Text>
+              )
             ) : (
               <Text size="sm" c="dimmed">
-                업로드된 영수증이 없습니다.
+                먼저 저장한 뒤 영수증을 업로드하세요.
               </Text>
-            )
-          ) : (
-            <Text size="sm" c="dimmed">
-              먼저 저장한 뒤 영수증을 업로드하세요.
-            </Text>
-          )}
-        </Paper>
+            )}
+          </Paper>
 
-        <Group justify="flex-end">
-          <Button variant="light" color="gray" onClick={() => setOpened(false)}>
-            닫기
-          </Button>
-          <Button color="gray" onClick={() => void save()} loading={saving}>
-            저장
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
-  </Container>
-);
+          <Group justify="flex-end">
+            <Button variant="light" color="gray" onClick={() => setOpened(false)}>
+              닫기
+            </Button>
+            <Button color="gray" onClick={() => void save()} loading={saving}>
+              저장
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    </Container>
+  );
 }
