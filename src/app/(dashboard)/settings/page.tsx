@@ -29,10 +29,12 @@ import {
   IconTicket,
   IconShieldLock,
   IconSettings,
+  IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { AppUser } from "@/lib/types";
 
 type InviteCodeItem = {
   id: string;
@@ -84,6 +86,8 @@ export default function SettingsPage() {
   const [unlimited, setUnlimited] = useState(false);
   const [maxUses, setMaxUses] = useState("1");
   const [creating, setCreating] = useState(false);
+  const [users, setUsers] = useState<AppUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,9 +109,30 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadUsers = useCallback(async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetchWithAuth("/api/settings/users");
+      const payload = (await response.json().catch(() => null)) as any;
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "사용자 정보를 불러오는데 실패했습니다.");
+      }
+      setUsers((payload?.items ?? []) as AppUser[]);
+    } catch (error) {
+      notifications.show({
+        title: "사용자 정보 불러오기 실패",
+        message: error instanceof Error ? error.message : "알 수 없는 오류",
+        color: "red",
+      });
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadUsers();
+  }, [load, loadUsers]);
 
   const createInvite = useCallback(async () => {
     const days = normalizeInt(expiresInDays) ?? 3;
@@ -254,6 +279,26 @@ export default function SettingsPage() {
     },
     [revealedById]
   );
+  const deleteUser = useCallback(async (id: string) => {
+    const ok = window.confirm("이 사용자를 삭제하시겠습니까? (복구 불가)");
+    if (!ok) return;
+
+    try {
+      const response = await fetchWithAuth(`/api/settings/users?id=${id}`, { method: "DELETE" });
+      const payload = (await response.json().catch(() => null)) as any;
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "삭제 실패");
+      }
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      notifications.show({ title: "삭제 완료", message: "사용자가 삭제되었습니다.", color: "gray" });
+    } catch (error) {
+      notifications.show({
+        title: "삭제 실패",
+        message: error instanceof Error ? error.message : "알 수 없는 오류",
+        color: "red",
+      });
+    }
+  }, []);
 
   const rows = useMemo(() => {
     return items.map((item) => {
@@ -335,6 +380,44 @@ export default function SettingsPage() {
     });
   }, [copy, deleteInvite, items, reveal, revealedById, toggleActive]);
 
+  const userRows = useMemo(() => {
+    return users.map((u) => {
+      return (
+        <Table.Tr key={u.id}>
+          <Table.Td>
+            <Badge variant="dot" color={u.name ? "green" : "gray"} size="sm">
+              {u.name ? "활성" : "대기"}
+            </Badge>
+          </Table.Td>
+          <Table.Td>
+            <Text fw={600} size="sm">
+              {u.name || "미설정"}
+            </Text>
+          </Table.Td>
+          <Table.Td>
+            <Text size="xs">{u.initials || "-"}</Text>
+          </Table.Td>
+          <Table.Td>
+            <Text size="xs">{formatDateTime(u.created_at)}</Text>
+          </Table.Td>
+          <Table.Td>
+            <Group gap="xs" justify="flex-end" wrap="nowrap">
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                size="sm"
+                onClick={() => void deleteUser(u.id)}
+                aria-label="delete user"
+              >
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
+          </Table.Td>
+        </Table.Tr>
+      );
+    });
+  }, [deleteUser, users]);
+
   const navStyles = {
     tabsList: {
       borderRight: `1px solid var(--mantine-color-gray-2)`,
@@ -392,6 +475,13 @@ export default function SettingsPage() {
                 style={navStyles.tab}
               >
                 초대코드 관리
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="users"
+                leftSection={<IconUsers size={18} />}
+                style={navStyles.tab}
+              >
+                사용자 관리
               </Tabs.Tab>
               <Tabs.Tab
                 value="security"
@@ -500,6 +590,48 @@ export default function SettingsPage() {
                               <Table.Td colSpan={6}>
                                 <Text ta="center" size="sm" py="xl" c="dimmed">
                                   생성된 코드가 없습니다.
+                                </Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          )}
+                        </Table.Tbody>
+                      </Table>
+                    </Paper>
+                  </Box>
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="users">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      사용자 관리
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      사용자 목록을 확인하고 관리합니다.
+                    </Text>
+                  </Box>
+
+                  <Box>
+                    <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
+                      <Table verticalSpacing="sm">
+                        <Table.Thead bg="gray.0">
+                          <Table.Tr>
+                            <Table.Th>상태</Table.Th>
+                            <Table.Th>이름</Table.Th>
+                            <Table.Th>이니셜</Table.Th>
+                            <Table.Th>가입일</Table.Th>
+                            <Table.Th />
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {userRows.length > 0 ? (
+                            userRows
+                          ) : (
+                            <Table.Tr>
+                              <Table.Td colSpan={5}>
+                                <Text ta="center" size="sm" py="xl" c="dimmed">
+                                  사용자가 없습니다.
                                 </Text>
                               </Table.Td>
                             </Table.Tr>
