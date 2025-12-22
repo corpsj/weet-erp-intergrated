@@ -244,8 +244,8 @@ export default function VaultPage() {
           <Text size="sm" ff="monospace">{item.username ?? "-"}</Text>
         </Table.Td>
         <Table.Td>
-          <Group gap="xs" wrap="nowrap">
-            <Text size="sm" ff="monospace" style={{ flex: 1, minWidth: 100 }}>
+          <Group gap="xs" wrap="nowrap" align="center">
+            <Text size="sm" ff="monospace" style={{ flex: 1, minWidth: 120 }}>
               {revealed[item.id] ? revealed[item.id] : "••••••••"}
             </Text>
             <ActionIcon
@@ -261,10 +261,11 @@ export default function VaultPage() {
                   })
                   : void reveal(item.id)
               }
+              title="비밀번호 표시/숨기기"
             >
               {revealed[item.id] ? <IconEyeOff size={16} /> : <IconEye size={16} />}
             </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => void copyPassword(item.id)}>
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => void copyPassword(item.id)} title="복사">
               <IconCopy size={16} />
             </ActionIcon>
           </Group>
