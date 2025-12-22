@@ -14,13 +14,14 @@ import {
   Text,
   TextInput,
   Title,
+  Divider,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconEye, IconEyeOff, IconRefresh, IconCopy } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ProfileEditor } from "@/components/ProfileEditor";
+import { ColorPicker, ColorSwatch, CheckIcon } from "@mantine/core";
 
 type InviteCodeItem = {
   id: string;
@@ -72,6 +73,15 @@ export default function SettingsPage() {
   const [maxUses, setMaxUses] = useState("1");
   const [creating, setCreating] = useState(false);
 
+  // My Account State
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileName, setProfileName] = useState("");
+  const [profileInitials, setProfileInitials] = useState("");
+  const [profileColor, setProfileColor] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  const profileColors = ["blue", "gray", "green", "red", "yellow", "teal", "orange", "grape"];
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -92,9 +102,39 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadProfile = useCallback(async () => {
+    setProfileLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: profile } = await supabase
+        .from("app_users")
+        .select("*")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+      if (profile) {
+        setProfileName(profile.name);
+        setProfileInitials(profile.initials ?? "");
+        setProfileColor(profile.color);
+      } else {
+        // Fallback to auth metadata if no profile exists yet
+        const meta = session.user.user_metadata as any;
+        setProfileName(meta?.name ?? "");
+        setProfileInitials(meta?.name?.slice(0, 2) ?? "");
+      }
+    } catch (error) {
+      console.error("Profile load error:", error);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void load();
-  }, [load]);
+    void loadProfile();
+  }, [load, loadProfile]);
 
   const createInvite = useCallback(async () => {
     const days = normalizeInt(expiresInDays) ?? 3;
@@ -153,6 +193,50 @@ export default function SettingsPage() {
       setCreating(false);
     }
   }, [expiresInDays, load, maxUses, note, unlimited]);
+
+  const saveProfile = useCallback(async () => {
+    if (!profileName.trim()) {
+      notifications.show({ title: "입력 오류", message: "이름을 입력해주세요.", color: "red" });
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("로그인 세션이 없습니다.");
+
+      const userId = session.user.id;
+
+      // 1. Update app_users
+      const { error: profileError } = await supabase.from("app_users").upsert({
+        id: userId,
+        name: profileName.trim(),
+        initials: profileInitials.trim() || null,
+        color: profileColor,
+      });
+
+      if (profileError) throw profileError;
+
+      // 2. Update Auth Metadata
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { name: profileName.trim() }
+      });
+
+      if (authError) throw authError;
+
+      notifications.show({ title: "저장 완료", message: "프로필 정보가 업데이트되었습니다.", color: "gray" });
+
+      // Optional: force reload logic if needed, but DashboardLayout should pick it up via auth state change or manual refresh
+    } catch (error) {
+      notifications.show({
+        title: "저장 실패",
+        message: error instanceof Error ? error.message : "알 수 없는 오류",
+        color: "red",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  }, [profileColor, profileInitials, profileName]);
 
   const reveal = useCallback(async (id: string) => {
     if (revealedById[id]) return;
@@ -365,12 +449,71 @@ export default function SettingsPage() {
             </Stack>
           </Tabs.Panel>
 
-          <Tabs.Panel value="profile" pt="md">
-            <Stack gap="md">
-              <ProfileEditor />
-              <Text size="xs" c="dimmed">
-                초대코드 관리가 필요 없으면 초대코드 탭은 사용하지 않아도 됩니다.
-              </Text>
+          <Tabs.Panel value="account" pt="xl">
+            <Stack gap="xl" maw={480}>
+              <Box>
+                <Title order={4} mb="xs">프로필 설정</Title>
+                <Text size="sm" c="dimmed" mb="lg">
+                  시스템 전체에 표시되는 내 정보를 관리합니다.
+                </Text>
+
+                <Stack gap="md">
+                  <TextInput
+                    label="표시 이름"
+                    placeholder="홍길동"
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.currentTarget.value)}
+                    required
+                  />
+                  <TextInput
+                    label="이니셜 (2자)"
+                    placeholder="HK"
+                    maxLength={2}
+                    value={profileInitials}
+                    onChange={(e) => setProfileInitials(e.currentTarget.value)}
+                  />
+                  <Box>
+                    <Text size="sm" fw={500} mb={8}>프로필 색상</Text>
+                    <Group gap="xs">
+                      {profileColors.map((color) => (
+                        <ColorSwatch
+                          key={color}
+                          color={`var(--mantine-color-${color}-6)`}
+                          component="button"
+                          onClick={() => setProfileColor(color)}
+                          style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {profileColor === color && (
+                            <CheckIcon style={{ width: 12, height: 12, color: "white" }} />
+                          )}
+                        </ColorSwatch>
+                      ))}
+                    </Group>
+                  </Box>
+
+                  <Group justify="flex-end" mt="md">
+                    <Button
+                      color="gray"
+                      onClick={saveProfile}
+                      loading={savingProfile}
+                    >
+                      변경사항 저장
+                    </Button>
+                  </Group>
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Title order={4} mb="xs" c="red">위험 구역</Title>
+                <Text size="sm" c="dimmed" mb="md">
+                  계정 보안 및 데이터 관리 설정입니다.
+                </Text>
+                <Button variant="light" color="red" size="sm" disabled>
+                  비밀번호 변경 (준비 중)
+                </Button>
+              </Box>
             </Stack>
           </Tabs.Panel>
         </Tabs>

@@ -391,6 +391,10 @@ function TodoListItem({
   onToggleDone,
   onOpen,
   onAddChild,
+  hasChildren,
+  childCount,
+  expanded,
+  onToggleExpanded,
 }: {
   todo: Todo;
   assignee?: AppUser;
@@ -398,6 +402,10 @@ function TodoListItem({
   onToggleDone: (checked: boolean) => void;
   onOpen: () => void;
   onAddChild: () => void;
+  hasChildren?: boolean;
+  childCount?: number;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
 }) {
   const done = todo.status === "done";
   const overdue = isOverdue(todo.due_date ?? null, done);
@@ -410,16 +418,36 @@ function TodoListItem({
       onClick={onOpen}
       style={{
         cursor: "pointer",
-        background: done ? "var(--mantine-color-gray-0)" : "white",
+        background: done
+          ? "var(--mantine-color-gray-0)"
+          : depth > 0
+            ? "var(--mantine-color-gray-0)"
+            : "white",
         opacity: done ? 0.8 : 1,
         borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
-        marginLeft: depth * 20,
+        marginLeft: depth * 24,
+        borderLeft: depth > 0 ? `3px solid var(--mantine-color-blue-2)` : undefined,
         transition: "all 0.2s ease",
+        boxShadow: depth === 0 ? "var(--mantine-shadow-xs)" : "none",
       }}
       className="todo-list-item"
     >
       <Group justify="space-between" wrap="nowrap">
         <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          {hasChildren && (
+            <ActionIcon
+              size="xs"
+              variant="subtle"
+              color="gray"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleExpanded?.();
+              }}
+            >
+              {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+            </ActionIcon>
+          )}
+          {!hasChildren && depth > 0 && <Box w={22} />}
           <Checkbox
             size="sm"
             checked={done}
@@ -453,6 +481,11 @@ function TodoListItem({
                   leftSection={<IconCalendar size={10} />}
                 >
                   {formatDue(todo.due_date)}
+                </Badge>
+              )}
+              {hasChildren && !expanded && (
+                <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
+                  {childCount}
                 </Badge>
               )}
             </Group>
@@ -566,7 +599,7 @@ export default function TodoPage() {
     const parentAssigneeName = currentParent?.assignee_id ? userById[currentParent.assignee_id]?.name : null;
     setForm({
       title: "",
-      status: "todo",
+      status: currentParent?.status ?? "todo",
       priority: currentParent?.priority ?? "medium",
       assigneeInput: parentAssigneeName ? `@${parentAssigneeName}` : "",
       due_date: null,
@@ -748,7 +781,7 @@ export default function TodoPage() {
       .from("todos")
       .insert({
         title,
-        status: "todo",
+        status: form.status,
         priority: form.priority,
         parent_id: editorMode.parentId,
         assignee_id: assigneeId,
@@ -900,6 +933,10 @@ export default function TodoPage() {
                     editorHandlers.open();
                   }}
                   onAddChild={() => openCreate(todo.id)}
+                  hasChildren={hasChildren}
+                  childCount={childCount}
+                  expanded={expanded}
+                  onToggleExpanded={() => toggleExpanded(todo.id)}
                 />
               )}
               {expanded && renderTree(todo.id, depth + 1)}
