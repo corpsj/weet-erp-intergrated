@@ -359,7 +359,6 @@ export default function MemosPage() {
           </Group>
         </Stack>
       </Modal>
-    </Box >
     </>
   );
 }

@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import "dayjs/locale/ko";
 import { supabase } from "@/lib/supabaseClient";
 import type { AppUser, CalendarEvent, Todo, TodoPriority, TodoStatus } from "@/lib/types";
+import { useRouter } from "next/navigation";
 
 dayjs.locale("ko");
 
@@ -49,6 +50,7 @@ const priorityColor = (priority: TodoPriority) => {
 };
 
 export default function HubPage() {
+  const router = useRouter();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -221,7 +223,13 @@ export default function HubPage() {
 
           <Grid gutter="lg">
             <Grid.Col span={{ base: 12, md: 8 }}>
-              <Paper className="app-surface" p="lg" radius="md">
+              <Paper
+                className="app-surface"
+                p="lg"
+                radius="md"
+                style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
+                onClick={() => router.push("/calendar")}
+              >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
                     <Title order={4}>캘린더</Title>
@@ -325,10 +333,16 @@ export default function HubPage() {
 
             <Grid.Col span={{ base: 12, md: 4 }}>
               <Stack gap="lg">
-                <Paper className="app-surface" p="lg" radius="md">
+                <Paper
+                  className="app-surface"
+                  p="lg"
+                  radius="md"
+                  style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
+                  onClick={() => router.push("/todo")}
+                >
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
-                      <Title order={4}>To-Do Summary</Title>
+                      <Title order={4}>To-Do</Title>
                       <IconCheckbox size={20} color="var(--mantine-color-gray-6)" />
                     </Group>
                     <Text size="sm" c="dimmed">
@@ -365,7 +379,13 @@ export default function HubPage() {
                   )}
                 </Paper>
 
-                <Paper className="app-surface" p="lg" radius="md">
+                <Paper
+                  className="app-surface"
+                  p="lg"
+                  radius="md"
+                  style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
+                  onClick={() => router.push("/expenses")}
+                >
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
                       <Title order={4}>경비 청구</Title>
@@ -391,24 +411,35 @@ export default function HubPage() {
 
                 <Paper className="app-surface" p="lg" radius="md">
                   <Group justify="space-between" mb="sm">
-                    <Text fw={600}>오늘의 일정</Text>
+                    <Text fw={700} size="md">오늘의 일정</Text>
                     <Badge variant="light" color="gray">
                       {selectedEvents.length}건
                     </Badge>
                   </Group>
                   {selectedEvents.length ? (
-                    <Stack gap="xs">
+                    <Stack gap="md">
                       {selectedEvents.map((event) => (
-                        <div key={event.id}>
-                          <Badge color={event.color ?? "gray"} variant="light" size="sm" fullWidth>
-                            {event.title}
-                          </Badge>
-                          {event.note && (
-                            <Text size="xs" c="dimmed" mt={4} lineClamp={1}>
-                              {event.note}
+                        <Paper
+                          key={event.id}
+                          withBorder
+                          p="sm"
+                          radius="md"
+                          style={{
+                            borderLeft: `4px solid var(--mantine-color-${event.color ?? "gray"}-6)`,
+                            backgroundColor: "rgba(0,0,0,0.01)",
+                          }}
+                        >
+                          <Stack gap={4}>
+                            <Text fw={700} size="sm">
+                              {event.title}
                             </Text>
-                          )}
-                        </div>
+                            {event.note && (
+                              <Text size="xs" c="dimmed" lineClamp={2}>
+                                {event.note}
+                              </Text>
+                            )}
+                          </Stack>
+                        </Paper>
                       ))}
                     </Stack>
                   ) : (
