@@ -32,7 +32,7 @@ type ExpenseClaim = {
   spent_at: string;
   category: string | null;
   note: string | null;
-  status: "draft" | "submitted" | "approved" | "rejected" | "paid";
+  status: "submitted" | "approved" | "rejected" | "paid";
   created_at: string;
 };
 
@@ -65,8 +65,7 @@ const statusLabel = (status: ExpenseClaim["status"]) => {
   if (status === "paid") return "지급완료";
   if (status === "approved") return "승인";
   if (status === "rejected") return "반려";
-  if (status === "submitted") return "제출됨";
-  return "작성중";
+  return "승인 대기";
 };
 
 export default function ExpensesPage() {
@@ -243,7 +242,7 @@ export default function ExpensesPage() {
   }, [amount, category, editing, load, note, pendingFile, spentAt, title, uploadReceipt]);
 
   const action = useCallback(
-    async (item: ExpenseClaim, nextAction: "submit" | "approve" | "reject" | "pay") => {
+    async (item: ExpenseClaim, nextAction: "approve" | "reject" | "pay") => {
       try {
         const response = await fetchWithAuth(`/api/expenses/${item.id}`, {
           method: "PATCH",
@@ -352,11 +351,6 @@ export default function ExpensesPage() {
                 <Button size="compact-xs" variant="light" color="gray" onClick={() => void openEdit(item)}>
                   상세
                 </Button>
-                {item.status === "draft" && (
-                  <Button size="compact-xs" variant="light" color="blue" leftSection={<IconSend size={14} />} onClick={() => void action(item, "submit")}>
-                    제출
-                  </Button>
-                )}
                 {item.status === "submitted" && (
                   <>
                     <Button size="compact-xs" variant="light" color="blue" leftSection={<IconCheck size={14} />} onClick={() => void action(item, "approve")}>
@@ -400,7 +394,7 @@ export default function ExpensesPage() {
       <Stack gap="md">
         <Group justify="space-between">
           <Group gap={6}>
-            {["all", "draft", "submitted", "approved", "paid", "rejected"].map((s) => (
+            {["all", "submitted", "approved", "paid", "rejected"].map((s) => (
               <Badge
                 key={s}
                 variant={statusFilter === s ? "filled" : "light"}
@@ -484,11 +478,6 @@ export default function ExpensesPage() {
             <Group gap="xs">
               {editing && (
                 <>
-                  {editing.status === "draft" && (
-                    <Button color="blue" variant="light" leftSection={<IconSend size={16} />} onClick={() => void action(editing, "submit")}>
-                      제출하기
-                    </Button>
-                  )}
                   {editing.status === "submitted" && (
                     <>
                       <Button color="blue" variant="filled" leftSection={<IconCheck size={16} />} onClick={() => void action(editing, "approve")}>

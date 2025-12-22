@@ -39,7 +39,7 @@ export async function POST(request: Request) {
       spent_at: spentAt,
       category,
       note,
-      status: "draft",
+      status: "submitted",
       created_by: auth.userId,
       updated_at: now,
     })
