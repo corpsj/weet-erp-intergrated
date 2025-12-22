@@ -422,7 +422,7 @@ function TodoListItem({
         background: done
           ? "var(--mantine-color-gray-0)"
           : depth > 0
-            ? "var(--mantine-color-gray-0)"
+            ? "var(--mantine-color-gray-1)"
             : "white",
         opacity: done ? 0.8 : 1,
         borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
@@ -1092,9 +1092,10 @@ export default function TodoPage() {
                             style={{
                               marginLeft: 20,
                               cursor: "pointer",
-                              background: "rgba(0,0,0,0.02)",
-                              borderColor: "var(--mantine-color-blue-1)",
+                              background: "white",
+                              borderColor: "var(--mantine-color-blue-3)",
                               borderLeftWidth: 3,
+                              boxShadow: "var(--mantine-shadow-xs)",
                             }}
                           >
                             <Stack gap={4}>
@@ -1404,7 +1405,7 @@ export default function TodoPage() {
                         radius="md"
                         p="xs"
                         onClick={() => openEdit(child.id)}
-                        style={{ cursor: "pointer", background: "var(--mantine-color-gray-0)" }}
+                        style={{ cursor: "pointer", background: "white", borderColor: "var(--mantine-color-gray-3)" }}
                       >
                         <Group justify="space-between" wrap="nowrap">
                           <Group gap="sm" wrap="nowrap">
