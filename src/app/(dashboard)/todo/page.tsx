@@ -983,6 +983,7 @@ export default function TodoPage() {
           }
 
           const filteredTodos = columnTodos.filter((t) => {
+            if (t.parent_id) return false; // 상위 업무가 있는 하위 업무는 메인 목록에서 제외 (중복 방지)
             if (query.trim() && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
             if (assigneeFilter !== "all") {
               if (assigneeFilter === "unassigned") return !t.assignee_id;
