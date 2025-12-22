@@ -215,18 +215,22 @@ export default function VaultPage() {
     return filteredItems.map((item) => (
       <Table.Tr key={item.id}>
         <Table.Td>
-          <Stack gap={0}>
-            <Text fw={600} size="sm">{item.title}</Text>
-            <Box style={{ minHeight: '1.2rem' }}>
-              {item.url ? (
-                <Text size="sm" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
-                  {item.url}
-                </Text>
-              ) : (
-                <Text size="sm" c="dimmed" style={{ visibility: 'hidden' }}>-</Text>
-              )}
-            </Box>
-          </Stack>
+          <Box style={{ height: '42px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>{item.title}</Text>
+            {item.url && (
+              <Text
+                size="sm"
+                c="dimmed"
+                lineClamp={1}
+                component="a"
+                href={item.url.startsWith("http") ? item.url : `https://${item.url}`}
+                target="_blank"
+                style={{ textDecoration: "none", lineHeight: 1.2 }}
+              >
+                {item.url}
+              </Text>
+            )}
+          </Box>
         </Table.Td>
         <Table.Td>
           <Text size="sm" ff="monospace">{item.username ?? "-"}</Text>
