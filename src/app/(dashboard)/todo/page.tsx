@@ -983,7 +983,10 @@ export default function TodoPage() {
     if (type === "card") {
       const todoId = draggableId;
       const newStatus = destination.droppableId as Todo["status"];
-      const targetColumnTodos = todos.filter(t => t.status === newStatus && !t.parent_id).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      // 대상 컬럼의 업무 목록을 가져오되, 현재 드래그 중인 업무는 제외하고 정렬함
+      const targetColumnTodos = todos
+        .filter(t => t.status === newStatus && !t.parent_id && t.id !== todoId)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
       let newSortOrder: number;
       if (targetColumnTodos.length === 0) {
