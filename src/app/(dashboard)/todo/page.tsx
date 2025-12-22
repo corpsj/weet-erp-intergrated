@@ -882,7 +882,7 @@ export default function TodoPage() {
         status,
         priority: "medium",
         parent_id: parentId,
-        assignee_id: null,
+        assignee_id: (parentId ? todoById[parentId]?.assignee_id : null) ?? currentUser?.id ?? null,
         due_date: null,
         note: null,
       })
@@ -901,7 +901,7 @@ export default function TodoPage() {
       setEditorMode({ mode: "edit", todoId: data.id });
       editorHandlers.open();
     }
-  }, [loadAll, editorHandlers]);
+  }, [loadAll, editorHandlers, todoById, currentUser]);
 
   const statusColumns: { id: Todo["status"]; label: string; color: string }[] = [
     { id: "todo", label: "할 일", color: "gray" },
