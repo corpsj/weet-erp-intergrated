@@ -185,7 +185,7 @@ export default function HubPage() {
                         <Text size="sm" fw={600} lineClamp={2}>
                           {item.title}
                         </Text>
-                        <Badge color={priorityColor(item.priority)} variant="light" size="xs">
+                        <Badge color={priorityColor(item.priority)} variant="light" size="sm">
                           {priorityLabels[item.priority]}
                         </Badge>
                       </Stack>
@@ -275,7 +275,7 @@ export default function HubPage() {
                 const extraCount = dayEvents.length - visibleEvents.length;
                 return (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-                    <Text size="xs" fw={600}>
+                    <Text size="sm" fw={700}>
                       {dayjs(date).date()}
                     </Text>
                     {visibleEvents.map((event) => (
@@ -292,13 +292,13 @@ export default function HubPage() {
                             flexShrink: 0,
                           }}
                         />
-                        <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                        <Text size="sm" lineClamp={1} style={{ flex: 1 }}>
                           {event.title}
                         </Text>
                       </div>
                     ))}
                     {extraCount > 0 && (
-                      <Text size="xs" c="dimmed">
+                      <Text size="sm" c="dimmed" fw={600}>
                         +{extraCount}건
                       </Text>
                     )}
@@ -320,7 +320,7 @@ export default function HubPage() {
                       {event.title}
                     </Badge>
                     {event.note && (
-                      <Text size="xs" c="dimmed" mt={6}>
+                      <Text size="sm" c="dimmed" mt={6}>
                         {event.note}
                       </Text>
                     )}

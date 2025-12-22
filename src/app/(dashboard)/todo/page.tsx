@@ -1266,23 +1266,23 @@ export default function TodoPage() {
                                                             mt={2}
                                                           />
                                                           <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                                                            <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
+                                                            <Text size="sm" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
                                                               {sub.title}
                                                             </Text>
                                                             <Group justify="space-between" wrap="nowrap">
                                                               <Group gap={4}>
-                                                                <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
+                                                                <Badge color={priorityColor(sub.priority)} size="xs" variant="light">
                                                                   {priorityLabels[sub.priority]}
                                                                 </Badge>
                                                                 {!subDone && sub.status !== "todo" && (
-                                                                  <Badge size="10px" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
+                                                                  <Badge size="xs" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
                                                                     {statusColumns.find(c => c.id === sub.status)?.label}
                                                                   </Badge>
                                                                 )}
                                                               </Group>
                                                               {subAssignee && (
                                                                 <Avatar
-                                                                  size={16}
+                                                                  size={24}
                                                                   radius="xl"
                                                                   color={subAssignee.color ?? "blue"}
                                                                 >
@@ -1376,7 +1376,7 @@ export default function TodoPage() {
       <Group justify="space-between" align="flex-end">
         <Stack gap={2}>
           <Title order={2}>To-Do</Title>
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             진행 {activeCount} · 완료 {doneCount}
           </Text>
         </Stack>
@@ -1639,17 +1639,17 @@ export default function TodoPage() {
                               onChange={(e) => toggleDone(child, e.currentTarget.checked)}
                             />
                             <Stack gap={2}>
-                              <Text size="xs" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
+                              <Text size="sm" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
                                 {child.title}
                               </Text>
-                              <Badge color={priorityColor(child.priority)} size="10px" variant="light">
+                              <Badge color={priorityColor(child.priority)} size="xs" variant="light">
                                 {priorityLabels[child.priority]}
                               </Badge>
                             </Stack>
                           </Group>
                           <Group gap="xs">
                             {childAssignee && (
-                              <Avatar size={20} radius="xl">
+                              <Avatar size={24} radius="xl">
                                 {childAssignee.initials ?? childAssignee.name.slice(0, 1)}
                               </Avatar>
                             )}

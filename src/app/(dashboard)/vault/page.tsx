@@ -218,7 +218,7 @@ export default function VaultPage() {
           <Stack gap={0}>
             <Text fw={600} size="sm">{item.title}</Text>
             {item.url && (
-              <Text size="xs" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
+              <Text size="sm" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
                 {item.url}
               </Text>
             )}
@@ -347,7 +347,7 @@ export default function VaultPage() {
               저장
             </Button>
           </Group>
-          <Text size="xs" c="dimmed">
+          <Text size="sm" c="dimmed">
             비밀번호는 서버에서 암호화되어 저장됩니다.
           </Text>
         </Stack>
