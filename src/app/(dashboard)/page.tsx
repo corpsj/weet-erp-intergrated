@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid } from "@mantine/core";
+import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid, ScrollArea } from "@mantine/core";
 import { Calendar, type DateStringValue } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar } from "@tabler/icons-react";
@@ -35,6 +35,12 @@ const statusOrder: Record<TodoStatus, number> = {
   todo: 0,
   in_progress: 1,
   done: 2,
+};
+
+const priorityOrder: Record<TodoPriority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
 };
 
 const statusColor = (status: TodoStatus) => {
@@ -163,6 +169,10 @@ export default function HubPage() {
         const statusDiff = statusOrder[a.status] - statusOrder[b.status];
         if (statusDiff !== 0) return statusDiff;
 
+        const aPriority = priorityOrder[a.priority] ?? 1;
+        const bPriority = priorityOrder[b.priority] ?? 1;
+        if (aPriority !== bPriority) return aPriority - bPriority;
+
         const aDue = a.due_date ? dayjs(a.due_date).valueOf() : Number.POSITIVE_INFINITY;
         const bDue = b.due_date ? dayjs(b.due_date).valueOf() : Number.POSITIVE_INFINITY;
         if (aDue !== bDue) return aDue - bDue;
@@ -170,7 +180,7 @@ export default function HubPage() {
         return dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf();
       });
 
-    return [...sortByPriority(active), ...sortByPriority(done)].slice(0, 6);
+    return [...sortByPriority(active), ...sortByPriority(done)];
   }, [todos]);
 
   const eventsByDate = useMemo(() => {
@@ -227,8 +237,6 @@ export default function HubPage() {
                 className="app-surface"
                 p="lg"
                 radius="md"
-                style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
-                onClick={() => router.push("/calendar")}
               >
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
@@ -349,29 +357,29 @@ export default function HubPage() {
                       {todos.length}건
                     </Text>
                   </Group>
-                  <Table verticalSpacing="sm" highlightOnHover>
-                    <Table.Tbody>
-                      {summaryTodos.slice(0, 4).map((item) => (
-                        <Table.Tr key={item.id}>
+                  <ScrollArea h={450} offsetScrollbars>
+                    <Table verticalSpacing="xs">
+                      <Table.Tbody>{summaryTodos.map((todo) => (
+                        <Table.Tr key={todo.id}>
+                          <Table.Td style={{ width: 80 }}>
+                            <Badge color={priorityColor(todo.priority)} variant="light" size="xs" fullWidth>
+                              {priorityLabels[todo.priority]}
+                            </Badge>
+                          </Table.Td>
                           <Table.Td>
-                            <Stack gap={2}>
-                              <Text size="sm" fw={600} lineClamp={1}>
-                                {item.title}
-                              </Text>
-                              <Group gap={4}>
-                                <Badge color={statusColor(item.status)} variant="light" size="xs">
-                                  {statusLabels[item.status]}
-                                </Badge>
-                                <Text size="xs" c="dimmed">
-                                  {item.due_date ? dayjs(item.due_date).format("MM/DD") : "-"}
-                                </Text>
-                              </Group>
-                            </Stack>
+                            <Text size="sm" fw={500} lineClamp={1}>
+                              {todo.title}
+                            </Text>
+                          </Table.Td>
+                          <Table.Td style={{ width: 80 }}>
+                            <Badge color={statusColor(todo.status)} variant="dot" size="xs">
+                              {statusLabels[todo.status]}
+                            </Badge>
                           </Table.Td>
                         </Table.Tr>
-                      ))}
-                    </Table.Tbody>
-                  </Table>
+                      ))}</Table.Tbody>
+                    </Table>
+                  </ScrollArea>
                   {!summaryTodos.length && (
                     <Text size="sm" c="dimmed" mt="sm">
                       표시할 To-Do가 없습니다.
