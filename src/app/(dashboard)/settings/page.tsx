@@ -24,6 +24,7 @@ import {
   IconEyeOff,
   IconRefresh,
   IconCopy,
+  IconTrash,
   IconUser,
   IconTicket,
   IconShieldLock,
@@ -32,7 +33,6 @@ import {
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ColorSwatch, CheckIcon } from "@mantine/core";
 
 type InviteCodeItem = {
   id: string;
@@ -74,7 +74,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<string | null>("profile");
+  const [activeTab, setActiveTab] = useState<string | null>("invites");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InviteCodeItem[]>([]);
   const [revealedById, setRevealedById] = useState<Record<string, string>>({});
@@ -84,15 +84,6 @@ export default function SettingsPage() {
   const [unlimited, setUnlimited] = useState(false);
   const [maxUses, setMaxUses] = useState("1");
   const [creating, setCreating] = useState(false);
-
-  // My Account State
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [profileName, setProfileName] = useState("");
-  const [profileInitials, setProfileInitials] = useState("");
-  const [profileColor, setProfileColor] = useState<string | null>(null);
-  const [savingProfile, setSavingProfile] = useState(false);
-
-  const profileColors = ["blue", "gray", "green", "red", "yellow", "teal", "orange", "grape"];
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -114,40 +105,9 @@ export default function SettingsPage() {
     }
   }, []);
 
-  const loadProfile = useCallback(async () => {
-    setProfileLoading(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: profile } = await supabase
-        .from("app_users")
-        .select("*")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (profile) {
-        setProfileName(profile.name);
-        setProfileInitials(profile.initials ?? "");
-        setProfileColor(profile.color);
-      } else {
-        const meta = session.user.user_metadata as any;
-        setProfileName(meta?.name ?? "");
-        setProfileInitials(meta?.name?.slice(0, 2) ?? "");
-      }
-    } catch (error) {
-      console.error("Profile load error:", error);
-    } finally {
-      setProfileLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     void load();
-    void loadProfile();
-  }, [load, loadProfile]);
+  }, [load]);
 
   const createInvite = useCallback(async () => {
     const days = normalizeInt(expiresInDays) ?? 3;
@@ -207,48 +167,6 @@ export default function SettingsPage() {
     }
   }, [expiresInDays, load, maxUses, note, unlimited]);
 
-  const saveProfile = useCallback(async () => {
-    if (!profileName.trim()) {
-      notifications.show({ title: "입력 오류", message: "이름을 입력해주세요.", color: "red" });
-      return;
-    }
-
-    setSavingProfile(true);
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) throw new Error("로그인 세션이 없습니다.");
-
-      const userId = session.user.id;
-
-      const { error: profileError } = await supabase.from("app_users").upsert({
-        id: userId,
-        name: profileName.trim(),
-        initials: profileInitials.trim() || null,
-        color: profileColor,
-      });
-
-      if (profileError) throw profileError;
-
-      const { error: authError } = await supabase.auth.updateUser({
-        data: { name: profileName.trim() },
-      });
-
-      if (authError) throw authError;
-
-      notifications.show({ title: "저장 완료", message: "프로필 정보가 업데이트되었습니다.", color: "gray" });
-    } catch (error) {
-      notifications.show({
-        title: "저장 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    } finally {
-      setSavingProfile(false);
-    }
-  }, [profileColor, profileInitials, profileName]);
-
   const reveal = useCallback(
     async (id: string) => {
       if (revealedById[id]) return;
@@ -288,6 +206,32 @@ export default function SettingsPage() {
     } catch (error) {
       notifications.show({
         title: "상태 변경 실패",
+        message: error instanceof Error ? error.message : "알 수 없는 오류",
+        color: "red",
+      });
+    }
+  }, []);
+
+  const deleteInvite = useCallback(async (id: string) => {
+    const ok = window.confirm("이 초대코드를 삭제할까요? (복구 불가)");
+    if (!ok) return;
+
+    try {
+      const response = await fetchWithAuth(`/api/settings/invite-codes/${id}`, { method: "DELETE" });
+      const payload = (await response.json().catch(() => null)) as any;
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "삭제 실패");
+      }
+      setRevealedById((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      notifications.show({ title: "삭제 완료", message: "초대코드가 삭제되었습니다.", color: "gray" });
+    } catch (error) {
+      notifications.show({
+        title: "삭제 실패",
         message: error instanceof Error ? error.message : "알 수 없는 오류",
         color: "red",
       });
@@ -366,19 +310,30 @@ export default function SettingsPage() {
             </Text>
           </Table.Td>
           <Table.Td>
-            <Button
-              size="compact-xs"
-              variant="light"
-              color="gray"
-              onClick={() => void toggleActive(item.id, !item.active)}
-            >
-              {item.active ? "차단" : "복구"}
-            </Button>
+            <Group gap="xs" justify="flex-end" wrap="nowrap">
+              <Button
+                size="compact-xs"
+                variant="light"
+                color="gray"
+                onClick={() => void toggleActive(item.id, !item.active)}
+              >
+                {item.active ? "차단" : "복구"}
+              </Button>
+              <ActionIcon
+                variant="subtle"
+                color="red"
+                size="sm"
+                onClick={() => void deleteInvite(item.id)}
+                aria-label="delete"
+              >
+                <IconTrash size={14} />
+              </ActionIcon>
+            </Group>
           </Table.Td>
         </Table.Tr>
       );
     });
-  }, [copy, items, reveal, revealedById, toggleActive]);
+  }, [copy, deleteInvite, items, reveal, revealedById, toggleActive]);
 
   const navStyles = {
     tabsList: {
@@ -414,9 +369,8 @@ export default function SettingsPage() {
           color="gray"
           onClick={() => {
             void load();
-            void loadProfile();
           }}
-          loading={loading || profileLoading}
+          loading={loading}
         >
           전체 새로고침
         </Button>
@@ -432,13 +386,6 @@ export default function SettingsPage() {
         <Grid gutter={40} style={{ width: "100%" }}>
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Tabs.List w="100%">
-              <Tabs.Tab
-                value="profile"
-                leftSection={<IconUser size={18} />}
-                style={navStyles.tab}
-              >
-                내 프로필
-              </Tabs.Tab>
               <Tabs.Tab
                 value="invites"
                 leftSection={<IconTicket size={18} />}
@@ -465,80 +412,6 @@ export default function SettingsPage() {
 
           <Grid.Col span={{ base: 12, sm: 9 }}>
             <Box>
-              <Tabs.Panel value="profile">
-                <Stack gap="xl">
-                  <Box>
-                    <Title order={3} mb="xs">
-                      프로필 정보
-                    </Title>
-                    <Text size="sm" c="dimmed" mb="xl">
-                      팀원들에게 공개될 본인의 정보를 설정해주세요.
-                    </Text>
-                  </Box>
-
-                  <Paper withBorder p="xl" radius="md">
-                    <Stack gap="lg">
-                      <Grid align="flex-end">
-                        <Grid.Col span={{ base: 12, sm: 6 }}>
-                          <TextInput
-                            label="표시 이름"
-                            placeholder="홍길동"
-                            description="실명을 사용하는 것이 권장됩니다."
-                            value={profileName}
-                            onChange={(e) => setProfileName(e.currentTarget.value)}
-                            required
-                          />
-                        </Grid.Col>
-                        <Grid.Col span={{ base: 12, sm: 6 }}>
-                          <TextInput
-                            label="이니셜 (2자)"
-                            placeholder="HK"
-                            description="아바타에 표시될 텍스트입니다."
-                            maxLength={2}
-                            value={profileInitials}
-                            onChange={(e) => setProfileInitials(e.currentTarget.value)}
-                          />
-                        </Grid.Col>
-                      </Grid>
-
-                      <Box>
-                        <Text size="sm" fw={500} mb={8}>
-                          테마 컬러
-                        </Text>
-                        <Text size="xs" c="dimmed" mb={12}>
-                          본인을 가장 잘 나타내는 색상을 선택하세요.
-                        </Text>
-                        <Group gap="xs">
-                          {profileColors.map((color) => (
-                            <ColorSwatch
-                              key={color}
-                              color={`var(--mantine-color-${color}-6)`}
-                              component="button"
-                              onClick={() => setProfileColor(color)}
-                              style={{
-                                cursor: "pointer",
-                                border: profileColor === color ? "2px solid #000" : "none",
-                              }}
-                            >
-                              {profileColor === color && (
-                                <CheckIcon style={{ width: 12, height: 12, color: "white" }} />
-                              )}
-                            </ColorSwatch>
-                          ))}
-                        </Group>
-                      </Box>
-
-                      <Divider mt="md" />
-
-                      <Group justify="flex-end">
-                        <Button color="dark" onClick={saveProfile} loading={savingProfile}>
-                          저장하기
-                        </Button>
-                      </Group>
-                    </Stack>
-                  </Paper>
-                </Stack>
-              </Tabs.Panel>
 
               <Tabs.Panel value="invites">
                 <Stack gap="xl">

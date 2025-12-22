@@ -51,3 +51,19 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   return NextResponse.json({ item: data });
 }
 
+export async function DELETE(_request: Request, context: { params: Promise<{ id: string }> }) {
+  const auth = await requireUserId(_request);
+  if (!auth.ok) return auth.response;
+
+  const { id } = await context.params;
+  if (!id) {
+    return NextResponse.json({ message: "id is required" }, { status: 400 });
+  }
+
+  const { error } = await supabaseAdmin.from("signup_invite_codes").delete().eq("id", id);
+  if (error) {
+    return NextResponse.json({ message: error.message }, { status: 400 });
+  }
+
+  return NextResponse.json({ ok: true });
+}
