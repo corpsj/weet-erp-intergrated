@@ -16,6 +16,7 @@ import {
   Textarea,
   Title,
   SimpleGrid,
+  Container,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -340,7 +341,7 @@ export default function ExpensesPage() {
   }, [action, openEdit, filteredItems, remove]);
 
   return (
-    <Box p="md">
+    <Container size="lg" py="xl">
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>경비 청구</Title>
@@ -394,8 +395,8 @@ export default function ExpensesPage() {
             <Table verticalSpacing="xs" highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th style={{ width: "40%" }}>내역</Table.Th>
-                  <Table.Th style={{ width: "25%", textAlign: "right", paddingRight: "var(--mantine-spacing-xl)" }}>금액</Table.Th>
+                  <Table.Th style={{ width: "45%" }}>내역</Table.Th>
+                  <Table.Th style={{ width: "20%", textAlign: "right", paddingRight: "var(--mantine-spacing-xl)" }}>금액</Table.Th>
                   <Table.Th style={{ width: "15%" }}>상태</Table.Th>
                   <Table.Th style={{ width: "20%" }} />
                 </Table.Tr>
@@ -463,6 +464,6 @@ export default function ExpensesPage() {
           </Group>
         </Stack>
       </Modal>
-    </Box>
+    </Container>
   );
 }

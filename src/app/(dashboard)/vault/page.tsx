@@ -14,6 +14,7 @@ import {
   TextInput,
   Textarea,
   Title,
+  Container,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconCopy, IconEye, IconEyeOff, IconPlus, IconRefresh, IconTrash } from "@tabler/icons-react";
@@ -300,7 +301,7 @@ export default function VaultPage() {
   }, [copyPassword, filteredItems, remove, reveal, revealed, selectedTag]);
 
   return (
-    <Box p="md">
+    <Container size="lg" py="xl">
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>계정 공유</Title>
@@ -364,10 +365,10 @@ export default function VaultPage() {
             <Table verticalSpacing="xs" highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th style={{ width: "30%" }}>항목</Table.Th>
+                  <Table.Th style={{ width: "25%" }}>항목</Table.Th>
                   <Table.Th style={{ width: "20%" }}>아이디</Table.Th>
                   <Table.Th style={{ width: "30%" }}>비밀번호</Table.Th>
-                  <Table.Th style={{ width: "10%" }}>태그</Table.Th>
+                  <Table.Th style={{ width: "15%" }}>태그</Table.Th>
                   <Table.Th style={{ width: "10%" }} />
                 </Table.Tr>
               </Table.Thead>
@@ -405,6 +406,6 @@ export default function VaultPage() {
           </Text>
         </Stack>
       </Modal>
-    </Box>
+    </Container>
   );
 }
