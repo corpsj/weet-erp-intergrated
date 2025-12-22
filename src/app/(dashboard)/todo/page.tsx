@@ -1224,6 +1224,19 @@ export default function TodoPage() {
                                   </Draggable>
                                 );
                               })}
+                              <Paper withBorder p="xs" radius="sm" style={{ borderStyle: "dashed", background: "transparent" }}>
+                                <TextInput
+                                  variant="unstyled"
+                                  placeholder="+ 새 업무를 입력하고 Enter..."
+                                  size="sm"
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                      quickAdd(e.currentTarget.value.trim(), null, column.id);
+                                      e.currentTarget.value = "";
+                                    }
+                                  }}
+                                />
+                              </Paper>
                               {provided.placeholder}
                             </Stack>
                           )}
