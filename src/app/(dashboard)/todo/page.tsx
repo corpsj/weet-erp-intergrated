@@ -83,13 +83,6 @@ const isOverdue = (dueDate: string | null, isDone: boolean) => {
   return dayjs(dueDate).isBefore(dayjs(), "day");
 };
 
-const matchAssigneeId = (value: string, users: AppUser[]) => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const normalized = trimmed.startsWith("@") ? trimmed.slice(1) : trimmed;
-  const matched = users.find((user) => user.name === normalized);
-  return matched?.id ?? null;
-};
 
 type AssigneeFilter = "all" | "anyone" | string;
 
@@ -577,7 +570,6 @@ export default function TodoPage() {
     }, {});
   }, [todos]);
 
-  const assigneeOptions = useMemo(() => users.map((user) => `@${user.name}`), [users]);
 
   const fullChildrenMap = useMemo(() => {
     return todos.reduce<Map<string, Todo[]>>((acc, todo) => {
@@ -600,23 +592,21 @@ export default function TodoPage() {
     if (editorMode.mode === "edit") {
       const todo = todoById[editorMode.todoId];
       if (!todo) return;
-      const assigneeName = todo.assignee_id ? userById[todo.assignee_id]?.name : null;
       setForm({
         title: todo.title ?? "",
         status: todo.status,
         priority: todo.priority,
-        assigneeInput: assigneeName ? `@${assigneeName}` : "",
+        assigneeInput: todo.assignee_id ?? "",
         due_date: todo.due_date ?? null,
       });
       return;
     }
 
-    const parentAssigneeName = currentParent?.assignee_id ? userById[currentParent.assignee_id]?.name : null;
     setForm({
       title: "",
       status: currentParent?.status ?? "todo",
       priority: currentParent?.priority ?? "medium",
-      assigneeInput: parentAssigneeName ? `@${parentAssigneeName}` : "",
+      assigneeInput: currentParent?.assignee_id ?? "",
       due_date: null,
     });
   }, [currentParent, editorMode, editorOpened, todoById, userById]);
@@ -772,15 +762,7 @@ export default function TodoPage() {
       return;
     }
 
-    const assigneeId = matchAssigneeId(form.assigneeInput, users);
-    if (form.assigneeInput.trim() && !assigneeId) {
-      notifications.show({
-        title: "담당자 확인",
-        message: "담당자는 기존 사용자(@이름)로만 저장할 수 있습니다.",
-        color: "red",
-      });
-      return;
-    }
+    const assigneeId = form.assigneeInput.trim() || null;
 
     setSaving(true);
 
@@ -1352,8 +1334,15 @@ export default function TodoPage() {
 
   const assigneeSelectData = useMemo(() => {
     return [
-      { value: "all", label: "전체" },
       { value: "anyone", label: "누구나" },
+      ...users.map((user) => ({ value: user.id, label: user.name })),
+    ];
+  }, [users]);
+
+  // For the editor (create/edit), we need a simplified data without "all"
+  const editorAssigneeData = useMemo(() => {
+    return [
+      { value: "none", label: "누구나" },
       ...users.map((user) => ({ value: user.id, label: user.name })),
     ];
   }, [users]);
@@ -1409,38 +1398,10 @@ export default function TodoPage() {
             size="sm"
             data={assigneeSelectData}
             value={assigneeFilter}
-            onChange={(value) => setAssigneeFilter((value as AssigneeFilter) ?? "all")}
+            onChange={(value) => setAssigneeFilter((value as AssigneeFilter) ?? "anyone")}
             allowDeselect={false}
             style={{ minWidth: 160 }}
           />
-          <SegmentedControl
-            size="sm"
-            value={sortMode}
-            onChange={(value) => setSortMode(value as SortMode)}
-            data={[
-              { value: "due", label: "마감일" },
-              { value: "priority", label: "우선순위" },
-            ]}
-          />
-          <SegmentedControl
-            size="sm"
-            value={viewMode}
-            onChange={(value) => setViewMode(value as "grid" | "list" | "board")}
-            data={[
-              { value: "list", label: <IconList size={16} /> },
-              { value: "board", label: <IconColumns3 size={16} /> },
-              { value: "grid", label: <IconLayoutGrid size={16} /> },
-            ]}
-          />
-          <Checkbox
-            size="sm"
-            label="완료 포함"
-            checked={showDone}
-            onChange={(event) => setShowDone(event.currentTarget.checked)}
-          />
-          <Button size="sm" variant="light" color="gray" onClick={loadAll} loading={loading}>
-            새로고침
-          </Button>
         </Group>
       </Paper>
 
@@ -1585,20 +1546,19 @@ export default function TodoPage() {
                     }
                   }}
                 />
-                <Autocomplete
+                <Select
                   label="담당자"
-                  placeholder="@이름"
-                  data={assigneeOptions}
-                  value={form.assigneeInput}
+                  placeholder="담당자 선택"
+                  data={editorAssigneeData}
+                  value={form.assigneeInput || "none"}
                   onChange={(value) => {
-                    setForm((prev) => ({ ...prev, assigneeInput: value }));
+                    const val = value === "none" ? "" : (value ?? "");
+                    setForm((prev) => ({ ...prev, assigneeInput: val }));
                     if (editorMode.mode === "edit") {
-                      const assigneeId = matchAssigneeId(value, users);
-                      if (value.trim() === "" || assigneeId) {
-                        syncTodo(editorMode.todoId, { assignee_id: assigneeId });
-                      }
+                      syncTodo(editorMode.todoId, { assignee_id: val || null });
                     }
                   }}
+                  allowDeselect={false}
                 />
               </Group>
 
