@@ -228,7 +228,7 @@ export default function VaultPage() {
           <Text size="sm" ff="monospace">{item.username ?? "-"}</Text>
         </Table.Td>
         <Table.Td>
-          <Group gap="xs" wrap="nowrap" align="center">
+          <Group gap={4} wrap="nowrap" align="center">
             <Text size="sm" ff="monospace">
               {revealed[item.id] ? revealed[item.id] : "••••••••"}
             </Text>
@@ -274,7 +274,7 @@ export default function VaultPage() {
   }, [copyPassword, filteredItems, remove, reveal, revealed]);
 
   return (
-    <Container size="lg" py="xl">
+    <Container size="md" py="xl">
       <Group justify="space-between" mb="lg">
         <div>
           <Title order={2}>계정 공유</Title>
@@ -312,9 +312,9 @@ export default function VaultPage() {
             <Table verticalSpacing="xs" highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th style={{ width: "25%" }}>항목</Table.Th>
+                  <Table.Th style={{ width: "20%" }}>항목</Table.Th>
                   <Table.Th style={{ width: "20%" }}>아이디</Table.Th>
-                  <Table.Th style={{ width: "20%" }}>비밀번호</Table.Th>
+                  <Table.Th style={{ width: "25%" }}>비밀번호</Table.Th>
                   <Table.Th style={{ width: "25%" }}>메모</Table.Th>
                   <Table.Th style={{ width: "10%" }} />
                 </Table.Tr>
