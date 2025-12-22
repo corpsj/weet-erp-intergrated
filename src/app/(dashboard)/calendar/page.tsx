@@ -15,7 +15,7 @@ import {
 } from "@mantine/core";
 import { Calendar, type DateStringValue } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconChevronLeft, IconChevronRight, IconPencil, IconTrash } from "@tabler/icons-react";
+import { IconPencil, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from "react";
 import "dayjs/locale/ko";
@@ -50,7 +50,7 @@ const colorSwatch = (value: string) => {
 };
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [currentDate, setCurrentDate] = useState<DateStringValue>(dayjs().format("YYYY-MM-DD"));
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [editing, setEditing] = useState<CalendarEvent | null>(null);
   const [saving, setSaving] = useState(false);
@@ -61,7 +61,7 @@ export default function CalendarPage() {
   const [quickSaving, setQuickSaving] = useState(false);
   const [hoveredDate, setHoveredDate] = useState<DateStringValue | null>(null);
 
-  const loadEvents = useCallback(async (targetDate: Date | string) => {
+  const loadEvents = useCallback(async (targetDate: DateStringValue) => {
     const startDate = dayjs(targetDate).startOf("month").format("YYYY-MM-DD");
     const endDate = dayjs(targetDate).endOf("month").format("YYYY-MM-DD");
 
@@ -173,7 +173,7 @@ export default function CalendarPage() {
     }
 
     notifications.show({ title: "저장 완료", message: "일정이 저장되었습니다.", color: "gray" });
-    if (form.event_date) setCurrentDate(dayjs(form.event_date).toDate());
+    if (form.event_date) setCurrentDate(form.event_date);
     await loadEvents(form.event_date);
   };
 
@@ -192,40 +192,23 @@ export default function CalendarPage() {
     await loadEvents(currentDate);
   };
 
-  const nextMonth = () => setCurrentDate(dayjs(currentDate).add(1, "month").toDate());
-  const prevMonth = () => setCurrentDate(dayjs(currentDate).subtract(1, "month").toDate());
-  const setToday = () => setCurrentDate(new Date());
-
   return (
     <Container size="xl" p="md">
       <Group justify="space-between" mb="lg">
-        <Stack gap={0}>
+        <div>
           <Title order={2}>캘린더</Title>
-          <Group gap="sm">
-            <Text c="dimmed" size="sm" fw={500}>
-              {dayjs(currentDate).format("YYYY년 M월")}
-            </Text>
-            <Group gap={4}>
-              <ActionIcon variant="subtle" color="gray" size="sm" onClick={prevMonth}>
-                <IconChevronLeft size={16} />
-              </ActionIcon>
-              <ActionIcon variant="subtle" color="gray" size="sm" onClick={nextMonth}>
-                <IconChevronRight size={16} />
-              </ActionIcon>
-              <Button variant="subtle" color="gray" size="xs" onClick={setToday}>
-                오늘
-              </Button>
-            </Group>
-          </Group>
-        </Stack>
+          <Text c="dimmed" size="sm">
+            {dayjs(currentDate).format("YYYY년 M월")}
+          </Text>
+        </div>
       </Group>
 
       <Paper className="app-surface" p="lg" radius="md">
         <Group align="flex-start" wrap="nowrap">
           <Calendar
-            static
             size="lg"
             date={currentDate}
+            onDateChange={setCurrentDate}
             locale="ko"
             firstDayOfWeek={0}
             withCellSpacing={false}
@@ -252,7 +235,7 @@ export default function CalendarPage() {
               return {
                 selected: isSelected,
                 onClick: () => {
-                  setCurrentDate(dayjs(date).toDate());
+                  setCurrentDate(dayjs(date).format("YYYY-MM-DD"));
                 },
                 onMouseEnter: () => setHoveredDate(date),
                 onMouseLeave: () => setHoveredDate(null),

@@ -33,7 +33,6 @@ const groupedNavItems = [
   {
     group: "ERP 솔루션",
     items: [
-      { label: "검색", icon: IconSearch, link: "/search" },
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
     ],
   },
