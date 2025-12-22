@@ -217,11 +217,15 @@ export default function VaultPage() {
         <Table.Td>
           <Stack gap={0}>
             <Text fw={600} size="sm">{item.title}</Text>
-            {item.url && (
-              <Text size="sm" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
-                {item.url}
-              </Text>
-            )}
+            <Box style={{ minHeight: '1.2rem' }}>
+              {item.url ? (
+                <Text size="sm" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
+                  {item.url}
+                </Text>
+              ) : (
+                <Text size="sm" c="dimmed" style={{ visibility: 'hidden' }}>-</Text>
+              )}
+            </Box>
           </Stack>
         </Table.Td>
         <Table.Td>
