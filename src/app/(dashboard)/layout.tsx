@@ -11,6 +11,9 @@ import {
   IconUser,
   IconKey,
   IconReceipt,
+  IconNotes,
+  IconBuildingStore,
+  IconSearch,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
@@ -29,6 +32,9 @@ const groupedNavItems = [
   {
     group: "ERP 솔루션",
     items: [
+      { label: "회사 정보", icon: IconBuildingStore, link: "/info" },
+      { label: "메모", icon: IconNotes, link: "/memos" },
+      { label: "검색", icon: IconSearch, link: "/search" },
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
     ],
   },
@@ -194,34 +200,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Group>
         </Group>
       </AppShell.Header>
-
-      <AppShell.Navbar p="md">
-        <Stack gap="xs">
-          {groupedNavItems.map((group) => (
-            <Box key={group.group} mb="sm">
-              <Text size="xs" c="dimmed" fw={700} tt="uppercase" px="sm" mb={4} style={{ letterSpacing: "0.05em" }}>
-                {group.group}
-              </Text>
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.link}
-                  component={Link}
-                  href={item.link}
-                  label={item.label}
-                  leftSection={<item.icon size={18} stroke={1.5} />}
-                  active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
-                  variant="light"
-                  onClick={close}
-                  style={{ borderRadius: "var(--mantine-radius-sm)" }}
+      href={item.link}
+      label={item.label}
+      leftSection={<item.icon size={18} stroke={1.5} />}
+      active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
+      variant="light"
+      onClick={close}
+      style={{ borderRadius: "var(--mantine-radius-sm)" }}
                 />
               ))}
-            </Box>
-          ))}
-        </Stack>
-      </AppShell.Navbar>
+    </Box>
+  ))
+}
+        </Stack >
+      </AppShell.Navbar >
 
 
-      <AppShell.Main>{children}</AppShell.Main>
-    </AppShell>
+  <AppShell.Main>{children}</AppShell.Main>
+    </AppShell >
   );
 }

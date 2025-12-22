@@ -356,15 +356,15 @@ export default function ExpensesPage() {
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} mb="xl" spacing="md">
         <Paper withBorder p="md" radius="md" style={{ borderLeft: "4px solid var(--mantine-color-gray-3)" }}>
-          <Text size="xs" c="dimmed" fw={700} tt="uppercase">총 청구액</Text>
+          <Text size="sm" c="dimmed" fw={700} tt="uppercase">총 청구액</Text>
           <Text size="xl" fw={800}>{stats.total.toLocaleString()}원</Text>
         </Paper>
         <Paper withBorder p="md" radius="md" style={{ borderLeft: "4px solid var(--mantine-color-yellow-5)" }}>
-          <Text size="xs" c="dimmed" fw={700} tt="uppercase">승인 대기</Text>
+          <Text size="sm" c="dimmed" fw={700} tt="uppercase">승인 대기</Text>
           <Text size="xl" fw={800} c="yellow.7">{stats.pending.toLocaleString()}원</Text>
         </Paper>
         <Paper withBorder p="md" radius="md" style={{ borderLeft: "4px solid var(--mantine-color-green-5)" }}>
-          <Text size="xs" c="dimmed" fw={700} tt="uppercase">승인/지급 완료</Text>
+          <Text size="sm" c="dimmed" fw={700} tt="uppercase">승인/지급 완료</Text>
           <Text size="xl" fw={800} c="green.7">{stats.approved.toLocaleString()}원</Text>
         </Paper>
       </SimpleGrid>
@@ -378,7 +378,7 @@ export default function ExpensesPage() {
                   key={s}
                   variant={statusFilter === s ? "filled" : "light"}
                   color={s === "all" ? "gray" : statusColor(s as any)}
-                  size="sm"
+                  size="md"
                   style={{ cursor: "pointer" }}
                   onClick={() => setStatusFilter(s as any)}
                 >
@@ -424,7 +424,7 @@ export default function ExpensesPage() {
 
           <Paper withBorder p="md" radius="md">
             <Group justify="space-between" align="center" mb="xs">
-              <Text fw={600}>영수증</Text>
+              <Text size="sm" fw={700}>영수증</Text>
               <FileButton onChange={(file) => file && void uploadReceipt(file)} accept="image/*">
                 {(props) => (
                   <Button {...props} size="xs" variant="light" color="gray" leftSection={<IconPaperclip size={14} />} loading={uploading}>

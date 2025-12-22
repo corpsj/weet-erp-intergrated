@@ -1396,11 +1396,11 @@ export default function TodoPage() {
             onChange={(event) => setQuery(event.currentTarget.value)}
           />
           <Group gap={6} wrap="wrap">
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase" mr={4}>담당자 필터:</Text>
+            <Text size="sm" fw={700} c="dimmed" tt="uppercase" mr={4}>담당자 필터:</Text>
             <Badge
               variant={assigneeFilter === "all" ? "filled" : "light"}
               color="gray"
-              size="sm"
+              size="md"
               radius="sm"
               style={{ cursor: "pointer" }}
               onClick={() => setAssigneeFilter("all")}
@@ -1410,7 +1410,7 @@ export default function TodoPage() {
             <Badge
               variant={assigneeFilter === "anyone" ? "filled" : "light"}
               color="gray"
-              size="sm"
+              size="md"
               radius="sm"
               style={{ cursor: "pointer" }}
               onClick={() => setAssigneeFilter("anyone")}
@@ -1422,7 +1422,7 @@ export default function TodoPage() {
                 key={user.id}
                 variant={assigneeFilter === user.id ? "filled" : "light"}
                 color="gray"
-                size="sm"
+                size="md"
                 radius="sm"
                 style={{ cursor: "pointer" }}
                 onClick={() => setAssigneeFilter(user.id)}
