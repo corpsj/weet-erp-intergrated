@@ -27,7 +27,6 @@ type VaultEntry = {
   url: string | null;
   username: string | null;
   note: string | null;
-  tags: string[];
   created_at: string;
   updated_at: string;
 };
@@ -53,10 +52,8 @@ export default function VaultPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [note, setNote] = useState("");
-  const [tags, setTags] = useState("");
 
   const [query, setQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -65,7 +62,6 @@ export default function VaultPage() {
     setUsername("");
     setPassword("");
     setNote("");
-    setTags("");
     setOpened(true);
   }, []);
 
@@ -76,7 +72,6 @@ export default function VaultPage() {
     setUsername(item.username ?? "");
     setPassword("");
     setNote(item.note ?? "");
-    setTags(item.tags?.join(", ") ?? "");
     setOpened(true);
   }, []);
 
@@ -113,11 +108,6 @@ export default function VaultPage() {
       return;
     }
 
-    const tagList = tags
-      .split(",")
-      .map((t) => t.trim())
-      .filter(Boolean)
-      .slice(0, 20);
 
     setSaving(true);
     try {
@@ -130,7 +120,6 @@ export default function VaultPage() {
           username: username.trim() || null,
           password: password || undefined,
           note: note || null,
-          tags: tagList,
         }),
       });
       const payload = (await response.json().catch(() => null)) as any;
@@ -147,7 +136,7 @@ export default function VaultPage() {
     } finally {
       setSaving(false);
     }
-  }, [editing, load, note, password, tags, title, url, username]);
+  }, [editing, load, note, password, title, url, username]);
 
   const reveal = useCallback(
     async (id: string) => {
@@ -209,11 +198,6 @@ export default function VaultPage() {
     }
   }, []);
 
-  const allTags = useMemo(() => {
-    const s = new Set<string>();
-    items.forEach((item) => (item.tags || []).forEach((t) => s.add(t)));
-    return Array.from(s).sort();
-  }, [items]);
 
   const filteredItems = useMemo(() => {
     return items.filter((item) => {
@@ -221,11 +205,11 @@ export default function VaultPage() {
         !query.trim() ||
         item.title.toLowerCase().includes(query.toLowerCase()) ||
         (item.url || "").toLowerCase().includes(query.toLowerCase()) ||
-        (item.username || "").toLowerCase().includes(query.toLowerCase());
-      const matchesTag = !selectedTag || (item.tags || []).includes(selectedTag);
-      return matchesQuery && matchesTag;
+        (item.username || "").toLowerCase().includes(query.toLowerCase()) ||
+        (item.note || "").toLowerCase().includes(query.toLowerCase());
+      return matchesQuery;
     });
-  }, [items, query, selectedTag]);
+  }, [items, query]);
 
   const rows = useMemo(() => {
     return filteredItems.map((item) => (
@@ -271,21 +255,9 @@ export default function VaultPage() {
           </Group>
         </Table.Td>
         <Table.Td>
-          <Group gap={4}>
-            {(item.tags ?? []).map((tag) => (
-              <Badge
-                key={tag}
-                variant={selectedTag === tag ? "filled" : "light"}
-                color="gray"
-                size="xs"
-                radius="xs"
-                style={{ cursor: "pointer" }}
-                onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
-              >
-                {tag}
-              </Badge>
-            ))}
-          </Group>
+          <Text size="sm" c="dimmed" lineClamp={1}>
+            {item.note || "-"}
+          </Text>
         </Table.Td>
         <Table.Td>
           <Group gap="xs" justify="flex-end" wrap="nowrap">
@@ -299,7 +271,7 @@ export default function VaultPage() {
         </Table.Td>
       </Table.Tr>
     ));
-  }, [copyPassword, filteredItems, remove, reveal, revealed, selectedTag]);
+  }, [copyPassword, filteredItems, remove, reveal, revealed]);
 
   return (
     <Container size="lg" py="xl">
@@ -335,32 +307,6 @@ export default function VaultPage() {
             </Button>
           </Group>
 
-          {allTags.length > 0 && (
-            <Group gap={6}>
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase">태그 필터:</Text>
-              <Badge
-                variant={selectedTag === null ? "filled" : "light"}
-                color="gray"
-                size="sm"
-                style={{ cursor: "pointer" }}
-                onClick={() => setSelectedTag(null)}
-              >
-                전체
-              </Badge>
-              {allTags.map(tag => (
-                <Badge
-                  key={tag}
-                  variant={selectedTag === tag ? "filled" : "light"}
-                  color="gray"
-                  size="sm"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setSelectedTag(tag)}
-                >
-                  {tag}
-                </Badge>
-              ))}
-            </Group>
-          )}
 
           <Table.ScrollContainer minWidth={800}>
             <Table verticalSpacing="xs" highlightOnHover>
@@ -368,8 +314,8 @@ export default function VaultPage() {
                 <Table.Tr>
                   <Table.Th style={{ width: "25%" }}>항목</Table.Th>
                   <Table.Th style={{ width: "20%" }}>아이디</Table.Th>
-                  <Table.Th style={{ width: "30%" }}>비밀번호</Table.Th>
-                  <Table.Th style={{ width: "15%" }}>태그</Table.Th>
+                  <Table.Th style={{ width: "20%" }}>비밀번호</Table.Th>
+                  <Table.Th style={{ width: "25%" }}>메모</Table.Th>
                   <Table.Th style={{ width: "10%" }} />
                 </Table.Tr>
               </Table.Thead>
@@ -392,7 +338,6 @@ export default function VaultPage() {
             placeholder={editing ? "(변경 시에만 입력)" : ""}
             required={!editing}
           />
-          <TextInput label="태그(쉼표로 구분)" value={tags} onChange={(e) => setTags(e.currentTarget.value)} />
           <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
           <Group justify="flex-end">
             <Button variant="light" color="gray" onClick={() => setOpened(false)}>
