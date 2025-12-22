@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 
 import {
   ActionIcon,
@@ -561,6 +561,8 @@ export default function TodoPage() {
     due_date: null,
   });
 
+  const titleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const userById = useMemo(() => {
     return users.reduce<Record<string, AppUser>>((acc, user) => {
       acc[user.id] = user;
@@ -647,6 +649,19 @@ export default function TodoPage() {
 
   useEffect(() => {
     loadAll();
+  }, [loadAll]);
+
+  const syncTodo = useCallback(async (todoId: string, updates: Partial<Todo>) => {
+    // 1. 로컬 상태 즉시 업데이트 (Optimistic UI)
+    setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...updates } : t));
+
+    // 2. DB 업데이트
+    const { error } = await supabase.from("todos").update(updates).eq("id", todoId);
+
+    if (error) {
+      notifications.show({ title: "동기화 실패", message: error.message, color: "red" });
+      await loadAll(); // 실패 시 서버 상태로 원복
+    }
   }, [loadAll]);
 
   const activeCount = useMemo(() => todos.filter((todo) => todo.status !== "done").length, [todos]);
@@ -1469,6 +1484,9 @@ export default function TodoPage() {
                     onChange={(value) => {
                       const val = (value as Todo["status"]) ?? "todo";
                       setForm((prev) => ({ ...prev, status: val }));
+                      if (editorMode.mode === "edit") {
+                        syncTodo(editorMode.todoId, { status: val });
+                      }
                     }}
                     allowDeselect={false}
                   />
@@ -1479,14 +1497,12 @@ export default function TodoPage() {
                     disabled={mutating}
                     onChange={(event) => {
                       const checked = event.currentTarget.checked;
-                      setForm((prev) => ({
-                        ...prev,
-                        status: checked
-                          ? "done"
-                          : prev.status === "done"
-                            ? "todo"
-                            : prev.status,
-                      }));
+                      const nextStatus = checked ? "done" : "todo";
+                      setForm((prev) => ({ ...prev, status: nextStatus }));
+                      if (editorMode.mode === "edit") {
+                        const todo = todoById[editorMode.todoId];
+                        if (todo) toggleDone(todo, checked);
+                      }
                     }}
                   />
                 </Group>
@@ -1499,6 +1515,13 @@ export default function TodoPage() {
                 onChange={(event) => {
                   const val = event.currentTarget.value;
                   setForm((prev) => ({ ...prev, title: val }));
+
+                  if (editorMode.mode === "edit") {
+                    if (titleTimeoutRef.current) clearTimeout(titleTimeoutRef.current);
+                    titleTimeoutRef.current = setTimeout(() => {
+                      if (val.trim()) syncTodo(editorMode.todoId, { title: val.trim() });
+                    }, 1000);
+                  }
                 }}
                 required
               />
@@ -1508,16 +1531,28 @@ export default function TodoPage() {
                   label="우선순위"
                   data={priorityOptions}
                   value={form.priority}
-                  onChange={(value) =>
-                    setForm((prev) => ({ ...prev, priority: (value as TodoPriority) ?? "medium" }))
-                  }
+                  onChange={(value) => {
+                    const priority = (value as TodoPriority) ?? "medium";
+                    setForm((prev) => ({ ...prev, priority }));
+                    if (editorMode.mode === "edit") {
+                      syncTodo(editorMode.todoId, { priority });
+                    }
+                  }}
                 />
                 <Autocomplete
                   label="담당자"
                   placeholder="@이름"
                   data={assigneeOptions}
                   value={form.assigneeInput}
-                  onChange={(value) => setForm((prev) => ({ ...prev, assigneeInput: value }))}
+                  onChange={(value) => {
+                    setForm((prev) => ({ ...prev, assigneeInput: value }));
+                    if (editorMode.mode === "edit") {
+                      const assigneeId = matchAssigneeId(value, users);
+                      if (value.trim() === "" || assigneeId) {
+                        syncTodo(editorMode.todoId, { assignee_id: assigneeId });
+                      }
+                    }
+                  }}
                 />
               </Group>
 
@@ -1525,12 +1560,16 @@ export default function TodoPage() {
                 label="마감일"
                 placeholder="날짜 선택"
                 value={form.due_date ? dayjs(form.due_date).toDate() : null}
-                onChange={(date) =>
+                onChange={(date) => {
+                  const dateStr = date ? dayjs(date).format("YYYY-MM-DD") : null;
                   setForm((prev) => ({
                     ...prev,
-                    due_date: date ? dayjs(date).format("YYYY-MM-DD") : null,
-                  }))
-                }
+                    due_date: dateStr,
+                  }));
+                  if (editorMode.mode === "edit") {
+                    syncTodo(editorMode.todoId, { due_date: dateStr });
+                  }
+                }}
                 clearable
               />
 
@@ -1621,7 +1660,9 @@ export default function TodoPage() {
 
             <Group justify="flex-end" mt="xl" pt="md" style={{ borderTop: "1px solid var(--mantine-color-gray-2)" }}>
               <Button variant="default" onClick={closeEditor}>닫기</Button>
-              <Button onClick={saveEditor} loading={saving}>저장</Button>
+              {editorMode.mode === "create" && (
+                <Button onClick={saveEditor} loading={saving}>추가</Button>
+              )}
             </Group>
           </Paper>
         )}
