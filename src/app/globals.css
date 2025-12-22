@@ -1,10 +1,15 @@
 :root {
-  --ink: #1c1c1c;
-  --muted: #6b6b6b;
-  --surface: #f6f6f4;
-  --panel: #ffffff;
-  --accent: #d6d6d6;
-  --ring: rgba(0, 0, 0, 0.08);
+  --ink: #0f172a;
+  --muted: #64748b;
+  --surface: #f8fafc;
+  --panel: rgba(255, 255, 255, 0.8);
+  --accent: #6366f1;
+  --ring: rgba(99, 102, 241, 0.1);
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
 html,
@@ -16,7 +21,7 @@ body {
 
 body {
   color: var(--ink);
-  background: var(--surface);
+  background: radial-gradient(circle at top right, #f1f5f9 0%, #f8fafc 100%);
   font-family: var(--font-body), sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -34,21 +39,50 @@ a {
 }
 
 .app-shell {
-  background: var(--surface);
+  background: transparent;
   min-height: 100vh;
 }
 
 .app-surface {
   background: var(--panel);
-  border: 1px solid #e6e6e6;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-md);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.app-surface:hover {
+  box-shadow: var(--shadow-lg);
 }
 
 .brand-title {
   font-family: var(--font-display), sans-serif;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.soft-grid {
-  background: transparent;
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
 }
