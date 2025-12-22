@@ -61,7 +61,7 @@ const priorityRank: Record<TodoPriority, number> = {
 
 const statusColumns = [
   { id: "todo", label: "할 일", color: "gray" },
-  { id: "progress", label: "진행 중", color: "blue" },
+  { id: "in_progress", label: "진행 중", color: "blue" },
   { id: "done", label: "완료", color: "green" },
 ];
 
@@ -1196,347 +1196,353 @@ export default function TodoPage() {
                               })}
                               {provided.placeholder}
                             </Stack>
-                </Paper>
-              </Stack>
-            </Paper>
-          );
-        })}
-        </Box>
-        );
+                          )}
+                        </Droppable>
+                      </Paper>
+                    )}
+                  </Draggable>
+                );
+              })}
+              {provided.placeholder}
+            </Box>
+          )}
+        </Droppable>
+      </DragDropContext>
+    );
   };
 
   const assigneeSelectData = useMemo(() => {
     return [
-        {value: "all", label: "전체" },
-        {value: "unassigned", label: "미지정" },
-      ...users.map((user) => ({value: user.id, label: user.name })),
-        ];
+      { value: "all", label: "전체" },
+      { value: "unassigned", label: "미지정" },
+      ...users.map((user) => ({ value: user.id, label: user.name })),
+    ];
   }, [users]);
 
   const editorPath = useMemo(() => {
     const startId = editorMode.mode === "edit" ? editorMode.todoId : (editorMode.parentId ?? null);
-        if (!startId) return [] as Todo[];
+    if (!startId) return [] as Todo[];
 
-        const path: Todo[] = [];
-        let current: Todo | undefined = todoById[startId];
-        while (current) {
-          path.unshift(current);
-        if (!current.parent_id) break;
-        current = todoById[current.parent_id];
+    const path: Todo[] = [];
+    let current: Todo | undefined = todoById[startId];
+    while (current) {
+      path.unshift(current);
+      if (!current.parent_id) break;
+      current = todoById[current.parent_id];
     }
-        return path;
+    return path;
   }, [editorMode, todoById]);
 
   const editorChildren = useMemo(() => {
     if (editorMode.mode !== "edit") return [] as Todo[];
-        const list = fullChildrenMap.get(editorMode.todoId) ?? [];
+    const list = fullChildrenMap.get(editorMode.todoId) ?? [];
     return [...list].sort((a, b) => compareTodos(a, b, sortMode));
   }, [editorMode, fullChildrenMap, sortMode]);
 
-        return (
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-end">
-            <Stack gap={2}>
-              <Title order={2}>To-Do</Title>
-              <Text size="xs" c="dimmed">
-                진행 {activeCount} · 완료 {doneCount}
-              </Text>
-            </Stack>
-            <Button size="sm" color="gray" leftSection={<IconPlus size={16} />} onClick={() => openCreate(null)}>
-              새 업무
-            </Button>
-          </Group>
+  return (
+    <Stack gap="sm">
+      <Group justify="space-between" align="flex-end">
+        <Stack gap={2}>
+          <Title order={2}>To-Do</Title>
+          <Text size="xs" c="dimmed">
+            진행 {activeCount} · 완료 {doneCount}
+          </Text>
+        </Stack>
+        <Button size="sm" color="gray" leftSection={<IconPlus size={16} />} onClick={() => openCreate(null)}>
+          새 업무
+        </Button>
+      </Group>
 
-          <Paper withBorder radius="md" p="xs">
-            <Group gap="xs" align="center" wrap="wrap">
-              <TextInput
-                placeholder="검색"
-                aria-label="업무 검색"
-                size="sm"
-                leftSection={<IconSearch size={16} />}
-                value={query}
-                onChange={(event) => setQuery(event.currentTarget.value)}
-                style={{ flex: 1, minWidth: 220 }}
-              />
-              <Select
-                placeholder="담당자"
-                aria-label="담당자 필터"
-                size="sm"
-                data={assigneeSelectData}
-                value={assigneeFilter}
-                onChange={(value) => setAssigneeFilter((value as AssigneeFilter) ?? "all")}
-                allowDeselect={false}
-                style={{ minWidth: 160 }}
-              />
-              <SegmentedControl
-                size="sm"
-                value={sortMode}
-                onChange={(value) => setSortMode(value as SortMode)}
-                data={[
-                  { value: "due", label: "마감일" },
-                  { value: "priority", label: "우선순위" },
-                ]}
-              />
-              <SegmentedControl
-                size="sm"
-                value={viewMode}
-                onChange={(value) => setViewMode(value as "grid" | "list" | "board")}
-                data={[
-                  { value: "list", label: <IconList size={16} /> },
-                  { value: "board", label: <IconColumns3 size={16} /> },
-                  { value: "grid", label: <IconLayoutGrid size={16} /> },
-                ]}
-              />
-              <Checkbox
-                size="sm"
-                label="완료 포함"
-                checked={showDone}
-                onChange={(event) => setShowDone(event.currentTarget.checked)}
-              />
-              <Button size="sm" variant="light" color="gray" onClick={loadAll} loading={loading}>
-                새로고침
-              </Button>
-            </Group>
-          </Paper>
+      <Paper withBorder radius="md" p="xs">
+        <Group gap="xs" align="center" wrap="wrap">
+          <TextInput
+            placeholder="검색"
+            aria-label="업무 검색"
+            size="sm"
+            leftSection={<IconSearch size={16} />}
+            value={query}
+            onChange={(event) => setQuery(event.currentTarget.value)}
+            style={{ flex: 1, minWidth: 220 }}
+          />
+          <Select
+            placeholder="담당자"
+            aria-label="담당자 필터"
+            size="sm"
+            data={assigneeSelectData}
+            value={assigneeFilter}
+            onChange={(value) => setAssigneeFilter((value as AssigneeFilter) ?? "all")}
+            allowDeselect={false}
+            style={{ minWidth: 160 }}
+          />
+          <SegmentedControl
+            size="sm"
+            value={sortMode}
+            onChange={(value) => setSortMode(value as SortMode)}
+            data={[
+              { value: "due", label: "마감일" },
+              { value: "priority", label: "우선순위" },
+            ]}
+          />
+          <SegmentedControl
+            size="sm"
+            value={viewMode}
+            onChange={(value) => setViewMode(value as "grid" | "list" | "board")}
+            data={[
+              { value: "list", label: <IconList size={16} /> },
+              { value: "board", label: <IconColumns3 size={16} /> },
+              { value: "grid", label: <IconLayoutGrid size={16} /> },
+            ]}
+          />
+          <Checkbox
+            size="sm"
+            label="완료 포함"
+            checked={showDone}
+            onChange={(event) => setShowDone(event.currentTarget.checked)}
+          />
+          <Button size="sm" variant="light" color="gray" onClick={loadAll} loading={loading}>
+            새로고침
+          </Button>
+        </Group>
+      </Paper>
 
-          <Box pos="relative" style={{ height: "calc(100vh - 200px)" }}>
-            <Paper
-              withBorder
-              radius="md"
-              p="xs"
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              <Box style={{ flex: 1, overflowY: "auto", padding: "4px" }}>
-                {viewMode === "board" ? (
-                  renderBoard()
-                ) : (
-                  renderTree(null, 0) || (
-                    <Text size="sm" c="dimmed" ta="center" mt="xl">
-                      표시할 업무가 없습니다.
-                    </Text>
-                  )
-                )}
-              </Box>
-            </Paper>
-
-            {editorOpened && (
-              <Paper
-                withBorder
-                shadow="xl"
-                radius="md"
-                p="md"
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  right: 0,
-                  width: "400px",
-                  height: "100%",
-                  zIndex: 100,
-                  display: "flex",
-                  flexDirection: "column",
-                  overflowY: "auto",
-                  backgroundColor: "white",
-                  borderLeft: "1px solid var(--mantine-color-gray-2)",
-                  boxShadow: "-4px 0 12px rgba(0,0,0,0.05)",
-                }}
-              >
-                <Group justify="space-between" mb="lg">
-                  <Title order={4}>
-                    {editorMode.mode === "create" ? "새 업무 추가" : "업무 상세 정보"}
-                  </Title>
-                  <ActionIcon variant="subtle" color="gray" onClick={closeEditor}>
-                    <IconX size={20} />
-                  </ActionIcon>
-                </Group>
-
-                <Stack gap="md">
-                  {currentParent && (
-                    <Paper withBorder p="xs" bg="gray.0">
-                      <Text size="xs" c="dimmed">
-                        상위 업무
-                      </Text>
-                      <Text size="sm" fw={700}>
-                        {currentParent.title}
-                      </Text>
-                    </Paper>
-                  )}
-
-                  {editorMode.mode === "edit" && currentTodo && (
-                    <Group gap="xs" grow>
-                      <Select
-                        label="상태"
-                        data={[
-                          { value: "todo", label: "할 일" },
-                          { value: "in_progress", label: "진행 중" },
-                          { value: "done", label: "완료" },
-                        ]}
-                        value={form.status}
-                        onChange={(value) => {
-                          const val = (value as Todo["status"]) ?? "todo";
-                          setForm((prev) => ({ ...prev, status: val }));
-                        }}
-                        allowDeselect={false}
-                      />
-                      <Checkbox
-                        mt={24}
-                        label="완료됨"
-                        checked={form.status === "done"}
-                        disabled={mutating}
-                        onChange={(event) => {
-                          const checked = event.currentTarget.checked;
-                          setForm((prev) => ({
-                            ...prev,
-                            status: checked
-                              ? "done"
-                              : prev.status === "done"
-                                ? "todo"
-                                : prev.status,
-                          }));
-                        }}
-                      />
-                    </Group>
-                  )}
-
-                  <TextInput
-                    label="업무"
-                    placeholder="업무 내용을 입력하세요"
-                    value={form.title}
-                    onChange={(event) => {
-                      const val = event.currentTarget.value;
-                      setForm((prev) => ({ ...prev, title: val }));
-                    }}
-                    required
-                  />
-
-                  <Group grow>
-                    <Select
-                      label="우선순위"
-                      data={priorityOptions}
-                      value={form.priority}
-                      onChange={(value) =>
-                        setForm((prev) => ({ ...prev, priority: (value as TodoPriority) ?? "medium" }))
-                      }
-                    />
-                    <Autocomplete
-                      label="담당자"
-                      placeholder="@이름"
-                      data={assigneeOptions}
-                      value={form.assigneeInput}
-                      onChange={(value) => setForm((prev) => ({ ...prev, assigneeInput: value }))}
-                    />
-                  </Group>
-
-                  <DateInput
-                    label="마감일"
-                    placeholder="날짜 선택"
-                    value={form.due_date ? dayjs(form.due_date).toDate() : null}
-                    onChange={(date) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        due_date: date ? dayjs(date).format("YYYY-MM-DD") : null,
-                      }))
-                    }
-                    clearable
-                  />
-
-                  <Paper withBorder radius="md" p="sm">
-                    <Group justify="space-between" mb="xs">
-                      <Text fw={700} size="sm">
-                        하위 업무 ({editorChildren.length})
-                      </Text>
-                      <ActionIcon variant="light" color="gray" size="sm" onClick={() => openCreate(editorMode.mode === "edit" ? editorMode.todoId : null)}>
-                        <IconPlus size={14} />
-                      </ActionIcon>
-                    </Group>
-                    <Stack gap="xs">
-                      {editorChildren.map((child) => {
-                        const childAssignee = child.assignee_id ? userById[child.assignee_id] : undefined;
-                        const childDone = child.status === "done";
-                        return (
-                          <Paper
-                            key={child.id}
-                            withBorder
-                            radius="md"
-                            p="xs"
-                            onClick={() => openEdit(child.id)}
-                            style={{ cursor: "pointer", background: "white", borderColor: "var(--mantine-color-gray-3)" }}
-                          >
-                            <Group justify="space-between" wrap="nowrap">
-                              <Group gap="sm" wrap="nowrap">
-                                <Checkbox
-                                  size="xs"
-                                  checked={childDone}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => toggleDone(child, e.currentTarget.checked)}
-                                />
-                                <Stack gap={2}>
-                                  <Text size="xs" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
-                                    {child.title}
-                                  </Text>
-                                  <Badge color={priorityColor(child.priority)} size="10px" variant="light">
-                                    {priorityLabels[child.priority]}
-                                  </Badge>
-                                </Stack>
-                              </Group>
-                              <Group gap="xs">
-                                {childAssignee && (
-                                  <Avatar size={20} radius="xl">
-                                    {childAssignee.initials ?? childAssignee.name.slice(0, 1)}
-                                  </Avatar>
-                                )}
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  size="sm"
-                                  onClick={(e) => { e.stopPropagation(); openCreate(child.id); }}
-                                >
-                                  <IconPlus size={14} />
-                                </ActionIcon>
-                              </Group>
-                            </Group>
-                          </Paper>
-                        );
-                      })}
-                      {editorChildren.length === 0 && (
-                        <Text size="xs" c="dimmed" ta="center">하위 업무가 없습니다.</Text>
-                      )}
-                    </Stack>
-                  </Paper>
-
-                  <Group justify="flex-start">
-                    {!deleteArmed ? (
-                      <Button
-                        variant="subtle"
-                        color="red"
-                        size="xs"
-                        leftSection={<IconTrash size={14} />}
-                        onClick={() => setDeleteArmed(true)}
-                      >
-                        업무 삭제
-                      </Button>
-                    ) : (
-                      <Group gap="xs">
-                        <Text size="xs" c="red" fw={700}>정말 삭제?</Text>
-                        <Button size="xs" variant="default" onClick={() => setDeleteArmed(false)}>취소</Button>
-                        <Button size="xs" color="red" onClick={deleteCurrent} loading={saving}>삭제</Button>
-                      </Group>
-                    )}
-                  </Group>
-                </Stack>
-
-                <Group justify="flex-end" mt="xl" pt="md" style={{ borderTop: "1px solid var(--mantine-color-gray-2)" }}>
-                  <Button variant="default" onClick={closeEditor}>닫기</Button>
-                  <Button onClick={saveEditor} loading={saving}>저장</Button>
-                </Group>
-              </Paper>
+      <Box pos="relative" style={{ height: "calc(100vh - 200px)" }}>
+        <Paper
+          withBorder
+          radius="md"
+          p="xs"
+          style={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          <Box style={{ flex: 1, overflowY: "auto", padding: "4px" }}>
+            {viewMode === "board" ? (
+              renderBoard()
+            ) : (
+              renderTree(null, 0) || (
+                <Text size="sm" c="dimmed" ta="center" mt="xl">
+                  표시할 업무가 없습니다.
+                </Text>
+              )
             )}
           </Box>
-        </Stack>
-        );
+        </Paper>
+
+        {editorOpened && (
+          <Paper
+            withBorder
+            shadow="xl"
+            radius="md"
+            p="md"
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: "400px",
+              height: "100%",
+              zIndex: 100,
+              display: "flex",
+              flexDirection: "column",
+              overflowY: "auto",
+              backgroundColor: "white",
+              borderLeft: "1px solid var(--mantine-color-gray-2)",
+              boxShadow: "-4px 0 12px rgba(0,0,0,0.05)",
+            }}
+          >
+            <Group justify="space-between" mb="lg">
+              <Title order={4}>
+                {editorMode.mode === "create" ? "새 업무 추가" : "업무 상세 정보"}
+              </Title>
+              <ActionIcon variant="subtle" color="gray" onClick={closeEditor}>
+                <IconX size={20} />
+              </ActionIcon>
+            </Group>
+
+            <Stack gap="md">
+              {currentParent && (
+                <Paper withBorder p="xs" bg="gray.0">
+                  <Text size="xs" c="dimmed">
+                    상위 업무
+                  </Text>
+                  <Text size="sm" fw={700}>
+                    {currentParent.title}
+                  </Text>
+                </Paper>
+              )}
+
+              {editorMode.mode === "edit" && currentTodo && (
+                <Group gap="xs" grow>
+                  <Select
+                    label="상태"
+                    data={[
+                      { value: "todo", label: "할 일" },
+                      { value: "in_progress", label: "진행 중" },
+                      { value: "done", label: "완료" },
+                    ]}
+                    value={form.status}
+                    onChange={(value) => {
+                      const val = (value as Todo["status"]) ?? "todo";
+                      setForm((prev) => ({ ...prev, status: val }));
+                    }}
+                    allowDeselect={false}
+                  />
+                  <Checkbox
+                    mt={24}
+                    label="완료됨"
+                    checked={form.status === "done"}
+                    disabled={mutating}
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked;
+                      setForm((prev) => ({
+                        ...prev,
+                        status: checked
+                          ? "done"
+                          : prev.status === "done"
+                            ? "todo"
+                            : prev.status,
+                      }));
+                    }}
+                  />
+                </Group>
+              )}
+
+              <TextInput
+                label="업무"
+                placeholder="업무 내용을 입력하세요"
+                value={form.title}
+                onChange={(event) => {
+                  const val = event.currentTarget.value;
+                  setForm((prev) => ({ ...prev, title: val }));
+                }}
+                required
+              />
+
+              <Group grow>
+                <Select
+                  label="우선순위"
+                  data={priorityOptions}
+                  value={form.priority}
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, priority: (value as TodoPriority) ?? "medium" }))
+                  }
+                />
+                <Autocomplete
+                  label="담당자"
+                  placeholder="@이름"
+                  data={assigneeOptions}
+                  value={form.assigneeInput}
+                  onChange={(value) => setForm((prev) => ({ ...prev, assigneeInput: value }))}
+                />
+              </Group>
+
+              <DateInput
+                label="마감일"
+                placeholder="날짜 선택"
+                value={form.due_date ? dayjs(form.due_date).toDate() : null}
+                onChange={(date) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    due_date: date ? dayjs(date).format("YYYY-MM-DD") : null,
+                  }))
+                }
+                clearable
+              />
+
+              <Paper withBorder radius="md" p="sm">
+                <Group justify="space-between" mb="xs">
+                  <Text fw={700} size="sm">
+                    하위 업무 ({editorChildren.length})
+                  </Text>
+                  <ActionIcon variant="light" color="gray" size="sm" onClick={() => openCreate(editorMode.mode === "edit" ? editorMode.todoId : null)}>
+                    <IconPlus size={14} />
+                  </ActionIcon>
+                </Group>
+                <Stack gap="xs">
+                  {editorChildren.map((child) => {
+                    const childAssignee = child.assignee_id ? userById[child.assignee_id] : undefined;
+                    const childDone = child.status === "done";
+                    return (
+                      <Paper
+                        key={child.id}
+                        withBorder
+                        radius="md"
+                        p="xs"
+                        onClick={() => openEdit(child.id)}
+                        style={{ cursor: "pointer", background: "white", borderColor: "var(--mantine-color-gray-3)" }}
+                      >
+                        <Group justify="space-between" wrap="nowrap">
+                          <Group gap="sm" wrap="nowrap">
+                            <Checkbox
+                              size="xs"
+                              checked={childDone}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => toggleDone(child, e.currentTarget.checked)}
+                            />
+                            <Stack gap={2}>
+                              <Text size="xs" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
+                                {child.title}
+                              </Text>
+                              <Badge color={priorityColor(child.priority)} size="10px" variant="light">
+                                {priorityLabels[child.priority]}
+                              </Badge>
+                            </Stack>
+                          </Group>
+                          <Group gap="xs">
+                            {childAssignee && (
+                              <Avatar size={20} radius="xl">
+                                {childAssignee.initials ?? childAssignee.name.slice(0, 1)}
+                              </Avatar>
+                            )}
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); openCreate(child.id); }}
+                            >
+                              <IconPlus size={14} />
+                            </ActionIcon>
+                          </Group>
+                        </Group>
+                      </Paper>
+                    );
+                  })}
+                  {editorChildren.length === 0 && (
+                    <Text size="xs" c="dimmed" ta="center">하위 업무가 없습니다.</Text>
+                  )}
+                </Stack>
+              </Paper>
+
+              <Group justify="flex-start">
+                {!deleteArmed ? (
+                  <Button
+                    variant="subtle"
+                    color="red"
+                    size="xs"
+                    leftSection={<IconTrash size={14} />}
+                    onClick={() => setDeleteArmed(true)}
+                  >
+                    업무 삭제
+                  </Button>
+                ) : (
+                  <Group gap="xs">
+                    <Text size="xs" c="red" fw={700}>정말 삭제?</Text>
+                    <Button size="xs" variant="default" onClick={() => setDeleteArmed(false)}>취소</Button>
+                    <Button size="xs" color="red" onClick={deleteCurrent} loading={saving}>삭제</Button>
+                  </Group>
+                )}
+              </Group>
+            </Stack>
+
+            <Group justify="flex-end" mt="xl" pt="md" style={{ borderTop: "1px solid var(--mantine-color-gray-2)" }}>
+              <Button variant="default" onClick={closeEditor}>닫기</Button>
+              <Button onClick={saveEditor} loading={saving}>저장</Button>
+            </Group>
+          </Paper>
+        )}
+      </Box>
+    </Stack>
+  );
 }
