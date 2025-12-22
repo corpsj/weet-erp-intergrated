@@ -1,23 +1,23 @@
 "use client";
 
-import { AppShell, Burger, Group, NavLink, Text, Box, Divider, Button, Paper, Stack } from "@mantine/core";
+import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
+  IconBuildingStore,
+  IconCalculator,
   IconCalendar,
   IconCheckbox,
   IconHome,
-  IconCalculator,
+  IconKey,
+  IconNotes,
+  IconReceipt,
+  IconSearch,
   IconSettings,
   IconUser,
-  IconKey,
-  IconReceipt,
-  IconNotes,
-  IconBuildingStore,
-  IconSearch,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const groupedNavItems = [
@@ -27,28 +27,23 @@ const groupedNavItems = [
       { label: "허브", icon: IconHome, link: "/" },
       { label: "캘린더", icon: IconCalendar, link: "/calendar" },
       { label: "To-Do", icon: IconCheckbox, link: "/todo" },
+      { label: "메모", icon: IconNotes, link: "/memos" },
     ],
   },
   {
     group: "ERP 솔루션",
     items: [
-      { label: "회사 정보", icon: IconBuildingStore, link: "/info" },
-      { label: "메모", icon: IconNotes, link: "/memos" },
       { label: "검색", icon: IconSearch, link: "/search" },
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
     ],
   },
   {
     group: "보안 도구",
-    items: [
-      { label: "계정 공유", icon: IconKey, link: "/vault" },
-    ],
+    items: [{ label: "계정 공유", icon: IconKey, link: "/vault" }],
   },
   {
     group: "weet Tools",
-    items: [
-      { label: "견적 시스템", icon: IconCalculator, link: "/estimate" },
-    ],
+    items: [{ label: "견적 시스템", icon: IconCalculator, link: "/estimate" }],
   },
   {
     group: "관리",
@@ -134,8 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const metaName = typeof meta?.name === "string" ? (meta.name as string).trim() : "";
       const email = user.email;
       const fallback = typeof email === "string" && email.includes("@") ? email.split("@")[0] : null;
-      const nextName = metaName || fallback;
-      setDisplayName(nextName);
+      setDisplayName(metaName || fallback);
       setLoading(false);
     });
 
@@ -154,7 +148,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Box className="app-shell" p="xl">
         <Paper className="app-surface" p="xl" maw={520}>
           <Text fw={600} className="brand-title">
-            weet ERP
+            WE-ET ERP
           </Text>
           <Text c="dimmed" mt="xs">
             인증 정보를 확인하는 중입니다...
@@ -177,7 +171,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Box>
               <Text className="brand-title" fw={700} size="lg">
-                weet ERP
+                WE-ET ERP
               </Text>
             </Box>
           </Group>
@@ -200,23 +194,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Group>
         </Group>
       </AppShell.Header>
-      href={item.link}
-      label={item.label}
-      leftSection={<item.icon size={18} stroke={1.5} />}
-      active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
-      variant="light"
-      onClick={close}
-      style={{ borderRadius: "var(--mantine-radius-sm)" }}
-                />
-              ))}
-    </Box>
-  ))
-}
-        </Stack >
-      </AppShell.Navbar >
 
+      <AppShell.Navbar p="md">
+        {groupedNavItems.map((group) => (
+          <Box key={group.group} mb="md">
+            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
+              {group.group}
+            </Text>
+            <Divider my="sm" />
+            {group.items.map((item) => (
+              <NavLink
+                key={item.link}
+                component={Link}
+                href={item.link}
+                label={item.label}
+                leftSection={<item.icon size={18} stroke={1.5} />}
+                active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
+                variant="light"
+                mb={6}
+                onClick={close}
+              />
+            ))}
+          </Box>
+        ))}
+      </AppShell.Navbar>
 
-  <AppShell.Main>{children}</AppShell.Main>
-    </AppShell >
+      <AppShell.Main>{children}</AppShell.Main>
+    </AppShell>
   );
 }
