@@ -357,7 +357,7 @@ export default function HubPage() {
                       {todos.length}건
                     </Text>
                   </Group>
-                  <ScrollArea h={450} offsetScrollbars>
+                  <ScrollArea h={250} offsetScrollbars>
                     <Table verticalSpacing="xs">
                       <Table.Tbody>{summaryTodos.map((todo) => (
                         <Table.Tr key={todo.id}>
