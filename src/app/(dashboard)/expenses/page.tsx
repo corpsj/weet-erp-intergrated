@@ -86,6 +86,7 @@ export default function ExpensesPage() {
 
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -132,6 +133,7 @@ export default function ExpensesPage() {
     setCategory("");
     setNote("");
     setReceipts([]);
+    setPendingFile(null);
     setOpened(true);
   }, []);
 
@@ -144,10 +146,46 @@ export default function ExpensesPage() {
       setCategory(item.category ?? "");
       setNote(item.note ?? "");
       setReceipts([]);
+      setPendingFile(null);
       setOpened(true);
       await loadReceipts(item.id);
     },
     [loadReceipts]
+  );
+
+  const uploadReceipt = useCallback(
+    async (file: File, claimId?: string) => {
+      const targetId = claimId || editing?.id;
+      if (!targetId) {
+        setPendingFile(file);
+        return;
+      }
+
+      setUploading(true);
+      try {
+        const form = new FormData();
+        form.set("file", file);
+        const response = await fetchWithAuth(`/api/expenses/${targetId}/receipts`, {
+          method: "POST",
+          body: form,
+        });
+        const payload = (await response.json().catch(() => null)) as any;
+        if (!response.ok) throw new Error(payload?.message ?? "등록 실패");
+        if (editing?.id === targetId) {
+          await loadReceipts(targetId);
+        }
+        notifications.show({ title: "업로드 완료", message: "영수증이 업로드되었습니다.", color: "gray" });
+      } catch (error) {
+        notifications.show({
+          title: "업로드 실패",
+          message: error instanceof Error ? error.message : "알 수 없는 오류",
+          color: "red",
+        });
+      } finally {
+        setUploading(false);
+      }
+    },
+    [editing, loadReceipts]
   );
 
   const save = useCallback(async () => {
@@ -181,6 +219,15 @@ export default function ExpensesPage() {
       });
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "저장 실패");
+
+      const newClaim = payload?.item as ExpenseClaim;
+
+      // If there's a pending file, upload it now
+      if (pendingFile && newClaim) {
+        await uploadReceipt(pendingFile, newClaim.id);
+        setPendingFile(null);
+      }
+
       setOpened(false);
       await load();
       notifications.show({ title: "저장 완료", message: "경비가 저장되었습니다.", color: "gray" });
@@ -193,7 +240,7 @@ export default function ExpensesPage() {
     } finally {
       setSaving(false);
     }
-  }, [amount, category, editing, load, note, spentAt, title]);
+  }, [amount, category, editing, load, note, pendingFile, spentAt, title, uploadReceipt]);
 
   const action = useCallback(
     async (item: ExpenseClaim, nextAction: "submit" | "approve" | "reject" | "pay") => {
@@ -205,7 +252,12 @@ export default function ExpensesPage() {
         });
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) throw new Error(payload?.message ?? "처리 실패");
-        setItems((prev) => prev.map((x) => (x.id === item.id ? (payload?.item as ExpenseClaim) : x)));
+        const updated = payload?.item as ExpenseClaim;
+        setItems((prev) => prev.map((x) => (x.id === item.id ? updated : x)));
+        if (editing?.id === item.id) {
+          setEditing(updated);
+        }
+        notifications.show({ title: "처리 완료", message: "상태가 업데이트되었습니다.", color: "blue" });
       } catch (error) {
         notifications.show({
           title: "처리 실패",
@@ -214,7 +266,7 @@ export default function ExpensesPage() {
         });
       }
     },
-    []
+    [editing]
   );
 
   const remove = useCallback(async (id: string) => {
@@ -234,38 +286,6 @@ export default function ExpensesPage() {
       });
     }
   }, []);
-
-  const uploadReceipt = useCallback(
-    async (file: File) => {
-      if (!editing) {
-        notifications.show({ title: "업로드 불가", message: "먼저 저장한 뒤 업로드하세요.", color: "yellow" });
-        return;
-      }
-
-      setUploading(true);
-      try {
-        const form = new FormData();
-        form.set("file", file);
-        const response = await fetchWithAuth(`/api/expenses/${editing.id}/receipts`, {
-          method: "POST",
-          body: form,
-        });
-        const payload = (await response.json().catch(() => null)) as any;
-        if (!response.ok) throw new Error(payload?.message ?? "등록 실패");
-        await loadReceipts(editing.id);
-        notifications.show({ title: "업로드 완료", message: "영수증이 업로드되었습니다.", color: "gray" });
-      } catch (error) {
-        notifications.show({
-          title: "업로드 실패",
-          message: error instanceof Error ? error.message : "알 수 없는 오류",
-          color: "red",
-        });
-      } finally {
-        setUploading(false);
-      }
-    },
-    [editing, loadReceipts]
-  );
 
   const stats = useMemo(() => {
     return items.reduce(
@@ -330,29 +350,29 @@ export default function ExpensesPage() {
               </Badge>
               <Group gap={4}>
                 <Button size="compact-xs" variant="light" color="gray" onClick={() => void openEdit(item)}>
-                  열기
+                  상세
                 </Button>
                 {item.status === "draft" && (
-                  <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "submit")}>
-                    <IconSend size={15} />
-                  </ActionIcon>
+                  <Button size="compact-xs" variant="light" color="blue" leftSection={<IconSend size={14} />} onClick={() => void action(item, "submit")}>
+                    제출
+                  </Button>
                 )}
                 {item.status === "submitted" && (
                   <>
-                    <ActionIcon variant="subtle" color="blue" size="sm" onClick={() => void action(item, "approve")}>
-                      <IconCheck size={15} />
-                    </ActionIcon>
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void action(item, "reject")}>
-                      <IconX size={15} />
-                    </ActionIcon>
+                    <Button size="compact-xs" variant="light" color="blue" leftSection={<IconCheck size={14} />} onClick={() => void action(item, "approve")}>
+                      승인
+                    </Button>
+                    <Button size="compact-xs" variant="light" color="red" leftSection={<IconX size={14} />} onClick={() => void action(item, "reject")}>
+                      반려
+                    </Button>
                   </>
                 )}
                 {item.status === "approved" && (
-                  <ActionIcon variant="subtle" color="green" size="sm" onClick={() => void action(item, "pay")}>
-                    <IconCash size={15} />
-                  </ActionIcon>
+                  <Button size="compact-xs" variant="light" color="green" leftSection={<IconCash size={14} />} onClick={() => void action(item, "pay")}>
+                    지급
+                  </Button>
                 )}
-                <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)}>
+                <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)} title="삭제">
                   <IconTrash size={15} />
                 </ActionIcon>
               </Group>
@@ -420,45 +440,82 @@ export default function ExpensesPage() {
           <TextInput label="카테고리" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="예: 교통/식대/소모품" />
           <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
 
-          <Paper withBorder p="md" radius="md">
-            <Group justify="space-between" align="center" mb="xs">
-              <Text size="sm" fw={700}>영수증</Text>
-              <FileButton onChange={(file) => file && void uploadReceipt(file)} accept="image/*">
-                {(props) => (
-                  <Button {...props} size="xs" variant="light" color="gray" leftSection={<IconPaperclip size={14} />} loading={uploading}>
-                    업로드
-                  </Button>
-                )}
-              </FileButton>
-            </Group>
-            {editing ? (
-              receipts.length ? (
-                <Stack gap={6}>
-                  {receipts.map((r) => (
-                    <Text key={r.id} size="sm" c="dimmed">
-                      {r.filename ?? r.object_path}
-                    </Text>
-                  ))}
-                </Stack>
-              ) : (
-                <Text size="sm" c="dimmed">
-                  업로드된 영수증이 없습니다.
-                </Text>
-              )
-            ) : (
-              <Text size="sm" c="dimmed">
-                먼저 저장한 뒤 영수증을 업로드하세요.
-              </Text>
-            )}
-          </Paper>
+          <Box mt="xs">
+            <Paper withBorder p="md" radius="md">
+              <Group justify="space-between" align="center" mb="xs">
+                <Group gap={4}>
+                  <Text size="sm" fw={700}>영수증</Text>
+                  <Text size="xs" c="dimmed">(선택사항)</Text>
+                </Group>
+                <FileButton onChange={(file) => file && void uploadReceipt(file)} accept="image/*">
+                  {(props) => (
+                    <Button {...props} size="xs" variant="light" color="gray" leftSection={<IconPaperclip size={14} />} loading={uploading}>
+                      {editing || pendingFile ? "파일 교체" : "파일 선택"}
+                    </Button>
+                  )}
+                </FileButton>
+              </Group>
 
-          <Group justify="flex-end">
-            <Button variant="light" color="gray" onClick={() => setOpened(false)}>
-              닫기
-            </Button>
-            <Button color="gray" onClick={() => void save()} loading={saving}>
-              저장
-            </Button>
+              <Box>
+                {editing ? (
+                  receipts.length ? (
+                    <Stack gap={6}>
+                      {receipts.map((r) => (
+                        <Text key={r.id} size="sm" c="dimmed">
+                          {r.filename ?? r.object_path}
+                        </Text>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Text size="sm" c="dimmed">업로드된 영수증이 없습니다.</Text>
+                  )
+                ) : (
+                  pendingFile ? (
+                    <Text size="sm" c="blue" fw={500}>선택됨: {pendingFile.name}</Text>
+                  ) : (
+                    <Text size="sm" c="dimmed">선택된 파일이 없습니다.</Text>
+                  )
+                )}
+              </Box>
+            </Paper>
+          </Box>
+
+          <Group justify="space-between" mt="md">
+            <Group gap="xs">
+              {editing && (
+                <>
+                  {editing.status === "draft" && (
+                    <Button color="blue" variant="light" leftSection={<IconSend size={16} />} onClick={() => void action(editing, "submit")}>
+                      제출하기
+                    </Button>
+                  )}
+                  {editing.status === "submitted" && (
+                    <>
+                      <Button color="blue" variant="filled" leftSection={<IconCheck size={16} />} onClick={() => void action(editing, "approve")}>
+                        승인
+                      </Button>
+                      <Button color="red" variant="light" leftSection={<IconX size={16} />} onClick={() => void action(editing, "reject")}>
+                        반려
+                      </Button>
+                    </>
+                  )}
+                  {editing.status === "approved" && (
+                    <Button color="green" variant="filled" leftSection={<IconCash size={16} />} onClick={() => void action(editing, "pay")}>
+                      지급 완료 처리
+                    </Button>
+                  )}
+                </>
+              )}
+            </Group>
+
+            <Group gap="xs">
+              <Button variant="subtle" color="gray" onClick={() => setOpened(false)}>
+                닫기
+              </Button>
+              <Button color="gray" onClick={() => void save()} loading={saving}>
+                기초 정보 저장
+              </Button>
+            </Group>
           </Group>
         </Stack>
       </Modal>
