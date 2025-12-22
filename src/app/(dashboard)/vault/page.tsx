@@ -215,7 +215,7 @@ export default function VaultPage() {
     return filteredItems.map((item) => (
       <Table.Tr key={item.id}>
         <Table.Td>
-          <Box style={{ height: '42px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <Box style={{ height: '36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>{item.title}</Text>
             {item.url && (
               <Text
@@ -317,7 +317,7 @@ export default function VaultPage() {
 
 
           <Table.ScrollContainer minWidth={800}>
-            <Table verticalSpacing="xs" highlightOnHover>
+            <Table verticalSpacing={7} highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th style={{ width: "20%" }}>항목</Table.Th>
