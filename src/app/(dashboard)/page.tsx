@@ -191,7 +191,7 @@ export default function HubPage() {
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      {item.assignee_id ? userMap[item.assignee_id]?.name ?? "미지정" : "미지정"}
+                      {item.assignee_id ? userMap[item.assignee_id]?.name ?? "누구나" : "누구나"}
                     </Table.Td>
                     <Table.Td>{item.due_date ? dayjs(item.due_date).format("MM/DD") : "-"}</Table.Td>
                   </Table.Tr>

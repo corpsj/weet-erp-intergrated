@@ -535,7 +535,7 @@ export default function TodoPage() {
   const [viewMode, setViewMode] = useState<"grid" | "list" | "board">("board");
 
   const [query, setQuery] = useState("");
-  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("anyone");
   const [showDone, setShowDone] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("due");
 

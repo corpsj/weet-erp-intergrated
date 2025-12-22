@@ -2,7 +2,16 @@
 
 import { AppShell, Burger, Group, NavLink, Text, Box, Divider, Button, Paper } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconCalendar, IconCheckbox, IconHome, IconCalculator, IconSettings, IconUser } from "@tabler/icons-react";
+import {
+  IconCalendar,
+  IconCheckbox,
+  IconHome,
+  IconCalculator,
+  IconSettings,
+  IconUser,
+  IconKey,
+  IconReceipt,
+} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -13,6 +22,8 @@ const navItems = [
   { label: "캘린더", icon: IconCalendar, link: "/calendar" },
   { label: "To-Do", icon: IconCheckbox, link: "/todo" },
   { label: "견적", icon: IconCalculator, link: "/estimate" },
+  { label: "계정 공유", icon: IconKey, link: "/vault" },
+  { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
   { label: "프로필", icon: IconUser, link: "/profile" },
   { label: "설정", icon: IconSettings, link: "/settings" },
 ];

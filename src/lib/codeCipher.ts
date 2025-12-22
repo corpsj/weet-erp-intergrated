@@ -1,9 +1,9 @@
 import crypto from "node:crypto";
 
 const getKey = () => {
-  const raw = process.env.SIGNUP_CODE_ENCRYPTION_KEY ?? "";
+  const raw = process.env.APP_ENCRYPTION_KEY ?? process.env.SIGNUP_CODE_ENCRYPTION_KEY ?? "";
   if (!raw) {
-    throw new Error("Missing SIGNUP_CODE_ENCRYPTION_KEY (server-only).");
+    throw new Error("Missing APP_ENCRYPTION_KEY or SIGNUP_CODE_ENCRYPTION_KEY (server-only).");
   }
 
   const trimmed = raw.trim();
@@ -39,4 +39,3 @@ export const decryptFromBase64 = (payload: string) => {
   const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
   return plaintext.toString("utf8");
 };
-
