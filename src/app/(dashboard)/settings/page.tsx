@@ -35,6 +35,7 @@ import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { AppUser } from "@/lib/types";
+import { ProfileEditor } from "@/components/ProfileEditor";
 
 type InviteCodeItem = {
   id: string;
@@ -76,7 +77,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<string | null>("invites");
+  const [activeTab, setActiveTab] = useState<string | null>("profile");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InviteCodeItem[]>([]);
   const [revealedById, setRevealedById] = useState<Record<string, string>>({});
@@ -100,7 +101,7 @@ export default function SettingsPage() {
       setItems((payload?.items ?? []) as InviteCodeItem[]);
     } catch (error) {
       notifications.show({
-        title: "초대코드 불러오기 실패",
+        title: "승인코드 불러오기 실패",
         message: error instanceof Error ? error.message : "알 수 없는 오류",
         color: "red",
       });
@@ -168,12 +169,12 @@ export default function SettingsPage() {
         setRevealedById((prev) => ({ ...prev, [payload?.item?.id]: code }));
         try {
           await navigator.clipboard.writeText(code);
-          notifications.show({ title: "초대코드 생성", message: `코드: ${code} (클립보드 복사됨)`, color: "gray" });
+          notifications.show({ title: "승인코드 생성", message: `코드: ${code} (클립보드 복사됨)`, color: "gray" });
         } catch {
-          notifications.show({ title: "초대코드 생성", message: `코드: ${code}`, color: "gray" });
+          notifications.show({ title: "승인코드 생성", message: `코드: ${code}`, color: "gray" });
         }
       } else {
-        notifications.show({ title: "초대코드 생성", message: "생성되었습니다.", color: "gray" });
+        notifications.show({ title: "승인코드 생성", message: "생성되었습니다.", color: "gray" });
       }
 
       setNote("");
@@ -183,7 +184,7 @@ export default function SettingsPage() {
       await load();
     } catch (error) {
       notifications.show({
-        title: "초대코드 생성 실패",
+        title: "승인코드 생성 실패",
         message: error instanceof Error ? error.message : "알 수 없는 오류",
         color: "red",
       });
@@ -207,7 +208,7 @@ export default function SettingsPage() {
         }
       } catch (error) {
         notifications.show({
-          title: "초대코드 표시 실패",
+          title: "승인코드 표시 실패",
           message: error instanceof Error ? error.message : "알 수 없는 오류",
           color: "red",
         });
@@ -238,7 +239,7 @@ export default function SettingsPage() {
   }, []);
 
   const deleteInvite = useCallback(async (id: string) => {
-    const ok = window.confirm("이 초대코드를 삭제할까요? (복구 불가)");
+    const ok = window.confirm("이 승인코드를 삭제할까요? (복구 불가)");
     if (!ok) return;
 
     try {
@@ -253,7 +254,7 @@ export default function SettingsPage() {
         return next;
       });
       setItems((prev) => prev.filter((item) => item.id !== id));
-      notifications.show({ title: "삭제 완료", message: "초대코드가 삭제되었습니다.", color: "gray" });
+      notifications.show({ title: "삭제 완료", message: "승인코드가 삭제되었습니다.", color: "gray" });
     } catch (error) {
       notifications.show({
         title: "삭제 실패",
@@ -470,11 +471,18 @@ export default function SettingsPage() {
           <Grid.Col span={{ base: 12, sm: 3 }}>
             <Tabs.List w="100%">
               <Tabs.Tab
+                value="profile"
+                leftSection={<IconUser size={18} />}
+                style={navStyles.tab}
+              >
+                프로필 설정
+              </Tabs.Tab>
+              <Tabs.Tab
                 value="invites"
                 leftSection={<IconTicket size={18} />}
                 style={navStyles.tab}
               >
-                초대코드 관리
+                승인코드 관리
               </Tabs.Tab>
               <Tabs.Tab
                 value="users"
@@ -502,15 +510,28 @@ export default function SettingsPage() {
 
           <Grid.Col span={{ base: 12, sm: 9 }}>
             <Box>
+              <Tabs.Panel value="profile">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      프로필 설정
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      내 이름 및 표시 정보를 관리합니다.
+                    </Text>
+                  </Box>
+                  <ProfileEditor />
+                </Stack>
+              </Tabs.Panel>
 
               <Tabs.Panel value="invites">
                 <Stack gap="xl">
                   <Box>
                     <Title order={3} mb="xs">
-                      초대코드 관리
+                      승인코드 관리
                     </Title>
                     <Text size="sm" c="dimmed" mb="xl">
-                      새로운 사용자를 초대하거나 기존 코드를 관리합니다.
+                      새로운 사용자를 승인하거나 기존 코드를 관리합니다.
                     </Text>
                   </Box>
 
@@ -548,7 +569,7 @@ export default function SettingsPage() {
 
                       <TextInput
                         label="용도 및 메모"
-                        placeholder="예: 마케팅팀 신규 인원용"
+                        placeholder=""
                         value={note}
                         onChange={(event) => setNote(event.currentTarget.value)}
                       />
@@ -560,7 +581,7 @@ export default function SettingsPage() {
                           onClick={() => void createInvite()}
                           loading={creating}
                         >
-                          초대코드 생성 및 복사
+                          승인코드 생성 및 복사
                         </Button>
                       </Group>
                     </Stack>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Group, Paper, Stack, Text, TextInput } from "@mantine/core";
+import { Button, ColorSwatch, Group, Paper, Stack, Text, TextInput, Textarea, rem, CheckIcon } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -23,6 +23,15 @@ export function ProfileEditor() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
+  const [position, setPosition] = useState("");
+  const [bio, setBio] = useState("");
+  const [color, setColor] = useState<string | null>(null);
+
+  const colors = [
+    "#2e2e2e", "#fa5252", "#e64980", "#be4bdb", "#7950f2",
+    "#4c6ef5", "#228be6", "#15aabf", "#12b886", "#40c057",
+    "#82c91e", "#fab005", "#fd7e14"
+  ];
 
   useEffect(() => {
     let mounted = true;
@@ -39,13 +48,16 @@ export function ProfileEditor() {
 
       const { data: profile } = await supabase
         .from("app_users")
-        .select("name")
+        .select("name, color, position, bio")
         .eq("id", userId)
         .maybeSingle();
 
       if (!mounted) return;
 
       setName(profile?.name ?? nameFromSession(session) ?? "");
+      setPosition((profile as any)?.position ?? "");
+      setBio((profile as any)?.bio ?? "");
+      setColor(profile?.color ?? null);
       setLoading(false);
     };
 
@@ -88,7 +100,9 @@ export function ProfileEditor() {
         id: userId,
         name: nextName,
         initials: toInitials(nextName),
-        color: null,
+        color: color,
+        position: position.trim() || null,
+        bio: bio.trim() || null,
       },
       { onConflict: "id" }
     );
@@ -101,7 +115,7 @@ export function ProfileEditor() {
     }
 
     notifications.show({ title: "저장 완료", message: "프로필이 업데이트되었습니다.", color: "gray" });
-  }, [name]);
+  }, [name, position, bio, color]);
 
   return (
     <Paper withBorder p="md" radius="md">
@@ -115,13 +129,46 @@ export function ProfileEditor() {
           disabled={loading}
           required
         />
-        <Group justify="flex-end">
+        <TextInput
+          label="직책"
+          placeholder=""
+          value={position}
+          onChange={(event) => setPosition(event.currentTarget.value)}
+          disabled={loading}
+        />
+        <Textarea
+          label="자기소개"
+          placeholder="나를 소개하는 한 마디"
+          value={bio}
+          onChange={(event) => setBio(event.currentTarget.value)}
+          disabled={loading}
+          autosize
+          minRows={2}
+        />
+
+        <Stack gap={4}>
+          <Text size="sm" fw={500}>퍼스널 컬러</Text>
+          <Group gap="xs">
+            {colors.map((c) => (
+              <ColorSwatch
+                key={c}
+                color={c}
+                onClick={() => setColor(c)}
+                style={{ cursor: "pointer", color: "#fff" }}
+              >
+                {color === c && <CheckIcon style={{ width: rem(12), height: rem(12) }} />}
+              </ColorSwatch>
+            ))}
+          </Group>
+        </Stack>
+
+        <Group justify="flex-end" mt="md">
           <Button color="gray" onClick={() => void save()} loading={saving} disabled={loading}>
             저장
           </Button>
         </Group>
         <Text size="xs" c="dimmed">
-          이름은 상단 표시 및 담당자 목록에 사용됩니다.
+          기본 정보는 상단 표시 및 전체 시스템 내 담당자 정보에 사용됩니다.
         </Text>
       </Stack>
     </Paper>

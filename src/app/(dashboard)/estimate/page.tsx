@@ -524,483 +524,483 @@ export default function EstimatePage() {
         </Group>
         <Divider my="sm" />
         <Group align="flex-start" gap="md" wrap="nowrap">
-        <Paper className="app-surface" p="md" radius="lg" w={360}>
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Text fw={600}>견적</Text>
-              <Text size="sm" c="dimmed">
-                {filteredEstimates.length}건
-              </Text>
-            </Group>
-            <TextInput
-              placeholder="견적 검색"
-              value={estimateSearch}
-              onChange={(event) => setEstimateSearch(event.currentTarget.value)}
-            />
-            <Divider />
-            <ScrollArea h={560} offsetScrollbars>
-              <Stack gap="xs">
-                {filteredEstimates.map((estimate) => (
-                  <Paper
-                    key={estimate.id}
-                    p="sm"
-                    radius="md"
-                    withBorder
-                    onClick={() => setSelectedEstimateId(estimate.id)}
-                    style={{
-                      cursor: "pointer",
-                      borderColor: estimate.id === selectedEstimateId ? "var(--accent)" : undefined,
-                    }}
-                  >
-                    <Group justify="space-between" wrap="nowrap">
-                      <Box style={{ minWidth: 0 }}>
-                        <Text fw={600} truncate>
-                          {estimate.name}
-                        </Text>
-                        <Text size="xs" c="dimmed" truncate>
-                          {estimate.description || "설명 없음"}
-                        </Text>
-                      </Box>
-                      <Group gap="xs" wrap="nowrap">
-                        <Text fw={600} size="sm">
-                          {formatCurrency(estimateTotalMap.get(estimate.id) ?? 0)}원
-                        </Text>
-                        <Menu withinPortal position="bottom-end">
-                          <Menu.Target>
-                            <ActionIcon
-                              variant="subtle"
-                              color="gray"
-                              onClick={(event) => event.stopPropagation()}
-                              aria-label="견적 메뉴"
-                            >
-                              ...
-                            </ActionIcon>
-                          </Menu.Target>
-                          <Menu.Dropdown>
-                            <Menu.Item
-                              color="red"
-                              onClick={() => {
-                                void handleDeleteEstimate(estimate);
-                              }}
-                            >
-                              삭제
-                            </Menu.Item>
-                          </Menu.Dropdown>
-                        </Menu>
-                      </Group>
-                    </Group>
-                  </Paper>
-                ))}
-                {!filteredEstimates.length && (
-                  <Text size="sm" c="dimmed">
-                    표시할 견적이 없습니다.
-                  </Text>
-                )}
-              </Stack>
-            </ScrollArea>
-          </Stack>
-        </Paper>
-
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Paper className="app-surface" p="md" radius="lg">
-            {selectedEstimate ? (
-              <Stack gap="md">
-                <Group justify="space-between" align="flex-start">
-                  <Box>
-                    <Text fw={600} size="lg">
-                      {selectedEstimate.name}
-                    </Text>
-                    <Text size="sm" c="dimmed">
-                      {selectedEstimate.description || "설명 없음"}
-                    </Text>
-                  </Box>
-                  <Button variant="light" color="gray" onClick={openLinkModal}>
-                    항목 추가
-                  </Button>
-                </Group>
-                <Divider />
-                <Table verticalSpacing="sm" highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th style={{ width: "100%" }}>항목</Table.Th>
-                      <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>수량</Table.Th>
-                      <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>재료</Table.Th>
-                      <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>노무</Table.Th>
-                      <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>경비</Table.Th>
-                      <Table.Th style={{ width: 120, textAlign: "right", whiteSpace: "nowrap" }}>합계</Table.Th>
-                      <Table.Th style={{ width: 64, textAlign: "right", whiteSpace: "nowrap" }}>관리</Table.Th>
-                    </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {selectedLinks.map((link) => {
-                      const preset = presetMap.get(link.preset_id);
-                      const presetTotals = preset ? sumPresetItems(preset.process_preset_items ?? []) : null;
-                      const lineTotals = presetTotals
-                        ? {
-                          material: presetTotals.material * link.quantity,
-                          labor: presetTotals.labor * link.quantity,
-                          expense: presetTotals.expense * link.quantity,
-                        }
-                        : null;
-                      const lineSum = lineTotals ? lineTotals.material + lineTotals.labor + lineTotals.expense : 0;
-
-                      return (
-                        <Table.Tr key={link.id}>
-                          <Table.Td style={{ maxWidth: 0 }}>
-                            <Text size="sm" truncate>
-                              {preset?.name ?? "-"}
-                            </Text>
-                            <Text size="xs" c="dimmed" truncate>
-                              프리셋
-                            </Text>
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right" }}>
-                            <NumberInput
-                              value={link.quantity}
-                              min={0}
-                              onChange={(value) => updateQuantity(link.id, typeof value === "number" ? value : 0)}
-                              size="xs"
-                              w={88}
-                              step={1}
-                              allowDecimal={false}
-                            />
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals?.material ?? 0)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals?.labor ?? 0)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals?.expense ?? 0)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{formatCurrency(lineSum)}</Table.Td>
-                          <Table.Td style={{ textAlign: "right" }}>
-                            <Menu position="bottom-end" withinPortal>
-                              <Menu.Target>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  onClick={(event) => event.stopPropagation()}
-                                  aria-label="항목 메뉴"
-                                >
-                                  ...
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item color="red" onClick={() => void removeLink(link.id)}>
-                                  삭제
-                                </Menu.Item>
-                              </Menu.Dropdown>
-                            </Menu>
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })}
-
-                    {selectedEstimateItems.map((item) => {
-                      const sum = item.quantity * item.unit_cost;
-                      const categoryLabel =
-                        item.cost_category === "material" ? "재료" : item.cost_category === "labor" ? "노무" : "경비";
-                      const lineTotals =
-                        item.cost_category === "material"
-                          ? { material: sum, labor: 0, expense: 0 }
-                          : item.cost_category === "labor"
-                            ? { material: 0, labor: sum, expense: 0 }
-                            : { material: 0, labor: 0, expense: sum };
-
-                      return (
-                        <Table.Tr key={item.id}>
-                          <Table.Td style={{ maxWidth: 0 }}>
-                            <Text size="sm" truncate>
-                              {item.label}
-                            </Text>
-                            <Text size="xs" c="dimmed" truncate>
-                              자재 · {categoryLabel}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right" }}>
-                            <NumberInput
-                              value={item.quantity}
-                              min={0}
-                              onChange={(value) =>
-                                updateEstimateItemQuantity(item.id, typeof value === "number" ? value : 0)
-                              }
-                              size="xs"
-                              w={88}
-                              step={1}
-                              allowDecimal={false}
-                            />
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals.material)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals.labor)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
-                            {formatCurrency(lineTotals.expense)}
-                          </Table.Td>
-                          <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{formatCurrency(sum)}</Table.Td>
-                          <Table.Td style={{ textAlign: "right" }}>
-                            <Menu position="bottom-end" withinPortal>
-                              <Menu.Target>
-                                <ActionIcon
-                                  variant="subtle"
-                                  color="gray"
-                                  onClick={(event) => event.stopPropagation()}
-                                  aria-label="항목 메뉴"
-                                >
-                                  ...
-                                </ActionIcon>
-                              </Menu.Target>
-                              <Menu.Dropdown>
-                                <Menu.Item color="red" onClick={() => void removeEstimateItem(item.id)}>
-                                  삭제
-                                </Menu.Item>
-                              </Menu.Dropdown>
-                            </Menu>
-                          </Table.Td>
-                        </Table.Tr>
-                      );
-                    })}
-                  </Table.Tbody>
-                </Table>
-                <Divider />
+          <Paper className="app-surface" p="md" radius="lg" w={360}>
+            <Stack gap="sm">
+              <Group justify="space-between">
+                <Text fw={600}>견적</Text>
+                <Text size="sm" c="dimmed">
+                  {filteredEstimates.length}건
+                </Text>
+              </Group>
+              <TextInput
+                placeholder="견적 검색"
+                value={estimateSearch}
+                onChange={(event) => setEstimateSearch(event.currentTarget.value)}
+              />
+              <Divider />
+              <ScrollArea h={560} offsetScrollbars>
                 <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text fw={600}>판가 구성</Text>
-                    <Button
-                      size="xs"
-                      variant="light"
-                      color="gray"
-                      onClick={() =>
-                        updateEstimate({
-                          general_admin_type: selectedEstimate.general_admin_type,
-                          general_admin_value: selectedEstimate.general_admin_value,
-                          sales_profit_type: selectedEstimate.sales_profit_type,
-                          sales_profit_value: selectedEstimate.sales_profit_value,
-                          vat_rate: selectedEstimate.vat_rate,
-                        })
-                      }
+                  {filteredEstimates.map((estimate) => (
+                    <Paper
+                      key={estimate.id}
+                      p="sm"
+                      radius="md"
+                      withBorder
+                      onClick={() => setSelectedEstimateId(estimate.id)}
+                      style={{
+                        cursor: "pointer",
+                        borderColor: estimate.id === selectedEstimateId ? "var(--accent)" : undefined,
+                      }}
                     >
-                      판가 저장
+                      <Group justify="space-between" wrap="nowrap">
+                        <Box style={{ minWidth: 0 }}>
+                          <Text fw={600} truncate>
+                            {estimate.name}
+                          </Text>
+                          <Text size="xs" c="dimmed" truncate>
+                            {estimate.description || "설명 없음"}
+                          </Text>
+                        </Box>
+                        <Group gap="xs" wrap="nowrap">
+                          <Text fw={600} size="sm">
+                            {formatCurrency(estimateTotalMap.get(estimate.id) ?? 0)}원
+                          </Text>
+                          <Menu withinPortal position="bottom-end">
+                            <Menu.Target>
+                              <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                onClick={(event) => event.stopPropagation()}
+                                aria-label="견적 메뉴"
+                              >
+                                ...
+                              </ActionIcon>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                              <Menu.Item
+                                color="red"
+                                onClick={() => {
+                                  void handleDeleteEstimate(estimate);
+                                }}
+                              >
+                                삭제
+                              </Menu.Item>
+                            </Menu.Dropdown>
+                          </Menu>
+                        </Group>
+                      </Group>
+                    </Paper>
+                  ))}
+                  {!filteredEstimates.length && (
+                    <Text size="sm" c="dimmed">
+                      표시할 견적이 없습니다.
+                    </Text>
+                  )}
+                </Stack>
+              </ScrollArea>
+            </Stack>
+          </Paper>
+
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <Paper className="app-surface" p="md" radius="lg">
+              {selectedEstimate ? (
+                <Stack gap="md">
+                  <Group justify="space-between" align="flex-start">
+                    <Box>
+                      <Text fw={600} size="lg">
+                        {selectedEstimate.name}
+                      </Text>
+                      <Text size="sm" c="dimmed">
+                        {selectedEstimate.description || "설명 없음"}
+                      </Text>
+                    </Box>
+                    <Button variant="light" color="gray" onClick={openLinkModal}>
+                      항목 추가
                     </Button>
                   </Group>
+                  <Divider />
+                  <Table verticalSpacing="sm" highlightOnHover>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th style={{ width: "100%" }}>항목</Table.Th>
+                        <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>수량</Table.Th>
+                        <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>재료</Table.Th>
+                        <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>노무</Table.Th>
+                        <Table.Th style={{ width: 110, textAlign: "right", whiteSpace: "nowrap" }}>경비</Table.Th>
+                        <Table.Th style={{ width: 120, textAlign: "right", whiteSpace: "nowrap" }}>합계</Table.Th>
+                        <Table.Th style={{ width: 64, textAlign: "right", whiteSpace: "nowrap" }}>관리</Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {selectedLinks.map((link) => {
+                        const preset = presetMap.get(link.preset_id);
+                        const presetTotals = preset ? sumPresetItems(preset.process_preset_items ?? []) : null;
+                        const lineTotals = presetTotals
+                          ? {
+                            material: presetTotals.material * link.quantity,
+                            labor: presetTotals.labor * link.quantity,
+                            expense: presetTotals.expense * link.quantity,
+                          }
+                          : null;
+                        const lineSum = lineTotals ? lineTotals.material + lineTotals.labor + lineTotals.expense : 0;
 
-                  <Group align="flex-start" gap="md" wrap="nowrap">
-                    <Paper withBorder p="sm" radius="md" style={{ flex: 1, minWidth: 0 }}>
-                      <Stack gap={10}>
-                        <Text size="sm" fw={600}>
-                          관리비/이윤/부가세
-                        </Text>
-                        <Group justify="space-between" align="center" wrap="nowrap">
-                          <Text size="sm" fw={500}>
-                            일반관리비
-                          </Text>
-                          <Group gap="xs" align="center" wrap="nowrap">
-                            <SegmentedControl
-                              size="xs"
-                              value={selectedEstimate.general_admin_type}
-                              data={[
-                                { value: "percent", label: "%" },
-                                { value: "fixed", label: "금액" },
-                              ]}
-                              onChange={(value) => {
-                                const nextValue = (value as Estimate["general_admin_type"]) ?? "percent";
-                                setEstimates((prev) =>
-                                  prev.map((item) =>
-                                    item.id === selectedEstimate.id
-                                      ? { ...item, general_admin_type: nextValue }
-                                      : item
-                                  )
-                                );
-                              }}
-                            />
-                            <NumberInput
-                              size="xs"
-                              value={selectedEstimate.general_admin_value}
-                              onChange={(value) => {
-                                const nextValue = typeof value === "number" ? value : 0;
-                                setEstimates((prev) =>
-                                  prev.map((item) =>
-                                    item.id === selectedEstimate.id
-                                      ? { ...item, general_admin_value: nextValue }
-                                      : item
-                                  )
-                                );
-                              }}
-                              thousandSeparator=","
-                              min={0}
-                              w={48}
-                              rightSection={
-                                <Text size="xs" c="dimmed">
-                                  {selectedEstimate.general_admin_type === "percent" ? "%" : "원"}
-                                </Text>
-                              }
-                            />
-                          </Group>
-                        </Group>
-
-                        <Group justify="space-between" align="center" wrap="nowrap">
-                          <Text size="sm" fw={500}>
-                            영업이윤
-                          </Text>
-                          <Group gap="xs" align="center" wrap="nowrap">
-                            <SegmentedControl
-                              size="xs"
-                              value={selectedEstimate.sales_profit_type}
-                              data={[
-                                { value: "percent", label: "%" },
-                                { value: "fixed", label: "금액" },
-                              ]}
-                              onChange={(value) => {
-                                const nextValue = (value as Estimate["sales_profit_type"]) ?? "percent";
-                                setEstimates((prev) =>
-                                  prev.map((item) =>
-                                    item.id === selectedEstimate.id
-                                      ? { ...item, sales_profit_type: nextValue }
-                                      : item
-                                  )
-                                );
-                              }}
-                            />
-                            <NumberInput
-                              size="xs"
-                              value={selectedEstimate.sales_profit_value}
-                              onChange={(value) => {
-                                const nextValue = typeof value === "number" ? value : 0;
-                                setEstimates((prev) =>
-                                  prev.map((item) =>
-                                    item.id === selectedEstimate.id
-                                      ? { ...item, sales_profit_value: nextValue }
-                                      : item
-                                  )
-                                );
-                              }}
-                              thousandSeparator=","
-                              min={0}
-                              w={48}
-                              rightSection={
-                                <Text size="xs" c="dimmed">
-                                  {selectedEstimate.sales_profit_type === "percent" ? "%" : "원"}
-                                </Text>
-                              }
-                            />
-                          </Group>
-                        </Group>
-
-                        <Group justify="space-between" align="center" wrap="nowrap">
-                          <Text size="sm" fw={500}>
-                            부가세
-                          </Text>
-                          <NumberInput
-                            size="xs"
-                            value={selectedEstimate.vat_rate}
-                            onChange={(value) => {
-                              const nextValue = typeof value === "number" ? value : 0;
-                              setEstimates((prev) =>
-                                prev.map((item) =>
-                                  item.id === selectedEstimate.id ? { ...item, vat_rate: nextValue } : item
-                                )
-                              );
-                            }}
-                            min={0}
-                            max={100}
-                            w={48}
-                            rightSection={
-                              <Text size="xs" c="dimmed">
-                                %
+                        return (
+                          <Table.Tr key={link.id}>
+                            <Table.Td style={{ maxWidth: 0 }}>
+                              <Text size="sm" truncate>
+                                {preset?.name ?? "-"}
                               </Text>
-                            }
-                          />
-                        </Group>
-                      </Stack>
-                    </Paper>
+                              <Text size="xs" c="dimmed" truncate>
+                                프리셋
+                              </Text>
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <NumberInput
+                                value={link.quantity}
+                                min={0}
+                                onChange={(value) => updateQuantity(link.id, typeof value === "number" ? value : 0)}
+                                size="xs"
+                                w={88}
+                                step={1}
+                                allowDecimal={false}
+                              />
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals?.material ?? 0)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals?.labor ?? 0)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals?.expense ?? 0)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{formatCurrency(lineSum)}</Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <Menu position="bottom-end" withinPortal>
+                                <Menu.Target>
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={(event) => event.stopPropagation()}
+                                    aria-label="항목 메뉴"
+                                  >
+                                    ...
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item color="red" onClick={() => void removeLink(link.id)}>
+                                    삭제
+                                  </Menu.Item>
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
 
-                    <Paper withBorder p="sm" radius="md" style={{ width: 360 }}>
-                      <Stack gap={8}>
-                        <Text size="sm" fw={600}>
-                          산출 결과
-                        </Text>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            재료
+                      {selectedEstimateItems.map((item) => {
+                        const sum = item.quantity * item.unit_cost;
+                        const categoryLabel =
+                          item.cost_category === "material" ? "재료" : item.cost_category === "labor" ? "노무" : "경비";
+                        const lineTotals =
+                          item.cost_category === "material"
+                            ? { material: sum, labor: 0, expense: 0 }
+                            : item.cost_category === "labor"
+                              ? { material: 0, labor: sum, expense: 0 }
+                              : { material: 0, labor: 0, expense: sum };
+
+                        return (
+                          <Table.Tr key={item.id}>
+                            <Table.Td style={{ maxWidth: 0 }}>
+                              <Text size="sm" truncate>
+                                {item.label}
+                              </Text>
+                              <Text size="xs" c="dimmed" truncate>
+                                자재 · {categoryLabel}
+                              </Text>
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <NumberInput
+                                value={item.quantity}
+                                min={0}
+                                onChange={(value) =>
+                                  updateEstimateItemQuantity(item.id, typeof value === "number" ? value : 0)
+                                }
+                                size="xs"
+                                w={88}
+                                step={1}
+                                allowDecimal={false}
+                              />
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals.material)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals.labor)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                              {formatCurrency(lineTotals.expense)}
+                            </Table.Td>
+                            <Table.Td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{formatCurrency(sum)}</Table.Td>
+                            <Table.Td style={{ textAlign: "right" }}>
+                              <Menu position="bottom-end" withinPortal>
+                                <Menu.Target>
+                                  <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
+                                    onClick={(event) => event.stopPropagation()}
+                                    aria-label="항목 메뉴"
+                                  >
+                                    ...
+                                  </ActionIcon>
+                                </Menu.Target>
+                                <Menu.Dropdown>
+                                  <Menu.Item color="red" onClick={() => void removeEstimateItem(item.id)}>
+                                    삭제
+                                  </Menu.Item>
+                                </Menu.Dropdown>
+                              </Menu>
+                            </Table.Td>
+                          </Table.Tr>
+                        );
+                      })}
+                    </Table.Tbody>
+                  </Table>
+                  <Divider />
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text fw={600}>판가 구성</Text>
+                      <Button
+                        size="xs"
+                        variant="light"
+                        color="gray"
+                        onClick={() =>
+                          updateEstimate({
+                            general_admin_type: selectedEstimate.general_admin_type,
+                            general_admin_value: selectedEstimate.general_admin_value,
+                            sales_profit_type: selectedEstimate.sales_profit_type,
+                            sales_profit_value: selectedEstimate.sales_profit_value,
+                            vat_rate: selectedEstimate.vat_rate,
+                          })
+                        }
+                      >
+                        판가 저장
+                      </Button>
+                    </Group>
+
+                    <Group align="flex-start" gap="md" wrap="nowrap">
+                      <Paper withBorder p="sm" radius="md" style={{ flex: 1, minWidth: 0 }}>
+                        <Stack gap={10}>
+                          <Text size="sm" fw={600}>
+                            관리비/이윤/부가세
                           </Text>
-                          <Text fw={600} size="sm">
-                            {formatCurrency(breakdown?.totals.material ?? 0)}원
+                          <Group justify="space-between" align="center" wrap="nowrap">
+                            <Text size="sm" fw={500}>
+                              일반관리비
+                            </Text>
+                            <Group gap="xs" align="center" wrap="nowrap">
+                              <SegmentedControl
+                                size="xs"
+                                value={selectedEstimate.general_admin_type}
+                                data={[
+                                  { value: "percent", label: "%" },
+                                  { value: "fixed", label: "금액" },
+                                ]}
+                                onChange={(value) => {
+                                  const nextValue = (value as Estimate["general_admin_type"]) ?? "percent";
+                                  setEstimates((prev) =>
+                                    prev.map((item) =>
+                                      item.id === selectedEstimate.id
+                                        ? { ...item, general_admin_type: nextValue }
+                                        : item
+                                    )
+                                  );
+                                }}
+                              />
+                              <NumberInput
+                                size="xs"
+                                value={selectedEstimate.general_admin_value}
+                                onChange={(value) => {
+                                  const nextValue = typeof value === "number" ? value : 0;
+                                  setEstimates((prev) =>
+                                    prev.map((item) =>
+                                      item.id === selectedEstimate.id
+                                        ? { ...item, general_admin_value: nextValue }
+                                        : item
+                                    )
+                                  );
+                                }}
+                                thousandSeparator=","
+                                min={0}
+                                w={48}
+                                rightSection={
+                                  <Text size="xs" c="dimmed">
+                                    {selectedEstimate.general_admin_type === "percent" ? "%" : "원"}
+                                  </Text>
+                                }
+                              />
+                            </Group>
+                          </Group>
+
+                          <Group justify="space-between" align="center" wrap="nowrap">
+                            <Text size="sm" fw={500}>
+                              영업이윤
+                            </Text>
+                            <Group gap="xs" align="center" wrap="nowrap">
+                              <SegmentedControl
+                                size="xs"
+                                value={selectedEstimate.sales_profit_type}
+                                data={[
+                                  { value: "percent", label: "%" },
+                                  { value: "fixed", label: "금액" },
+                                ]}
+                                onChange={(value) => {
+                                  const nextValue = (value as Estimate["sales_profit_type"]) ?? "percent";
+                                  setEstimates((prev) =>
+                                    prev.map((item) =>
+                                      item.id === selectedEstimate.id
+                                        ? { ...item, sales_profit_type: nextValue }
+                                        : item
+                                    )
+                                  );
+                                }}
+                              />
+                              <NumberInput
+                                size="xs"
+                                value={selectedEstimate.sales_profit_value}
+                                onChange={(value) => {
+                                  const nextValue = typeof value === "number" ? value : 0;
+                                  setEstimates((prev) =>
+                                    prev.map((item) =>
+                                      item.id === selectedEstimate.id
+                                        ? { ...item, sales_profit_value: nextValue }
+                                        : item
+                                    )
+                                  );
+                                }}
+                                thousandSeparator=","
+                                min={0}
+                                w={48}
+                                rightSection={
+                                  <Text size="xs" c="dimmed">
+                                    {selectedEstimate.sales_profit_type === "percent" ? "%" : "원"}
+                                  </Text>
+                                }
+                              />
+                            </Group>
+                          </Group>
+
+                          <Group justify="space-between" align="center" wrap="nowrap">
+                            <Text size="sm" fw={500}>
+                              부가세
+                            </Text>
+                            <NumberInput
+                              size="xs"
+                              value={selectedEstimate.vat_rate}
+                              onChange={(value) => {
+                                const nextValue = typeof value === "number" ? value : 0;
+                                setEstimates((prev) =>
+                                  prev.map((item) =>
+                                    item.id === selectedEstimate.id ? { ...item, vat_rate: nextValue } : item
+                                  )
+                                );
+                              }}
+                              min={0}
+                              max={100}
+                              w={48}
+                              rightSection={
+                                <Text size="xs" c="dimmed">
+                                  %
+                                </Text>
+                              }
+                            />
+                          </Group>
+                        </Stack>
+                      </Paper>
+
+                      <Paper withBorder p="sm" radius="md" style={{ width: 360 }}>
+                        <Stack gap={8}>
+                          <Text size="sm" fw={600}>
+                            산출 결과
                           </Text>
-                        </Group>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            노무
-                          </Text>
-                          <Text fw={600} size="sm">
-                            {formatCurrency(breakdown?.totals.labor ?? 0)}원
-                          </Text>
-                        </Group>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            경비
-                          </Text>
-                          <Text fw={600} size="sm">
-                            {formatCurrency(breakdown?.totals.expense ?? 0)}원
-                          </Text>
-                        </Group>
-                        <Divider />
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            소계
-                          </Text>
-                          <Text size="sm">{formatCurrency(breakdown?.subtotal ?? 0)}원</Text>
-                        </Group>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            일반관리비
-                          </Text>
-                          <Text size="sm">{formatCurrency(breakdown?.generalAdmin ?? 0)}원</Text>
-                        </Group>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            영업이윤
-                          </Text>
-                          <Text size="sm">{formatCurrency(breakdown?.salesProfit ?? 0)}원</Text>
-                        </Group>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            부가세
-                          </Text>
-                          <Text size="sm">{formatCurrency(breakdown?.vat ?? 0)}원</Text>
-                        </Group>
-                        <Divider />
-                        <Group justify="space-between" wrap="nowrap">
-                          <Text size="sm" c="dimmed">
-                            최종 판매가
-                          </Text>
-                          <Text fw={700} size="sm">
-                            {formatCurrency(breakdown?.total ?? 0)}원
-                          </Text>
-                        </Group>
-                      </Stack>
-                    </Paper>
-                  </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              재료
+                            </Text>
+                            <Text fw={600} size="sm">
+                              {formatCurrency(breakdown?.totals.material ?? 0)}원
+                            </Text>
+                          </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              노무
+                            </Text>
+                            <Text fw={600} size="sm">
+                              {formatCurrency(breakdown?.totals.labor ?? 0)}원
+                            </Text>
+                          </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              경비
+                            </Text>
+                            <Text fw={600} size="sm">
+                              {formatCurrency(breakdown?.totals.expense ?? 0)}원
+                            </Text>
+                          </Group>
+                          <Divider />
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              소계
+                            </Text>
+                            <Text size="sm">{formatCurrency(breakdown?.subtotal ?? 0)}원</Text>
+                          </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              일반관리비
+                            </Text>
+                            <Text size="sm">{formatCurrency(breakdown?.generalAdmin ?? 0)}원</Text>
+                          </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              영업이윤
+                            </Text>
+                            <Text size="sm">{formatCurrency(breakdown?.salesProfit ?? 0)}원</Text>
+                          </Group>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              부가세
+                            </Text>
+                            <Text size="sm">{formatCurrency(breakdown?.vat ?? 0)}원</Text>
+                          </Group>
+                          <Divider />
+                          <Group justify="space-between" wrap="nowrap">
+                            <Text size="sm" c="dimmed">
+                              최종 판매가
+                            </Text>
+                            <Text fw={700} size="sm">
+                              {formatCurrency(breakdown?.total ?? 0)}원
+                            </Text>
+                          </Group>
+                        </Stack>
+                      </Paper>
+                    </Group>
+                  </Stack>
                 </Stack>
-              </Stack>
-            ) : (
-              <Text size="sm" c="dimmed">
-                왼쪽에서 견적을 선택하세요.
-              </Text>
-            )}
-          </Paper>
-        </Box>
-      </Group>
-    </Paper>
+              ) : (
+                <Text size="sm" c="dimmed">
+                  왼쪽에서 견적을 선택하세요.
+                </Text>
+              )}
+            </Paper>
+          </Box>
+        </Group>
+      </Paper>
 
       <Modal opened={estimateModalOpened} onClose={estimateModal.close} title="신규 견적" size="lg">
         <Stack>
           <TextInput
             label="견적 이름"
-            placeholder="예: 3x6 이동식주택"
+            placeholder=""
             value={estimateForm.name}
             onChange={(event) => {
               const name = event.currentTarget.value;

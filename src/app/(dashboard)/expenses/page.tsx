@@ -421,7 +421,7 @@ export default function ExpensesPage() {
             <TextInput label="금액(원)" value={amount} onChange={(e) => setAmount(e.currentTarget.value)} required />
             <DateInput label="사용일" value={spentAt} onChange={(v) => setSpentAt(v as Date | null)} valueFormat="YYYY-MM-DD" required />
           </Group>
-          <TextInput label="카테고리" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="예: 교통/식대/소모품" />
+          <TextInput label="카테고리" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="" />
           <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
 
           <Box mt="xs">

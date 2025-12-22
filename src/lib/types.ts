@@ -16,6 +16,8 @@ export type AppUser = {
   name: string;
   initials: string | null;
   color: string | null;
+  position: string | null;
+  bio: string | null;
   created_at: string;
 };
 

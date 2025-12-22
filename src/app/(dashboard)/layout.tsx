@@ -11,8 +11,10 @@ import {
   IconKey,
   IconNotes,
   IconReceipt,
+  IconReceipt2,
   IconSearch,
   IconSettings,
+  IconTransferIn,
   IconUser,
 } from "@tabler/icons-react";
 import Link from "next/link";
@@ -34,6 +36,8 @@ const groupedNavItems = [
     group: "ERP 솔루션",
     items: [
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
+      { label: "세금계산서", icon: IconReceipt2, link: "/tax-invoices" },
+      { label: "입출금 내역", icon: IconTransferIn, link: "/transactions" },
     ],
   },
   {
@@ -47,7 +51,6 @@ const groupedNavItems = [
   {
     group: "관리",
     items: [
-      { label: "프로필", icon: IconUser, link: "/profile" },
       { label: "설정", icon: IconSettings, link: "/settings" },
     ],
   },

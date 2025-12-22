@@ -406,102 +406,102 @@ export default function PresetsPage() {
         </Group>
         <Divider my="sm" />
         <Group align="flex-start" gap="md" wrap="nowrap">
-        <Paper className="app-surface" p="md" radius="lg" w={360}>
-          <Stack gap="sm">
-            <Group justify="space-between">
-              <Text fw={600}>프리셋</Text>
-              <Text size="sm" c="dimmed">
-                {filteredPresets.length}건
-              </Text>
-            </Group>
-            <TextInput
-              placeholder="프리셋 검색"
-              value={presetSearch}
-              onChange={(event) => setPresetSearch(event.currentTarget.value)}
-            />
-            <Divider />
-            <ScrollArea h={560} offsetScrollbars>
-              <Stack gap="xs">
-                {filteredPresets.map((preset) => {
-                  const totals = sumPresetItems(preset.process_preset_items ?? []);
-                  const totalCost = totals.material + totals.labor + totals.expense;
-                  return (
-                    <Paper
-                      key={preset.id}
-                      p="sm"
-                      radius="md"
-                      withBorder
-                      onClick={() => setSelectedPresetId(preset.id)}
-                      style={{
-                        cursor: "pointer",
-                        borderColor: preset.id === selectedPresetId ? "var(--accent)" : undefined,
-                      }}
-                    >
-                      <Group justify="space-between" wrap="nowrap">
-                        <Box style={{ minWidth: 0 }}>
-                          <Text fw={600} truncate>
-                            {preset.name}
-                          </Text>
-                          <Text size="xs" c="dimmed" truncate>
-                            {preset.description || "설명 없음"}
-                          </Text>
-                        </Box>
-                        <Group gap="xs" wrap="nowrap">
-                          <Text fw={600} size="sm">
-                            {formatCurrency(totalCost)}원
-                          </Text>
-                          <Menu withinPortal position="bottom-end">
-                            <Menu.Target>
-                              <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                onClick={(event) => event.stopPropagation()}
-                                aria-label="프리셋 메뉴"
-                              >
-                                <Text span>⋯</Text>
-                              </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                              <Menu.Item
-                                color="red"
-                                onClick={() => {
-                                  void handleDeletePreset(preset);
-                                }}
-                              >
-                                삭제
-                              </Menu.Item>
-                            </Menu.Dropdown>
-                          </Menu>
+          <Paper className="app-surface" p="md" radius="lg" w={360}>
+            <Stack gap="sm">
+              <Group justify="space-between">
+                <Text fw={600}>프리셋</Text>
+                <Text size="sm" c="dimmed">
+                  {filteredPresets.length}건
+                </Text>
+              </Group>
+              <TextInput
+                placeholder="프리셋 검색"
+                value={presetSearch}
+                onChange={(event) => setPresetSearch(event.currentTarget.value)}
+              />
+              <Divider />
+              <ScrollArea h={560} offsetScrollbars>
+                <Stack gap="xs">
+                  {filteredPresets.map((preset) => {
+                    const totals = sumPresetItems(preset.process_preset_items ?? []);
+                    const totalCost = totals.material + totals.labor + totals.expense;
+                    return (
+                      <Paper
+                        key={preset.id}
+                        p="sm"
+                        radius="md"
+                        withBorder
+                        onClick={() => setSelectedPresetId(preset.id)}
+                        style={{
+                          cursor: "pointer",
+                          borderColor: preset.id === selectedPresetId ? "var(--accent)" : undefined,
+                        }}
+                      >
+                        <Group justify="space-between" wrap="nowrap">
+                          <Box style={{ minWidth: 0 }}>
+                            <Text fw={600} truncate>
+                              {preset.name}
+                            </Text>
+                            <Text size="xs" c="dimmed" truncate>
+                              {preset.description || "설명 없음"}
+                            </Text>
+                          </Box>
+                          <Group gap="xs" wrap="nowrap">
+                            <Text fw={600} size="sm">
+                              {formatCurrency(totalCost)}원
+                            </Text>
+                            <Menu withinPortal position="bottom-end">
+                              <Menu.Target>
+                                <ActionIcon
+                                  variant="subtle"
+                                  color="gray"
+                                  onClick={(event) => event.stopPropagation()}
+                                  aria-label="프리셋 메뉴"
+                                >
+                                  <Text span>⋯</Text>
+                                </ActionIcon>
+                              </Menu.Target>
+                              <Menu.Dropdown>
+                                <Menu.Item
+                                  color="red"
+                                  onClick={() => {
+                                    void handleDeletePreset(preset);
+                                  }}
+                                >
+                                  삭제
+                                </Menu.Item>
+                              </Menu.Dropdown>
+                            </Menu>
+                          </Group>
                         </Group>
-                      </Group>
-                    </Paper>
-                  );
-                })}
-                {!filteredPresets.length && (
-                  <Text size="sm" c="dimmed">
-                    표시할 프리셋이 없습니다.
-                  </Text>
-                )}
-              </Stack>
-            </ScrollArea>
-          </Stack>
-        </Paper>
-
-        <Box style={{ flex: 1, minWidth: 0 }}>
-          <Paper className="app-surface" p="md" radius="lg">
-            <ScrollArea h={560} offsetScrollbars>
-              {renderPresetDetail()}
-            </ScrollArea>
+                      </Paper>
+                    );
+                  })}
+                  {!filteredPresets.length && (
+                    <Text size="sm" c="dimmed">
+                      표시할 프리셋이 없습니다.
+                    </Text>
+                  )}
+                </Stack>
+              </ScrollArea>
+            </Stack>
           </Paper>
-        </Box>
-      </Group>
-    </Paper>
+
+          <Box style={{ flex: 1, minWidth: 0 }}>
+            <Paper className="app-surface" p="md" radius="lg">
+              <ScrollArea h={560} offsetScrollbars>
+                {renderPresetDetail()}
+              </ScrollArea>
+            </Paper>
+          </Box>
+        </Group>
+      </Paper>
 
       <Modal opened={presetModalOpened} onClose={presetModal.close} title="신규 프리셋" size="lg">
         <Stack>
           <TextInput
             label="프리셋 이름"
-            placeholder="예: 3x6 플랫폼"
+            placeholder=""
             value={presetForm.name}
             onChange={(event) => {
               const name = event.currentTarget.value;
@@ -573,30 +573,30 @@ export default function PresetsPage() {
                     }}
                     nothingFoundMessage="검색 결과가 없습니다."
                   />
-                <SearchableSelect
-                  label="자재 항목"
-                  data={filteredMaterialOptions}
-                  value={itemForm.material_id}
-                  placeholder="자재 선택"
-                  onChange={(value) => {
-                    const materialId = value ?? "";
-                    const selected = materials.find((item) => item.id === materialId);
-                    const nextCostCategory = selected ? inferCostCategory(selected) : itemForm.cost_category;
-                    setItemForm((prev) => ({
-                      ...prev,
-                      material_id: materialId,
-                      cost_category: nextCostCategory,
-                    }));
-                    applyMaterialDefaults(materialId, nextCostCategory);
-                  }}
-                  nothingFoundMessage="검색 결과가 없습니다."
-                />
+                  <SearchableSelect
+                    label="자재 항목"
+                    data={filteredMaterialOptions}
+                    value={itemForm.material_id}
+                    placeholder="자재 선택"
+                    onChange={(value) => {
+                      const materialId = value ?? "";
+                      const selected = materials.find((item) => item.id === materialId);
+                      const nextCostCategory = selected ? inferCostCategory(selected) : itemForm.cost_category;
+                      setItemForm((prev) => ({
+                        ...prev,
+                        material_id: materialId,
+                        cost_category: nextCostCategory,
+                      }));
+                      applyMaterialDefaults(materialId, nextCostCategory);
+                    }}
+                    nothingFoundMessage="검색 결과가 없습니다."
+                  />
                 </SimpleGrid>
               </>
             ) : (
               <TextInput
                 label="항목명"
-                placeholder="예: 용접 공임"
+                placeholder=""
                 value={itemForm.label}
                 onChange={(event) => {
                   const label = event.currentTarget.value;
