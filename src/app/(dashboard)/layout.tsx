@@ -124,30 +124,51 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <AppShell
-      className="app-shell"
-      header={{ height: 68 }}
+      header={{ height: 72 }}
       navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
       padding="md"
+      styles={{
+        main: {
+          background: "transparent",
+        },
+        header: {
+          backgroundColor: "rgba(255, 255, 255, 0.7)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.3)",
+        },
+        navbar: {
+          backgroundColor: "rgba(255, 255, 255, 0.7)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderRight: "1px solid rgba(255, 255, 255, 0.3)",
+        }
+      }}
     >
       <AppShell.Header>
-        <Group h="100%" px="lg" justify="space-between">
-          <Group>
+        <Group h="100%" px="xl" justify="space-between">
+          <Group gap="xl">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Box>
-              <Text className="brand-title" fw={700} size="lg">
+              <Text className="brand-title" fw={800} size="xl">
                 weet ERP
               </Text>
             </Box>
           </Group>
-          <Group gap="xs">
+          <Group gap="md">
             {displayName && (
-              <Text size="sm" c="dimmed">
-                {displayName}
-              </Text>
+              <Group gap="xs">
+                <Box w={8} h={8} style={{ borderRadius: '50%', background: 'var(--mantine-color-teal-5)' }} />
+                <Text size="sm" fw={600} c="slate.8">
+                  {displayName}
+                </Text>
+              </Group>
             )}
+            <Divider orientation="vertical" h={20} />
             <Button
-              variant="light"
-              color="gray"
+              variant="subtle"
+              color="slate"
+              size="xs"
               onClick={async () => {
                 await supabase.auth.signOut();
                 router.replace("/login");

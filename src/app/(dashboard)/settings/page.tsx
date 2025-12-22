@@ -15,13 +15,24 @@ import {
   TextInput,
   Title,
   Divider,
+  Grid,
+  rem,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEye, IconEyeOff, IconRefresh, IconCopy } from "@tabler/icons-react";
+import {
+  IconEye,
+  IconEyeOff,
+  IconRefresh,
+  IconCopy,
+  IconUser,
+  IconTicket,
+  IconShieldLock,
+  IconSettings,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { ColorPicker, ColorSwatch, CheckIcon } from "@mantine/core";
+import { ColorSwatch, CheckIcon } from "@mantine/core";
 
 type InviteCodeItem = {
   id: string;
@@ -63,6 +74,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState<string | null>("profile");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InviteCodeItem[]>([]);
   const [revealedById, setRevealedById] = useState<Record<string, string>>({});
@@ -105,7 +117,9 @@ export default function SettingsPage() {
   const loadProfile = useCallback(async () => {
     setProfileLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) return;
 
       const { data: profile } = await supabase
@@ -119,7 +133,6 @@ export default function SettingsPage() {
         setProfileInitials(profile.initials ?? "");
         setProfileColor(profile.color);
       } else {
-        // Fallback to auth metadata if no profile exists yet
         const meta = session.user.user_metadata as any;
         setProfileName(meta?.name ?? "");
         setProfileInitials(meta?.name?.slice(0, 2) ?? "");
@@ -202,12 +215,13 @@ export default function SettingsPage() {
 
     setSavingProfile(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (!session) throw new Error("로그인 세션이 없습니다.");
 
       const userId = session.user.id;
 
-      // 1. Update app_users
       const { error: profileError } = await supabase.from("app_users").upsert({
         id: userId,
         name: profileName.trim(),
@@ -217,16 +231,13 @@ export default function SettingsPage() {
 
       if (profileError) throw profileError;
 
-      // 2. Update Auth Metadata
       const { error: authError } = await supabase.auth.updateUser({
-        data: { name: profileName.trim() }
+        data: { name: profileName.trim() },
       });
 
       if (authError) throw authError;
 
       notifications.show({ title: "저장 완료", message: "프로필 정보가 업데이트되었습니다.", color: "gray" });
-
-      // Optional: force reload logic if needed, but DashboardLayout should pick it up via auth state change or manual refresh
     } catch (error) {
       notifications.show({
         title: "저장 실패",
@@ -238,70 +249,73 @@ export default function SettingsPage() {
     }
   }, [profileColor, profileInitials, profileName]);
 
-  const reveal = useCallback(async (id: string) => {
-    if (revealedById[id]) return;
-    try {
-      const response = await fetchWithAuth(`/api/settings/invite-codes/${id}/reveal`);
-      const payload = (await response.json().catch(() => null)) as any;
-      if (!response.ok) {
-        throw new Error(payload?.message ?? "표시 실패");
-      }
-      const code = String(payload?.code ?? "");
-      if (code) {
-        setRevealedById((prev) => ({ ...prev, [id]: code }));
-      }
-    } catch (error) {
-      notifications.show({
-        title: "초대코드 표시 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    }
-  }, [revealedById]);
-
-  const toggleActive = useCallback(
-    async (id: string, active: boolean) => {
+  const reveal = useCallback(
+    async (id: string) => {
+      if (revealedById[id]) return;
       try {
-        const response = await fetchWithAuth(`/api/settings/invite-codes/${id}`, {
-          method: "PATCH",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ active }),
-        });
+        const response = await fetchWithAuth(`/api/settings/invite-codes/${id}/reveal`);
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) {
-          throw new Error(payload?.message ?? "변경 실패");
+          throw new Error(payload?.message ?? "표시 실패");
         }
-        setItems((prev) => prev.map((item) => (item.id === id ? { ...item, active } : item)));
+        const code = String(payload?.code ?? "");
+        if (code) {
+          setRevealedById((prev) => ({ ...prev, [id]: code }));
+        }
       } catch (error) {
         notifications.show({
-          title: "상태 변경 실패",
+          title: "초대코드 표시 실패",
           message: error instanceof Error ? error.message : "알 수 없는 오류",
           color: "red",
         });
       }
     },
-    []
+    [revealedById]
   );
 
-  const copy = useCallback(async (id: string) => {
-    const code = revealedById[id];
-    if (!code) {
-      notifications.show({ title: "복사 실패", message: "먼저 코드를 표시하세요.", color: "yellow" });
-      return;
-    }
+  const toggleActive = useCallback(async (id: string, active: boolean) => {
     try {
-      await navigator.clipboard.writeText(code);
-      notifications.show({ title: "복사됨", message: code, color: "gray" });
-    } catch {
-      notifications.show({ title: "복사 실패", message: "클립보드 접근이 불가합니다.", color: "red" });
+      const response = await fetchWithAuth(`/api/settings/invite-codes/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
+      const payload = (await response.json().catch(() => null)) as any;
+      if (!response.ok) {
+        throw new Error(payload?.message ?? "변경 실패");
+      }
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, active } : item)));
+    } catch (error) {
+      notifications.show({
+        title: "상태 변경 실패",
+        message: error instanceof Error ? error.message : "알 수 없는 오류",
+        color: "red",
+      });
     }
-  }, [revealedById]);
+  }, []);
+
+  const copy = useCallback(
+    async (id: string) => {
+      const code = revealedById[id];
+      if (!code) {
+        notifications.show({ title: "복사 실패", message: "먼저 코드를 표시하세요.", color: "yellow" });
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(code);
+        notifications.show({ title: "복사됨", message: code, color: "gray" });
+      } catch {
+        notifications.show({ title: "복사 실패", message: "클립보드 접근이 불가합니다.", color: "red" });
+      }
+    },
+    [revealedById]
+  );
 
   const rows = useMemo(() => {
     return items.map((item) => {
       const exhausted =
         typeof item.max_uses === "number" && item.max_uses > 0 ? item.uses_count >= item.max_uses : false;
-      const statusColor = !item.active ? "gray" : exhausted ? "red" : "gray";
+      const statusColor = !item.active ? "gray" : exhausted ? "red" : "green";
       const statusLabel = !item.active ? "비활성" : exhausted ? "소진" : "활성";
 
       const code = revealedById[item.id] ?? "••••••";
@@ -310,214 +324,382 @@ export default function SettingsPage() {
       return (
         <Table.Tr key={item.id}>
           <Table.Td>
-            <Badge variant="light" color={statusColor}>
+            <Badge variant="dot" color={statusColor} size="sm">
               {statusLabel}
             </Badge>
           </Table.Td>
           <Table.Td>
             <Group gap="xs" wrap="nowrap">
-              <Text fw={600} style={{ letterSpacing: "0.08em" }}>
+              <Text fw={600} size="sm" style={{ letterSpacing: "0.08em", fontFamily: "monospace" }}>
                 {code}
               </Text>
               <ActionIcon
                 variant="subtle"
                 color="gray"
-                onClick={() => (revealedById[item.id] ? setRevealedById((prev) => {
-                  const next = { ...prev };
-                  delete next[item.id];
-                  return next;
-                }) : void reveal(item.id))}
-                aria-label="reveal"
+                size="sm"
+                onClick={() =>
+                  revealedById[item.id]
+                    ? setRevealedById((prev) => {
+                      const next = { ...prev };
+                      delete next[item.id];
+                      return next;
+                    })
+                    : void reveal(item.id)
+                }
               >
-                {revealedById[item.id] ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+                {revealedById[item.id] ? <IconEyeOff size={14} /> : <IconEye size={14} />}
               </ActionIcon>
-              <ActionIcon variant="subtle" color="gray" onClick={() => void copy(item.id)} aria-label="copy">
-                <IconCopy size={16} />
+              <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => void copy(item.id)}>
+                <IconCopy size={14} />
               </ActionIcon>
             </Group>
           </Table.Td>
           <Table.Td>
-            <Text size="sm">{usesLabel}</Text>
+            <Text size="xs">{usesLabel}</Text>
           </Table.Td>
           <Table.Td>
-            <Text size="sm">{formatDateTime(item.expires_at)}</Text>
+            <Text size="xs">{formatDateTime(item.expires_at)}</Text>
           </Table.Td>
           <Table.Td>
-            <Text size="sm">{item.note ?? "-"}</Text>
+            <Text size="xs" truncate maw={120}>
+              {item.note ?? "-"}
+            </Text>
           </Table.Td>
           <Table.Td>
-            <Group gap="xs" justify="flex-end">
-              <Button
-                size="xs"
-                variant="light"
-                color="gray"
-                onClick={() => void toggleActive(item.id, !item.active)}
-              >
-                {item.active ? "비활성화" : "활성화"}
-              </Button>
-            </Group>
+            <Button
+              size="compact-xs"
+              variant="light"
+              color="gray"
+              onClick={() => void toggleActive(item.id, !item.active)}
+            >
+              {item.active ? "차단" : "복구"}
+            </Button>
           </Table.Td>
         </Table.Tr>
       );
     });
   }, [copy, items, reveal, revealedById, toggleActive]);
 
+  const navStyles = {
+    tabsList: {
+      borderRight: `1px solid var(--mantine-color-gray-2)`,
+      paddingRight: "md",
+    },
+    tab: {
+      justifyContent: "flex-start",
+      padding: `${rem(10)} ${rem(16)}`,
+      borderRadius: "var(--mantine-radius-md)",
+      fontWeight: 500,
+      "&[data-active]": {
+        backgroundColor: "var(--mantine-color-gray-1)",
+        color: "var(--mantine-color-black)",
+      },
+    },
+  };
+
   return (
-    <Box p="md">
-      <Group justify="space-between" mb="lg">
+    <Box p="xl" maw={1200} mx="auto">
+      <Group justify="space-between" mb={40}>
         <div>
-          <Title order={2}>설정</Title>
+          <Title order={1} mb={4}>
+            설정
+          </Title>
           <Text c="dimmed" size="sm">
-            계정 및 초대코드 설정
+            애플리케이션 및 계정 환경설정을 관리합니다.
           </Text>
         </div>
         <Button
           leftSection={<IconRefresh size={16} />}
-          variant="light"
+          variant="subtle"
           color="gray"
-          onClick={() => void load()}
-          loading={loading}
+          onClick={() => {
+            void load();
+            void loadProfile();
+          }}
+          loading={loading || profileLoading}
         >
-          새로고침
+          전체 새로고침
         </Button>
       </Group>
 
-      <Paper className="app-surface" p="lg" radius="md">
-        <Tabs defaultValue="invites" variant="pills">
-          <Tabs.List>
-            <Tabs.Tab value="invites">초대코드</Tabs.Tab>
-            <Tabs.Tab value="profile">프로필</Tabs.Tab>
-          </Tabs.List>
+      <Tabs
+        orientation="vertical"
+        value={activeTab}
+        onChange={setActiveTab}
+        variant="unstyled"
+        styles={navStyles}
+      >
+        <Grid gutter={40} style={{ width: "100%" }}>
+          <Grid.Col span={{ base: 12, sm: 3 }}>
+            <Tabs.List w="100%">
+              <Tabs.Tab
+                value="profile"
+                leftSection={<IconUser size={18} />}
+                style={navStyles.tab}
+              >
+                내 프로필
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="invites"
+                leftSection={<IconTicket size={18} />}
+                style={navStyles.tab}
+              >
+                초대코드 관리
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="security"
+                leftSection={<IconShieldLock size={18} />}
+                style={navStyles.tab}
+              >
+                보안 및 관리
+              </Tabs.Tab>
+              <Tabs.Tab
+                value="advanced"
+                leftSection={<IconSettings size={18} />}
+                style={navStyles.tab}
+              >
+                고급 설정
+              </Tabs.Tab>
+            </Tabs.List>
+          </Grid.Col>
 
-          <Tabs.Panel value="invites" pt="md">
-            <Stack gap="md">
-              <Paper withBorder p="md" radius="md">
-                <Stack gap="sm">
-                  <Group justify="space-between" align="flex-end">
-                    <TextInput
-                      label="만료(일)"
-                      value={expiresInDays}
-                      onChange={(event) => setExpiresInDays(event.currentTarget.value)}
-                      w={160}
-                    />
-                    <Group align="flex-end" gap="md">
-                      <Checkbox
-                        label="무제한"
-                        checked={unlimited}
-                        onChange={(event) => setUnlimited(event.currentTarget.checked)}
-                      />
-                      <TextInput
-                        label="사용횟수"
-                        value={maxUses}
-                        onChange={(event) => setMaxUses(event.currentTarget.value)}
-                        w={160}
-                        disabled={unlimited}
-                      />
-                    </Group>
-                  </Group>
-                  <TextInput
-                    label="메모"
-                    placeholder="예: 12/25 견적 담당자"
-                    value={note}
-                    onChange={(event) => setNote(event.currentTarget.value)}
-                  />
-                  <Group justify="flex-end">
-                    <Button color="gray" onClick={() => void createInvite()} loading={creating}>
-                      초대코드 생성
-                    </Button>
-                  </Group>
-                  <Text size="xs" c="dimmed">
-                    코드는 6자리 영문/숫자로 생성되며, 생성 직후 1회 클립보드로 복사됩니다. (눈 아이콘으로 다시 볼 수 있음)
-                  </Text>
-                </Stack>
-              </Paper>
-
-              <Table verticalSpacing="sm" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>상태</Table.Th>
-                    <Table.Th>코드</Table.Th>
-                    <Table.Th>사용</Table.Th>
-                    <Table.Th>만료</Table.Th>
-                    <Table.Th>메모</Table.Th>
-                    <Table.Th />
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>{rows}</Table.Tbody>
-              </Table>
-              {!items.length && <Text size="sm" c="dimmed">등록된 초대코드가 없습니다.</Text>}
-            </Stack>
-          </Tabs.Panel>
-
-          <Tabs.Panel value="account" pt="xl">
-            <Stack gap="xl" maw={480}>
-              <Box>
-                <Title order={4} mb="xs">프로필 설정</Title>
-                <Text size="sm" c="dimmed" mb="lg">
-                  시스템 전체에 표시되는 내 정보를 관리합니다.
-                </Text>
-
-                <Stack gap="md">
-                  <TextInput
-                    label="표시 이름"
-                    placeholder="홍길동"
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.currentTarget.value)}
-                    required
-                  />
-                  <TextInput
-                    label="이니셜 (2자)"
-                    placeholder="HK"
-                    maxLength={2}
-                    value={profileInitials}
-                    onChange={(e) => setProfileInitials(e.currentTarget.value)}
-                  />
+          <Grid.Col span={{ base: 12, sm: 9 }}>
+            <Box>
+              <Tabs.Panel value="profile">
+                <Stack gap="xl">
                   <Box>
-                    <Text size="sm" fw={500} mb={8}>프로필 색상</Text>
-                    <Group gap="xs">
-                      {profileColors.map((color) => (
-                        <ColorSwatch
-                          key={color}
-                          color={`var(--mantine-color-${color}-6)`}
-                          component="button"
-                          onClick={() => setProfileColor(color)}
-                          style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                        >
-                          {profileColor === color && (
-                            <CheckIcon style={{ width: 12, height: 12, color: "white" }} />
-                          )}
-                        </ColorSwatch>
-                      ))}
-                    </Group>
+                    <Title order={3} mb="xs">
+                      프로필 정보
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      팀원들에게 공개될 본인의 정보를 설정해주세요.
+                    </Text>
                   </Box>
 
-                  <Group justify="flex-end" mt="md">
-                    <Button
-                      color="gray"
-                      onClick={saveProfile}
-                      loading={savingProfile}
-                    >
-                      변경사항 저장
-                    </Button>
-                  </Group>
+                  <Paper withBorder p="xl" radius="md">
+                    <Stack gap="lg">
+                      <Grid align="flex-end">
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label="표시 이름"
+                            placeholder="홍길동"
+                            description="실명을 사용하는 것이 권장됩니다."
+                            value={profileName}
+                            onChange={(e) => setProfileName(e.currentTarget.value)}
+                            required
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 6 }}>
+                          <TextInput
+                            label="이니셜 (2자)"
+                            placeholder="HK"
+                            description="아바타에 표시될 텍스트입니다."
+                            maxLength={2}
+                            value={profileInitials}
+                            onChange={(e) => setProfileInitials(e.currentTarget.value)}
+                          />
+                        </Grid.Col>
+                      </Grid>
+
+                      <Box>
+                        <Text size="sm" fw={500} mb={8}>
+                          테마 컬러
+                        </Text>
+                        <Text size="xs" c="dimmed" mb={12}>
+                          본인을 가장 잘 나타내는 색상을 선택하세요.
+                        </Text>
+                        <Group gap="xs">
+                          {profileColors.map((color) => (
+                            <ColorSwatch
+                              key={color}
+                              color={`var(--mantine-color-${color}-6)`}
+                              component="button"
+                              onClick={() => setProfileColor(color)}
+                              style={{
+                                cursor: "pointer",
+                                border: profileColor === color ? "2px solid #000" : "none",
+                              }}
+                            >
+                              {profileColor === color && (
+                                <CheckIcon style={{ width: 12, height: 12, color: "white" }} />
+                              )}
+                            </ColorSwatch>
+                          ))}
+                        </Group>
+                      </Box>
+
+                      <Divider mt="md" />
+
+                      <Group justify="flex-end">
+                        <Button color="dark" onClick={saveProfile} loading={savingProfile}>
+                          저장하기
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </Paper>
                 </Stack>
-              </Box>
+              </Tabs.Panel>
 
-              <Divider />
+              <Tabs.Panel value="invites">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      초대코드 관리
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      새로운 사용자를 초대하거나 기존 코드를 관리합니다.
+                    </Text>
+                  </Box>
 
-              <Box>
-                <Title order={4} mb="xs" c="red">위험 구역</Title>
-                <Text size="sm" c="dimmed" mb="md">
-                  계정 보안 및 데이터 관리 설정입니다.
-                </Text>
-                <Button variant="light" color="red" size="sm" disabled>
-                  비밀번호 변경 (준비 중)
-                </Button>
-              </Box>
-            </Stack>
-          </Tabs.Panel>
-        </Tabs>
-      </Paper>
+                  <Paper withBorder p="xl" radius="md">
+                    <Stack gap="lg">
+                      <Grid align="flex-end">
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <TextInput
+                            label="만료 기한"
+                            description="일 단위 입력"
+                            placeholder="3"
+                            value={expiresInDays}
+                            onChange={(event) => setExpiresInDays(event.currentTarget.value)}
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <TextInput
+                            label="최대 사용 횟수"
+                            description={unlimited ? "제한 없음" : "사용 가능한 횟수"}
+                            placeholder="1"
+                            value={maxUses}
+                            onChange={(event) => setMaxUses(event.currentTarget.value)}
+                            disabled={unlimited}
+                          />
+                        </Grid.Col>
+                        <Grid.Col span={{ base: 12, sm: 4 }}>
+                          <Checkbox
+                            label="무제한 사용 허용"
+                            checked={unlimited}
+                            onChange={(event) => setUnlimited(event.currentTarget.checked)}
+                            mb={10}
+                          />
+                        </Grid.Col>
+                      </Grid>
+
+                      <TextInput
+                        label="용도 및 메모"
+                        placeholder="예: 마케팅팀 신규 인원용"
+                        value={note}
+                        onChange={(event) => setNote(event.currentTarget.value)}
+                      />
+
+                      <Group justify="flex-end">
+                        <Button
+                          variant="light"
+                          color="gray"
+                          onClick={() => void createInvite()}
+                          loading={creating}
+                        >
+                          초대코드 생성 및 복사
+                        </Button>
+                      </Group>
+                    </Stack>
+                  </Paper>
+
+                  <Box>
+                    <Title order={4} mb="md">
+                      활동 중인 코드
+                    </Title>
+                    <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
+                      <Table verticalSpacing="sm">
+                        <Table.Thead bg="gray.0">
+                          <Table.Tr>
+                            <Table.Th>상태</Table.Th>
+                            <Table.Th>코드</Table.Th>
+                            <Table.Th>사용 현황</Table.Th>
+                            <Table.Th>만료일</Table.Th>
+                            <Table.Th>메모</Table.Th>
+                            <Table.Th />
+                          </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                          {rows.length > 0 ? (
+                            rows
+                          ) : (
+                            <Table.Tr>
+                              <Table.Td colSpan={6}>
+                                <Text ta="center" size="sm" py="xl" c="dimmed">
+                                  생성된 코드가 없습니다.
+                                </Text>
+                              </Table.Td>
+                            </Table.Tr>
+                          )}
+                        </Table.Tbody>
+                      </Table>
+                    </Paper>
+                  </Box>
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="security">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      보안 및 계정 관리
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      비밀번호를 변경하거나 계정 보안 옵션을 설정합니다.
+                    </Text>
+                  </Box>
+
+                  <Paper withBorder p="xl" radius="md">
+                    <Stack gap="lg">
+                      <Box>
+                        <Text fw={600} size="sm">
+                          비밀번호 변경
+                        </Text>
+                        <Text size="xs" c="dimmed" mb="md">
+                          주기적인 비밀번호 변경은 보안에 중요합니다.
+                        </Text>
+                        <Button variant="light" color="gray" size="sm" disabled>
+                          변경하기 (준비 중)
+                        </Button>
+                      </Box>
+                      <Divider />
+                      <Box>
+                        <Text fw={600} size="sm" c="red">
+                          데이터 초기화
+                        </Text>
+                        <Text size="xs" c="dimmed" mb="md">
+                          계정의 모든 데이터를 삭제하고 초기화합니다. 이 작업은 되돌릴 수 없습니다.
+                        </Text>
+                        <Button variant="outline" color="red" size="sm" disabled>
+                          계정 데이터 삭제
+                        </Button>
+                      </Box>
+                    </Stack>
+                  </Paper>
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="advanced">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      고급 설정
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      데이터 싱크 및 시스템 연동 설정을 구성합니다.
+                    </Text>
+                  </Box>
+                  <Paper withBorder p="xl" radius="md" style={{ borderStyle: "dashed" }}>
+                    <Text size="sm" ta="center" c="dimmed" py="xl">
+                      고급 설정 기능은 곧 추가될 예정입니다.
+                    </Text>
+                  </Paper>
+                </Stack>
+              </Tabs.Panel>
+            </Box>
+          </Grid.Col>
+        </Grid>
+      </Tabs>
     </Box>
   );
 }

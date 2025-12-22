@@ -1115,11 +1115,15 @@ export default function TodoPage() {
                                               {hasChildren && (
                                                 <ActionIcon
                                                   size="xs"
-                                                  variant="subtle"
-                                                  color="gray"
+                                                  variant="filled"
+                                                  color={expanded ? "blue.1" : "gray.1"}
                                                   onClick={(e) => {
                                                     e.stopPropagation();
                                                     toggleExpanded(todo.id);
+                                                  }}
+                                                  style={{
+                                                    color: expanded ? "var(--mantine-color-blue-6)" : "var(--mantine-color-gray-6)",
+                                                    transition: "all 0.2s ease"
                                                   }}
                                                 >
                                                   {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
@@ -1151,42 +1155,70 @@ export default function TodoPage() {
                                           </Stack>
                                         </Paper>
 
-                                        {expanded && subTasks.map((sub) => {
-                                          const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
-                                          const subDone = sub.status === "done";
-                                          return (
-                                            <Paper
-                                              key={sub.id}
-                                              withBorder
-                                              radius="sm"
-                                              p="xs"
-                                              mt={4}
-                                              onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
+                                        {expanded && (
+                                          <Box mt={4} style={{ position: "relative", paddingLeft: 16 }}>
+                                            {/* 수직 계층선 */}
+                                            <Box
                                               style={{
-                                                marginLeft: 16,
-                                                cursor: "pointer",
-                                                background: "white",
-                                                boxShadow: "var(--mantine-shadow-xs)",
+                                                position: "absolute",
+                                                left: 8,
+                                                top: -8,
+                                                bottom: 24,
+                                                width: 1,
+                                                borderLeft: "2px solid var(--mantine-color-gray-3)",
                                               }}
-                                            >
-                                              <Stack gap={4}>
-                                                <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
-                                                  {sub.title}
-                                                </Text>
-                                                <Group justify="space-between">
-                                                  <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
-                                                    {priorityLabels[sub.priority]}
-                                                  </Badge>
-                                                  {subAssignee && (
-                                                    <Avatar size={16} radius="xl">
-                                                      {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
-                                                    </Avatar>
-                                                  )}
-                                                </Group>
-                                              </Stack>
-                                            </Paper>
-                                          );
-                                        })}
+                                            />
+                                            <Stack gap={6}>
+                                              {subTasks.map((sub, sIdx) => {
+                                                const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
+                                                const subDone = sub.status === "done";
+                                                return (
+                                                  <Box key={sub.id} style={{ position: "relative" }}>
+                                                    {/* 수평 연결선 (L자형) */}
+                                                    <Box
+                                                      style={{
+                                                        position: "absolute",
+                                                        left: -8,
+                                                        top: 14,
+                                                        width: 8,
+                                                        height: 2,
+                                                        background: "var(--mantine-color-gray-3)",
+                                                      }}
+                                                    />
+                                                    <Paper
+                                                      withBorder
+                                                      radius="sm"
+                                                      p="xs"
+                                                      onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
+                                                      style={{
+                                                        cursor: "pointer",
+                                                        background: "white",
+                                                        boxShadow: "var(--mantine-shadow-xs)",
+                                                        borderColor: subDone ? "var(--mantine-color-gray-2)" : undefined,
+                                                      }}
+                                                    >
+                                                      <Stack gap={4}>
+                                                        <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
+                                                          {sub.title}
+                                                        </Text>
+                                                        <Group justify="space-between" wrap="nowrap">
+                                                          <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
+                                                            {priorityLabels[sub.priority]}
+                                                          </Badge>
+                                                          {subAssignee && (
+                                                            <Avatar size={16} radius="xl">
+                                                              {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
+                                                            </Avatar>
+                                                          )}
+                                                        </Group>
+                                                      </Stack>
+                                                    </Paper>
+                                                  </Box>
+                                                );
+                                              })}
+                                            </Stack>
+                                          </Box>
+                                        )}
                                       </Box>
                                     )}
                                   </Draggable>
