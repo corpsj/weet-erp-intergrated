@@ -524,6 +524,7 @@ function TodoListItem({
 export default function TodoPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "board">("board");
 
@@ -610,23 +611,31 @@ export default function TodoPage() {
       title: "",
       status: currentParent?.status ?? "todo",
       priority: currentParent?.priority ?? "medium",
-      assigneeInput: currentParent?.assignee_id ?? "",
+      assigneeInput: currentParent?.assignee_id ?? currentUser?.id ?? "",
       due_date: null,
     });
-  }, [currentParent, editorMode, editorOpened, todoById, userById]);
+  }, [currentParent, currentUser, editorMode, editorOpened, todoById, userById]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [{ data: todoData, error: todoError }, { data: userData, error: userError }] =
-      await Promise.all([
-        supabase
-          .from("todos")
-          .select("*")
-          .order("sort_index", { ascending: true })
-          .order("created_at", { ascending: false }),
-        supabase.from("app_users").select("*").order("created_at"),
-      ]);
+    const [
+      { data: todoData, error: todoError },
+      { data: userData, error: userError },
+      { data: { user } },
+    ] = await Promise.all([
+      supabase
+        .from("todos")
+        .select("*")
+        .order("sort_index", { ascending: true })
+        .order("created_at", { ascending: false }),
+      supabase.from("app_users").select("*").order("created_at"),
+      supabase.auth.getUser(),
+    ]);
     setLoading(false);
+
+    if (user) {
+      setCurrentUser({ id: user.id });
+    }
 
     if (todoError) {
       notifications.show({ title: "To-Do 불러오기 실패", message: todoError.message, color: "red" });
