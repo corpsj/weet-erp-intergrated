@@ -14,6 +14,7 @@ import {
   TextInput,
   Textarea,
   Title,
+  SimpleGrid,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconPaperclip, IconPlus, IconRefresh, IconSearch, IconTrash } from "@tabler/icons-react";
@@ -256,6 +257,7 @@ export default function MemosPage() {
   }, [filteredItems, openEdit, remove]);
 
   return (
+    <>
       <Stack gap="lg">
         <Paper className="app-surface" p="lg" radius="md">
           <Group gap="md">
@@ -358,6 +360,7 @@ export default function MemosPage() {
         </Stack>
       </Modal>
     </Box >
+    </>
   );
 }
 

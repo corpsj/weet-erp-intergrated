@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, Title } from "@mantine/core";
+import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid } from "@mantine/core";
 import { Calendar, type DateStringValue } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar } from "@tabler/icons-react";
@@ -187,239 +187,241 @@ export default function HubPage() {
   }, [events, currentDate]);
 
   return (
-    <Container size="xl" p="md">
-      <Stack gap="xl">
-        <Paper className="app-surface" p="md" radius="md">
-          <Group gap="md">
-            <TextInput
-              placeholder="전역 검색 (업무, 일정, 계정...)"
-              size="lg"
-              leftSection={<IconSearch size={20} />}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.currentTarget.value)}
-              style={{ flex: 1 }}
-              styles={{
-                input: {
-                  fontSize: "16px",
-                  fontWeight: 500,
-                  backgroundColor: "rgba(0,0,0,0.02)",
-                  border: "none",
-                },
-              }}
-            />
-            <Stack gap={0}>
-              <Text fw={700} size="sm">
-                {dayjs().format("YYYY년 M월 D일")}
-              </Text>
-              <Text c="dimmed" size="xs">
-                {dayjs().format("dddd")}
-              </Text>
-            </Stack>
-          </Group>
-        </Paper>
-
-        <Grid gutter="lg">
-          <Grid.Col span={{ base: 12, md: 8 }}>
-            <Paper className="app-surface" p="lg" radius="md">
-              <Group justify="space-between" mb="md">
-                <Group gap="xs">
-                  <Title order={4}>캘린더</Title>
-                  <Badge variant="light" color="gray">
-                    이번 달 {events.length}건
-                  </Badge>
-                </Group>
-                <Group gap="xs">
-                  <Text size="sm" c="dimmed">
-                    {dayjs(currentDate).format("YYYY년 M월")}
-                  </Text>
-                  <Button
-                    size="xs"
-                    variant="light"
-                    color="gray"
-                    onClick={() => setCurrentDate(dayjs().format("YYYY-MM-DD"))}
-                  >
-                    오늘
-                  </Button>
-                </Group>
-              </Group>
-              <Calendar
-                size="md"
-                locale="ko"
-                firstDayOfWeek={0}
-                date={currentDate}
-                onDateChange={setCurrentDate}
-                getDayProps={(date) => {
-                  const isSelected = dayjs(date).isSame(currentDate, "day");
-                  const isHovered = hoveredDate ? dayjs(date).isSame(hoveredDate, "day") : false;
-
-                  return {
-                    selected: isSelected,
-                    onClick: () => setCurrentDate(date),
-                    onMouseEnter: () => setHoveredDate(date),
-                    onMouseLeave: () => setHoveredDate(null),
-                    style: {
-                      backgroundColor: isSelected
-                        ? "var(--mantine-color-gray-5)"
-                        : isHovered
-                          ? "var(--mantine-color-gray-2)"
-                          : undefined,
-                    },
-                  };
-                }}
-                withCellSpacing={false}
-                style={{ width: "100%" }}
+    <>
+      <Container size="xl" p="md">
+        <Stack gap="xl">
+          <Paper className="app-surface" p="md" radius="md">
+            <Group gap="md">
+              <TextInput
+                placeholder="전역 검색 (업무, 일정, 계정...)"
+                size="lg"
+                leftSection={<IconSearch size={20} />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                style={{ flex: 1 }}
                 styles={{
-                  month: { width: "100%", tableLayout: "fixed" },
-                  monthCell: { verticalAlign: "top" },
-                  day: {
-                    width: "100%",
-                    height: 96,
-                    alignItems: "flex-start",
-                    justifyContent: "flex-start",
-                    padding: "6px",
-                    cursor: "pointer",
+                  input: {
+                    fontSize: "16px",
+                    fontWeight: 500,
+                    backgroundColor: "rgba(0,0,0,0.02)",
+                    border: "none",
                   },
-                  weekday: { textAlign: "left" },
-                }}
-                renderDay={(date) => {
-                  const key = dayjs(date).format("YYYY-MM-DD");
-                  const dayEvents = eventsByDate[key] ?? [];
-                  const visibleEvents = dayEvents.slice(0, 2);
-                  const extraCount = dayEvents.length - visibleEvents.length;
-                  return (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-                      <Text size="sm" fw={700}>
-                        {dayjs(date).date()}
-                      </Text>
-                      {visibleEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}
-                        >
-                          <span
-                            style={{
-                              width: 6,
-                              height: 6,
-                              borderRadius: "50%",
-                              backgroundColor: `var(--mantine-color-${event.color ?? "gray"}-6)`,
-                              flexShrink: 0,
-                            }}
-                          />
-                          <Text size="sm" lineClamp={1} style={{ flex: 1 }}>
-                            {event.title}
-                          </Text>
-                        </div>
-                      ))}
-                      {extraCount > 0 && (
-                        <Text size="sm" c="dimmed" fw={600}>
-                          +{extraCount}건
-                        </Text>
-                      )}
-                    </div>
-                  );
                 }}
               />
-            </Paper>
-          </Grid.Col>
+              <Stack gap={0}>
+                <Text fw={700} size="sm">
+                  {dayjs().format("YYYY년 M월 D일")}
+                </Text>
+                <Text c="dimmed" size="xs">
+                  {dayjs().format("dddd")}
+                </Text>
+              </Stack>
+            </Group>
+          </Paper>
 
-          <Grid.Col span={{ base: 12, md: 4 }}>
-            <Stack gap="lg">
+          <Grid gutter="lg">
+            <Grid.Col span={{ base: 12, md: 8 }}>
               <Paper className="app-surface" p="lg" radius="md">
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
-                    <Title order={4}>To-Do Summary</Title>
-                    <IconCheckbox size={20} color="var(--mantine-color-gray-6)" />
+                    <Title order={4}>캘린더</Title>
+                    <Badge variant="light" color="gray">
+                      이번 달 {events.length}건
+                    </Badge>
                   </Group>
-                  <Text size="sm" c="dimmed">
-                    {todos.length}건
-                  </Text>
+                  <Group gap="xs">
+                    <Text size="sm" c="dimmed">
+                      {dayjs(currentDate).format("YYYY년 M월")}
+                    </Text>
+                    <Button
+                      size="xs"
+                      variant="light"
+                      color="gray"
+                      onClick={() => setCurrentDate(dayjs().format("YYYY-MM-DD"))}
+                    >
+                      오늘
+                    </Button>
+                  </Group>
                 </Group>
-                <Table verticalSpacing="sm" highlightOnHover>
-                  <Table.Tbody>
-                    {summaryTodos.slice(0, 4).map((item) => (
-                      <Table.Tr key={item.id}>
-                        <Table.Td>
-                          <Stack gap={2}>
-                            <Text size="sm" fw={600} lineClamp={1}>
-                              {item.title}
+                <Calendar
+                  size="md"
+                  locale="ko"
+                  firstDayOfWeek={0}
+                  date={currentDate}
+                  onDateChange={setCurrentDate}
+                  getDayProps={(date) => {
+                    const isSelected = dayjs(date).isSame(currentDate, "day");
+                    const isHovered = hoveredDate ? dayjs(date).isSame(hoveredDate, "day") : false;
+
+                    return {
+                      selected: isSelected,
+                      onClick: () => setCurrentDate(date),
+                      onMouseEnter: () => setHoveredDate(date),
+                      onMouseLeave: () => setHoveredDate(null),
+                      style: {
+                        backgroundColor: isSelected
+                          ? "var(--mantine-color-gray-5)"
+                          : isHovered
+                            ? "var(--mantine-color-gray-2)"
+                            : undefined,
+                      },
+                    };
+                  }}
+                  withCellSpacing={false}
+                  style={{ width: "100%" }}
+                  styles={{
+                    month: { width: "100%", tableLayout: "fixed" },
+                    monthCell: { verticalAlign: "top" },
+                    day: {
+                      width: "100%",
+                      height: 96,
+                      alignItems: "flex-start",
+                      justifyContent: "flex-start",
+                      padding: "6px",
+                      cursor: "pointer",
+                    },
+                    weekday: { textAlign: "left" },
+                  }}
+                  renderDay={(date) => {
+                    const key = dayjs(date).format("YYYY-MM-DD");
+                    const dayEvents = eventsByDate[key] ?? [];
+                    const visibleEvents = dayEvents.slice(0, 2);
+                    const extraCount = dayEvents.length - visibleEvents.length;
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
+                        <Text size="sm" fw={700}>
+                          {dayjs(date).date()}
+                        </Text>
+                        {visibleEvents.map((event) => (
+                          <div
+                            key={event.id}
+                            style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}
+                          >
+                            <span
+                              style={{
+                                width: 6,
+                                height: 6,
+                                borderRadius: "50%",
+                                backgroundColor: `var(--mantine-color-${event.color ?? "gray"}-6)`,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Text size="sm" lineClamp={1} style={{ flex: 1 }}>
+                              {event.title}
                             </Text>
-                            <Group gap={4}>
-                              <Badge color={statusColor(item.status)} variant="light" size="xs">
-                                {statusLabels[item.status]}
-                              </Badge>
-                              <Text size="xs" c="dimmed">
-                                {item.due_date ? dayjs(item.due_date).format("MM/DD") : "-"}
-                              </Text>
-                            </Group>
-                          </Stack>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-                {!summaryTodos.length && (
-                  <Text size="sm" c="dimmed" mt="sm">
-                    표시할 To-Do가 없습니다.
-                  </Text>
-                )}
-              </Paper>
-
-              <Paper className="app-surface" p="lg" radius="md">
-                <Group justify="space-between" mb="md">
-                  <Group gap="xs">
-                    <Title order={4}>경비 청구</Title>
-                    <IconReceipt size={20} color="var(--mantine-color-gray-6)" />
-                  </Group>
-                  <IconChartBar size={20} color="var(--mantine-color-gray-4)" />
-                </Group>
-                <Stack gap="xs">
-                  <Group justify="space-between">
-                    <Text size="sm" c="dimmed">총 청구액</Text>
-                    <Text size="sm" fw={700}>{expenseStats.total.toLocaleString()}원</Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm" c="dimmed">승인 대기</Text>
-                    <Text size="sm" fw={700} c="yellow.7">{expenseStats.pending.toLocaleString()}원</Text>
-                  </Group>
-                  <Group justify="space-between">
-                    <Text size="sm" c="dimmed">승인/지급 완료</Text>
-                    <Text size="sm" fw={700} c="green.7">{expenseStats.approved.toLocaleString()}원</Text>
-                  </Group>
-                </Stack>
-              </Paper>
-
-              <Paper className="app-surface" p="lg" radius="md">
-                <Group justify="space-between" mb="sm">
-                  <Text fw={600}>오늘의 일정</Text>
-                  <Badge variant="light" color="gray">
-                    {selectedEvents.length}건
-                  </Badge>
-                </Group>
-                {selectedEvents.length ? (
-                  <Stack gap="xs">
-                    {selectedEvents.map((event) => (
-                      <div key={event.id}>
-                        <Badge color={event.color ?? "gray"} variant="light" size="sm" fullWidth>
-                          {event.title}
-                        </Badge>
-                        {event.note && (
-                          <Text size="xs" c="dimmed" mt={4} lineClamp={1}>
-                            {event.note}
+                          </div>
+                        ))}
+                        {extraCount > 0 && (
+                          <Text size="sm" c="dimmed" fw={600}>
+                            +{extraCount}건
                           </Text>
                         )}
                       </div>
-                    ))}
-                  </Stack>
-                ) : (
-                  <Text size="sm" c="dimmed">
-                    일정이 없습니다.
-                  </Text>
-                )}
+                    );
+                  }}
+                />
               </Paper>
-            </Stack>
-          </Grid.Col>
-        </Grid>
-      </Stack>
-    </Container>
+            </Grid.Col>
+
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Stack gap="lg">
+                <Paper className="app-surface" p="lg" radius="md">
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <Title order={4}>To-Do Summary</Title>
+                      <IconCheckbox size={20} color="var(--mantine-color-gray-6)" />
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                      {todos.length}건
+                    </Text>
+                  </Group>
+                  <Table verticalSpacing="sm" highlightOnHover>
+                    <Table.Tbody>
+                      {summaryTodos.slice(0, 4).map((item) => (
+                        <Table.Tr key={item.id}>
+                          <Table.Td>
+                            <Stack gap={2}>
+                              <Text size="sm" fw={600} lineClamp={1}>
+                                {item.title}
+                              </Text>
+                              <Group gap={4}>
+                                <Badge color={statusColor(item.status)} variant="light" size="xs">
+                                  {statusLabels[item.status]}
+                                </Badge>
+                                <Text size="xs" c="dimmed">
+                                  {item.due_date ? dayjs(item.due_date).format("MM/DD") : "-"}
+                                </Text>
+                              </Group>
+                            </Stack>
+                          </Table.Td>
+                        </Table.Tr>
+                      ))}
+                    </Table.Tbody>
+                  </Table>
+                  {!summaryTodos.length && (
+                    <Text size="sm" c="dimmed" mt="sm">
+                      표시할 To-Do가 없습니다.
+                    </Text>
+                  )}
+                </Paper>
+
+                <Paper className="app-surface" p="lg" radius="md">
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <Title order={4}>경비 청구</Title>
+                      <IconReceipt size={20} color="var(--mantine-color-gray-6)" />
+                    </Group>
+                    <IconChartBar size={20} color="var(--mantine-color-gray-4)" />
+                  </Group>
+                  <Stack gap="xs">
+                    <Group justify="space-between">
+                      <Text size="sm" c="dimmed">총 청구액</Text>
+                      <Text size="sm" fw={700}>{expenseStats.total.toLocaleString()}원</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm" c="dimmed">승인 대기</Text>
+                      <Text size="sm" fw={700} c="yellow.7">{expenseStats.pending.toLocaleString()}원</Text>
+                    </Group>
+                    <Group justify="space-between">
+                      <Text size="sm" c="dimmed">승인/지급 완료</Text>
+                      <Text size="sm" fw={700} c="green.7">{expenseStats.approved.toLocaleString()}원</Text>
+                    </Group>
+                  </Stack>
+                </Paper>
+
+                <Paper className="app-surface" p="lg" radius="md">
+                  <Group justify="space-between" mb="sm">
+                    <Text fw={600}>오늘의 일정</Text>
+                    <Badge variant="light" color="gray">
+                      {selectedEvents.length}건
+                    </Badge>
+                  </Group>
+                  {selectedEvents.length ? (
+                    <Stack gap="xs">
+                      {selectedEvents.map((event) => (
+                        <div key={event.id}>
+                          <Badge color={event.color ?? "gray"} variant="light" size="sm" fullWidth>
+                            {event.title}
+                          </Badge>
+                          {event.note && (
+                            <Text size="xs" c="dimmed" mt={4} lineClamp={1}>
+                              {event.note}
+                            </Text>
+                          )}
+                        </div>
+                      ))}
+                    </Stack>
+                  ) : (
+                    <Text size="sm" c="dimmed">
+                      일정이 없습니다.
+                    </Text>
+                  )}
+                </Paper>
+              </Stack>
+            </Grid.Col>
+          </Grid>
+        </Stack>
+      </Container>
+    </>
   );
 }
