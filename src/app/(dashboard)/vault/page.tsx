@@ -54,6 +54,9 @@ export default function VaultPage() {
   const [note, setNote] = useState("");
   const [tags, setTags] = useState("");
 
+  const [query, setQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+
   const openCreate = useCallback(() => {
     setEditing(null);
     setTitle("");
@@ -205,34 +208,49 @@ export default function VaultPage() {
     }
   }, []);
 
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    items.forEach((item) => (item.tags || []).forEach((t) => s.add(t)));
+    return Array.from(s).sort();
+  }, [items]);
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const matchesQuery =
+        !query.trim() ||
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        (item.url || "").toLowerCase().includes(query.toLowerCase()) ||
+        (item.username || "").toLowerCase().includes(query.toLowerCase());
+      const matchesTag = !selectedTag || (item.tags || []).includes(selectedTag);
+      return matchesQuery && matchesTag;
+    });
+  }, [items, query, selectedTag]);
+
   const rows = useMemo(() => {
-    return items.map((item) => (
+    return filteredItems.map((item) => (
       <Table.Tr key={item.id}>
         <Table.Td>
-          <Text fw={600}>{item.title}</Text>
-          {item.url && (
-            <Text size="xs" c="dimmed" lineClamp={1}>
-              {item.url}
+          <Stack gap={0}>
+            <Text fw={600} size="sm">{item.title}</Text>
+            {item.url && (
+              <Text size="xs" c="dimmed" lineClamp={1} component="a" href={item.url.startsWith("http") ? item.url : `https://${item.url}`} target="_blank" style={{ textDecoration: "none" }}>
+                {item.url}
+              </Text>
+            )}
+          </Stack>
+        </Table.Td>
+        <Table.Td>
+          <Text size="sm" ff="monospace">{item.username ?? "-"}</Text>
+        </Table.Td>
+        <Table.Td>
+          <Group gap="xs" wrap="nowrap">
+            <Text size="sm" ff="monospace" style={{ flex: 1, minWidth: 100 }}>
+              {revealed[item.id] ? revealed[item.id] : "••••••••"}
             </Text>
-          )}
-        </Table.Td>
-        <Table.Td>
-          <Text size="sm">{item.username ?? "-"}</Text>
-        </Table.Td>
-        <Table.Td>
-          <Group gap={6}>
-            {(item.tags ?? []).slice(0, 3).map((tag) => (
-              <Badge key={tag} variant="light" color="gray">
-                {tag}
-              </Badge>
-            ))}
-          </Group>
-        </Table.Td>
-        <Table.Td>
-          <Group gap="xs" justify="flex-end" wrap="nowrap">
             <ActionIcon
               variant="subtle"
               color="gray"
+              size="sm"
               onClick={() =>
                 revealed[item.id]
                   ? setRevealed((prev) => {
@@ -242,24 +260,44 @@ export default function VaultPage() {
                   })
                   : void reveal(item.id)
               }
-              aria-label="reveal"
             >
               {revealed[item.id] ? <IconEyeOff size={16} /> : <IconEye size={16} />}
             </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" onClick={() => void copyPassword(item.id)} aria-label="copy">
+            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => void copyPassword(item.id)}>
               <IconCopy size={16} />
             </ActionIcon>
-            <Button size="xs" variant="light" color="gray" onClick={() => openEdit(item)}>
+          </Group>
+        </Table.Td>
+        <Table.Td>
+          <Group gap={4}>
+            {(item.tags ?? []).map((tag) => (
+              <Badge
+                key={tag}
+                variant={selectedTag === tag ? "filled" : "light"}
+                color="gray"
+                size="xs"
+                radius="xs"
+                style={{ cursor: "pointer" }}
+                onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+              >
+                {tag}
+              </Badge>
+            ))}
+          </Group>
+        </Table.Td>
+        <Table.Td>
+          <Group gap="xs" justify="flex-end" wrap="nowrap">
+            <Button size="compact-xs" variant="light" color="gray" onClick={() => openEdit(item)}>
               편집
             </Button>
-            <ActionIcon variant="subtle" color="red" onClick={() => void remove(item.id)} aria-label="delete">
+            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)}>
               <IconTrash size={16} />
             </ActionIcon>
           </Group>
         </Table.Td>
       </Table.Tr>
     ));
-  }, [copyPassword, items, openEdit, remove, reveal, revealed]);
+  }, [copyPassword, filteredItems, remove, reveal, revealed, selectedTag]);
 
   return (
     <Box p="md">
@@ -281,18 +319,63 @@ export default function VaultPage() {
       </Group>
 
       <Paper className="app-surface" p="lg" radius="md">
-        <Table verticalSpacing="sm" highlightOnHover>
-          <Table.Thead>
-            <Table.Tr>
-              <Table.Th>항목</Table.Th>
-              <Table.Th>아이디</Table.Th>
-              <Table.Th>태그</Table.Th>
-              <Table.Th />
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>{rows}</Table.Tbody>
-        </Table>
-        {!items.length && !loading && <Text size="sm" c="dimmed">등록된 계정이 없습니다.</Text>}
+        <Stack gap="md">
+          <Group gap="xs">
+            <TextInput
+              placeholder="제목, 아이디, URL 검색..."
+              size="sm"
+              value={query}
+              onChange={(e) => setQuery(e.currentTarget.value)}
+              style={{ flex: 1 }}
+            />
+            <Button variant="light" color="gray" size="sm" leftSection={<IconRefresh size={16} />} onClick={() => void load()} loading={loading}>
+              새로고침
+            </Button>
+          </Group>
+
+          {allTags.length > 0 && (
+            <Group gap={6}>
+              <Text size="xs" fw={700} c="dimmed" tt="uppercase">태그 필터:</Text>
+              <Badge
+                variant={selectedTag === null ? "filled" : "light"}
+                color="gray"
+                size="sm"
+                style={{ cursor: "pointer" }}
+                onClick={() => setSelectedTag(null)}
+              >
+                전체
+              </Badge>
+              {allTags.map(tag => (
+                <Badge
+                  key={tag}
+                  variant={selectedTag === tag ? "filled" : "light"}
+                  color="gray"
+                  size="sm"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => setSelectedTag(tag)}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </Group>
+          )}
+
+          <Table.ScrollContainer minWidth={800}>
+            <Table verticalSpacing="xs" highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th style={{ width: "30%" }}>항목</Table.Th>
+                  <Table.Th style={{ width: "20%" }}>아이디</Table.Th>
+                  <Table.Th style={{ width: "30%" }}>비밀번호</Table.Th>
+                  <Table.Th style={{ width: "10%" }}>태그</Table.Th>
+                  <Table.Th style={{ width: "10%" }} />
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>{rows}</Table.Tbody>
+            </Table>
+          </Table.ScrollContainer>
+          {!filteredItems.length && !loading && <Text size="sm" c="dimmed" ta="center" py="xl">등록된 계정이 없거나 검색 결과가 없습니다.</Text>}
+        </Stack>
       </Paper>
 
       <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "계정 편집" : "계정 추가"} centered>
@@ -325,4 +408,3 @@ export default function VaultPage() {
     </Box>
   );
 }
-

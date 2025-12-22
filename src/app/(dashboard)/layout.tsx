@@ -19,7 +19,7 @@ import { supabase } from "@/lib/supabaseClient";
 
 const groupedNavItems = [
   {
-    group: "워크페이스",
+    group: "워크스페이스",
     items: [
       { label: "허브", icon: IconHome, link: "/" },
       { label: "캘린더", icon: IconCalendar, link: "/calendar" },
@@ -29,7 +29,6 @@ const groupedNavItems = [
   {
     group: "ERP 솔루션",
     items: [
-      { label: "견적", icon: IconCalculator, link: "/estimate" },
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
     ],
   },
@@ -37,6 +36,12 @@ const groupedNavItems = [
     group: "보안 도구",
     items: [
       { label: "계정 공유", icon: IconKey, link: "/vault" },
+    ],
+  },
+  {
+    group: "weet Tools",
+    items: [
+      { label: "견적 시스템", icon: IconCalculator, link: "/estimate" },
     ],
   },
   {
