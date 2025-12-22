@@ -1,5 +1,7 @@
 "use client";
 
+import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+
 import {
   ActionIcon,
   Autocomplete,
@@ -39,7 +41,6 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { AppUser, Todo, TodoPriority } from "@/lib/types";
 
@@ -1031,47 +1032,89 @@ export default function TodoPage() {
                   const isDone = todo.status === "done";
                   const overdue = isOverdue(todo.due_date ?? null, isDone);
 
+                  // 해당 업무의 하위 업무들 가져오기 (보드에서는 같은 컬럼 내에 있는 것만 표시하거나 
+                  // 부모가 이 컬럼에 있다면 자식도 이 컬럼에 있는 것으로 간주)
+                  const subTasks = fullChildrenMap.get(todo.id) ?? [];
+
                   return (
-                    <Paper
-                      key={todo.id}
-                      withBorder
-                      radius="sm"
-                      p="xs"
-                      onClick={() => openEdit(todo.id)}
-                      style={{
-                        cursor: "pointer",
-                        background: selectedId === todo.id ? "var(--mantine-color-gray-1)" : "white",
-                        borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
-                        boxShadow: "var(--mantine-shadow-xs)",
-                      }}
-                    >
-                      <Stack gap={6}>
-                        <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"}>
-                          {todo.title}
-                        </Text>
-                        <Group justify="space-between" wrap="nowrap">
-                          <Group gap={4} wrap="wrap">
-                            <Badge
-                              color={priorityColor(todo.priority)}
-                              size="xs"
-                              variant="light"
-                            >
-                              {priorityLabels[todo.priority]}
-                            </Badge>
-                            {todo.due_date && (
-                              <Text size="10px" c={overdue ? "red" : "dimmed"} fw={overdue ? 700 : 400}>
-                                {dayjs(todo.due_date).format("MM/DD")}
-                              </Text>
+                    <React.Fragment key={todo.id}>
+                      <Paper
+                        withBorder
+                        radius="sm"
+                        p="xs"
+                        onClick={() => openEdit(todo.id)}
+                        style={{
+                          cursor: "pointer",
+                          background: selectedId === todo.id ? "var(--mantine-color-gray-1)" : "white",
+                          borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
+                          boxShadow: "var(--mantine-shadow-xs)",
+                        }}
+                      >
+                        <Stack gap={6}>
+                          <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"}>
+                            {todo.title}
+                          </Text>
+                          <Group justify="space-between" wrap="nowrap">
+                            <Group gap={4} wrap="wrap">
+                              <Badge
+                                color={priorityColor(todo.priority)}
+                                size="xs"
+                                variant="light"
+                              >
+                                {priorityLabels[todo.priority]}
+                              </Badge>
+                              {todo.due_date && (
+                                <Text size="10px" c={overdue ? "red" : "dimmed"} fw={overdue ? 700 : 400}>
+                                  {dayjs(todo.due_date).format("MM/DD")}
+                                </Text>
+                              )}
+                            </Group>
+                            {assignee && (
+                              <Avatar size={20} radius="xl" color={assignee.color ?? "blue"}>
+                                {assignee.initials ?? assignee.name.slice(0, 1)}
+                              </Avatar>
                             )}
                           </Group>
-                          {assignee && (
-                            <Avatar size={20} radius="xl" color={assignee.color ?? "blue"}>
-                              {assignee.initials ?? assignee.name.slice(0, 1)}
-                            </Avatar>
-                          )}
-                        </Group>
-                      </Stack>
-                    </Paper>
+                        </Stack>
+                      </Paper>
+
+                      {subTasks.map((sub) => {
+                        const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
+                        const subDone = sub.status === "done";
+                        return (
+                          <Paper
+                            key={sub.id}
+                            withBorder
+                            radius="sm"
+                            p="xs"
+                            onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
+                            style={{
+                              marginLeft: 20,
+                              cursor: "pointer",
+                              background: "rgba(0,0,0,0.02)",
+                              borderColor: "var(--mantine-color-blue-1)",
+                              borderLeftWidth: 3,
+                            }}
+                          >
+                            <Stack gap={4}>
+                              <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
+                                {sub.title}
+                              </Text>
+                              <Group justify="space-between">
+                                <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
+                                  {priorityLabels[sub.priority]}
+                                </Badge>
+                                {subAssignee && (
+                                  <Avatar size={16} radius="xl">
+                                    {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
+                                  </Avatar>
+                                )}
+                              </Group>
+                            </Stack>
+                          </Paper>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })}
                 <Paper
@@ -1349,18 +1392,55 @@ export default function TodoPage() {
                     <IconPlus size={14} />
                   </ActionIcon>
                 </Group>
-                <Stack gap={4}>
-                  {editorChildren.map((child) => (
-                    <TodoListItem
-                      key={child.id}
-                      todo={child}
-                      assignee={child.assignee_id ? userById[child.assignee_id] : undefined}
-                      depth={0}
-                      onToggleDone={(checked) => toggleDone(child, checked)}
-                      onOpen={() => openEdit(child.id)}
-                      onAddChild={() => openCreate(child.id)}
-                    />
-                  ))}
+                <Stack gap="xs">
+                  {editorChildren.map((child) => {
+                    const childAssignee = child.assignee_id ? userById[child.assignee_id] : undefined;
+                    const childDone = child.status === "done";
+                    return (
+                      <Paper
+                        key={child.id}
+                        withBorder
+                        radius="md"
+                        p="xs"
+                        onClick={() => openEdit(child.id)}
+                        style={{ cursor: "pointer", background: "var(--mantine-color-gray-0)" }}
+                      >
+                        <Group justify="space-between" wrap="nowrap">
+                          <Group gap="sm" wrap="nowrap">
+                            <Checkbox
+                              size="xs"
+                              checked={childDone}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => toggleDone(child, e.currentTarget.checked)}
+                            />
+                            <Stack gap={2}>
+                              <Text size="xs" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
+                                {child.title}
+                              </Text>
+                              <Badge color={priorityColor(child.priority)} size="10px" variant="light">
+                                {priorityLabels[child.priority]}
+                              </Badge>
+                            </Stack>
+                          </Group>
+                          <Group gap="xs">
+                            {childAssignee && (
+                              <Avatar size={20} radius="xl">
+                                {childAssignee.initials ?? childAssignee.name.slice(0, 1)}
+                              </Avatar>
+                            )}
+                            <ActionIcon
+                              variant="subtle"
+                              color="gray"
+                              size="sm"
+                              onClick={(e) => { e.stopPropagation(); openCreate(child.id); }}
+                            >
+                              <IconPlus size={14} />
+                            </ActionIcon>
+                          </Group>
+                        </Group>
+                      </Paper>
+                    );
+                  })}
                   {editorChildren.length === 0 && (
                     <Text size="xs" c="dimmed" ta="center">하위 업무가 없습니다.</Text>
                   )}
