@@ -91,7 +91,7 @@ const matchAssigneeId = (value: string, users: AppUser[]) => {
   return matched?.id ?? null;
 };
 
-type AssigneeFilter = "all" | "unassigned" | string;
+type AssigneeFilter = "all" | "anyone" | string;
 
 type EditorMode =
   | {
@@ -158,8 +158,8 @@ const buildVisibleTree = (params: {
 
   const matches = (todo: Todo) => {
     if (!params.showDone && todo.status === "done") return false;
-    if (params.assigneeFilter === "unassigned" && todo.assignee_id) return false;
-    if (params.assigneeFilter !== "all" && params.assigneeFilter !== "unassigned") {
+    if (params.assigneeFilter === "anyone" && todo.assignee_id) return false;
+    if (params.assigneeFilter !== "all" && params.assigneeFilter !== "anyone") {
       if (todo.assignee_id !== params.assigneeFilter) return false;
     }
     if (queryLower) {
@@ -354,7 +354,7 @@ function TodoCard({
             </Group>
           ) : (
             <Text size="xs" c="dimmed">
-              미지정
+              누구나
             </Text>
           )}
 
@@ -644,7 +644,9 @@ export default function TodoPage() {
     }
 
     setTodos(todoData ?? []);
-    setUsers(userData ?? []);
+    // Filter out users who haven't completed profile setup (assuming actual accounts have a name and initials/color)
+    const actualUsers = (userData ?? []).filter(u => u.name && (u.initials || u.color));
+    setUsers(actualUsers);
   }, []);
 
   useEffect(() => {
@@ -1048,7 +1050,7 @@ export default function TodoPage() {
                 const filteredTodos = columnTodos.filter((t) => {
                   if (query.trim() && !t.title.toLowerCase().includes(query.toLowerCase())) return false;
                   if (assigneeFilter !== "all") {
-                    if (assigneeFilter === "unassigned") return !t.assignee_id;
+                    if (assigneeFilter === "anyone") return !t.assignee_id;
                     return t.assignee_id === assigneeFilter;
                   }
                   return true;
@@ -1351,7 +1353,7 @@ export default function TodoPage() {
   const assigneeSelectData = useMemo(() => {
     return [
       { value: "all", label: "전체" },
-      { value: "unassigned", label: "미지정" },
+      { value: "anyone", label: "누구나" },
       ...users.map((user) => ({ value: user.id, label: user.name })),
     ];
   }, [users]);
