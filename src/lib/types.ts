@@ -33,6 +33,7 @@ export type Todo = {
   due_date: string | null;
   note: string | null;
   sort_index: number | null;
+  sort_order: number | null;
   created_at: string;
 };
 
