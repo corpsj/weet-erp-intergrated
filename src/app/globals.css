@@ -1,0 +1,54 @@
+:root {
+  --ink: #1c1c1c;
+  --muted: #6b6b6b;
+  --surface: #f6f6f4;
+  --panel: #ffffff;
+  --accent: #d6d6d6;
+  --ring: rgba(0, 0, 0, 0.08);
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  min-height: 100%;
+}
+
+body {
+  color: var(--ink);
+  background: var(--surface);
+  font-family: var(--font-body), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-shell {
+  background: var(--surface);
+  min-height: 100vh;
+}
+
+.app-surface {
+  background: var(--panel);
+  border: 1px solid #e6e6e6;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.brand-title {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.soft-grid {
+  background: transparent;
+}
