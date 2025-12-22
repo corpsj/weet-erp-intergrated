@@ -1111,174 +1111,214 @@ export default function TodoPage() {
                                         ref={provided.innerRef}
                                         {...provided.draggableProps}
                                         {...provided.dragHandleProps}
-                                        style={{ ...provided.draggableProps.style, marginBottom: 8 }}
+                                        style={{
+                                          ...provided.draggableProps.style,
+                                          marginBottom: hasChildren && !expanded ? 12 : 8
+                                        }}
                                       >
-                                        <Paper
-                                          withBorder
-                                          radius="sm"
-                                          p="xs"
-                                          onClick={(e) => {
-                                            if (hasChildren) {
+                                        <Box style={{ position: "relative" }}>
+                                          {/* Stack effect layers */}
+                                          {hasChildren && !expanded && (
+                                            <>
+                                              <Box
+                                                style={{
+                                                  position: "absolute",
+                                                  top: 4, left: 4, right: -4, bottom: -4,
+                                                  background: "white",
+                                                  border: "1px solid var(--mantine-color-gray-3)",
+                                                  borderRadius: "var(--mantine-radius-sm)",
+                                                  zIndex: 0
+                                                }}
+                                              />
+                                              <Box
+                                                style={{
+                                                  position: "absolute",
+                                                  top: 8, left: 8, right: -8, bottom: -8,
+                                                  background: "white",
+                                                  border: "1px solid var(--mantine-color-gray-2)",
+                                                  borderRadius: "var(--mantine-radius-sm)",
+                                                  zIndex: -1,
+                                                  opacity: 0.6
+                                                }}
+                                              />
+                                            </>
+                                          )}
+
+                                          <Paper
+                                            withBorder
+                                            radius="sm"
+                                            p="xs"
+                                            onClick={(e) => {
+                                              if (e.detail > 1) return; // Skip toggle on second click of a double click
+                                              if (hasChildren) {
+                                                e.stopPropagation();
+                                                toggleExpanded(todo.id);
+                                              } else {
+                                                openEdit(todo.id);
+                                              }
+                                            }}
+                                            onDoubleClick={(e) => {
                                               e.stopPropagation();
-                                              toggleExpanded(todo.id);
-                                            } else {
                                               openEdit(todo.id);
-                                            }
-                                          }}
-                                          onDoubleClick={() => openEdit(todo.id)}
-                                          style={{
-                                            cursor: "pointer",
-                                            background: selectedId === todo.id ? "var(--mantine-color-gray-1)" : "white",
-                                            borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
-                                            boxShadow: "var(--mantine-shadow-xs)",
-                                          }}
-                                        >
-                                          <Stack gap={6}>
-                                            <Group justify="space-between" wrap="nowrap">
-                                              <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"} style={{ flex: 1 }}>
-                                                {todo.title}
-                                              </Text>
-                                              {hasChildren && (
-                                                <ActionIcon
-                                                  size="xs"
-                                                  variant="filled"
-                                                  color={expanded ? "blue.1" : "gray.1"}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleExpanded(todo.id);
-                                                  }}
-                                                  style={{
-                                                    color: expanded ? "var(--mantine-color-blue-6)" : "var(--mantine-color-gray-6)",
-                                                    transition: "all 0.2s ease"
-                                                  }}
-                                                >
-                                                  {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                                                </ActionIcon>
-                                              )}
-                                            </Group>
-                                            <Group justify="space-between" wrap="nowrap">
-                                              <Group gap={4} wrap="wrap">
-                                                <Badge color={priorityColor(todo.priority)} size="xs" variant="light">
-                                                  {priorityLabels[todo.priority]}
-                                                </Badge>
-                                                {todo.due_date && (
-                                                  <Text size="10px" c={overdue ? "red" : "dimmed"} fw={overdue ? 700 : 400}>
-                                                    {dayjs(todo.due_date).format("MM/DD")}
-                                                  </Text>
-                                                )}
-                                                {hasChildren && !expanded && (
-                                                  <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
-                                                    {subTasks.length}
-                                                  </Badge>
+                                            }}
+                                            style={{
+                                              position: "relative",
+                                              zIndex: 1,
+                                              cursor: "pointer",
+                                              background: selectedId === todo.id ? "var(--mantine-color-gray-1)" : "white",
+                                              borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
+                                              boxShadow: "var(--mantine-shadow-xs)",
+                                            }}
+                                          >
+                                            <Stack gap={6}>
+                                              <Group justify="space-between" wrap="nowrap">
+                                                <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"} style={{ flex: 1 }}>
+                                                  {todo.title}
+                                                </Text>
+                                                {hasChildren && (
+                                                  <ActionIcon
+                                                    size="xs"
+                                                    variant="filled"
+                                                    color={expanded ? "blue.1" : "gray.1"}
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      toggleExpanded(todo.id);
+                                                    }}
+                                                    style={{
+                                                      color: expanded ? "var(--mantine-color-blue-6)" : "var(--mantine-color-gray-6)",
+                                                      transition: "all 0.2s ease"
+                                                    }}
+                                                  >
+                                                    {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+                                                  </ActionIcon>
                                                 )}
                                               </Group>
-                                              {assignee && (
-                                                <Avatar
-                                                  size="sm"
-                                                  radius="xl"
-                                                  color={assignee.color ?? "blue"}
-                                                  styles={{
-                                                    root: { width: 'auto', minWidth: 32, padding: '0 4px' },
-                                                    placeholder: { fontSize: '10px', fontWeight: 700 }
-                                                  }}
-                                                >
-                                                  {assignee.name}
-                                                </Avatar>
-                                              )}
-                                            </Group>
-                                          </Stack>
-                                        </Paper>
+                                              <Group justify="space-between" wrap="nowrap">
+                                                <Group gap={4} wrap="wrap">
+                                                  <Badge color={priorityColor(todo.priority)} size="xs" variant="light">
+                                                    {priorityLabels[todo.priority]}
+                                                  </Badge>
+                                                  {todo.due_date && (
+                                                    <Text size="10px" c={overdue ? "red" : "dimmed"} fw={overdue ? 700 : 400}>
+                                                      {dayjs(todo.due_date).format("MM/DD")}
+                                                    </Text>
+                                                  )}
+                                                  {hasChildren && !expanded && (
+                                                    <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
+                                                      {subTasks.length}
+                                                    </Badge>
+                                                  )}
+                                                </Group>
+                                                {assignee && (
+                                                  <Avatar
+                                                    size="sm"
+                                                    radius="xl"
+                                                    color={assignee.color ?? "blue"}
+                                                    styles={{
+                                                      root: { width: 'auto', minWidth: 32, padding: '0 4px' },
+                                                      placeholder: { fontSize: '10px', fontWeight: 700 }
+                                                    }}
+                                                  >
+                                                    {assignee.name}
+                                                  </Avatar>
+                                                )}
+                                              </Group>
+                                            </Stack>
+                                          </Paper>
 
-                                        {expanded && (
-                                          <Box mt={4} style={{ position: "relative", paddingLeft: 16 }}>
-                                            {/* 수직 계층선 */}
-                                            <Box
-                                              style={{
-                                                position: "absolute",
-                                                left: 8,
-                                                top: -8,
-                                                bottom: 24,
-                                                width: 1,
-                                                borderLeft: "2px solid var(--mantine-color-gray-3)",
-                                              }}
-                                            />
-                                            <Stack gap={6}>
-                                              {subTasks.map((sub, sIdx) => {
-                                                const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
-                                                const subDone = sub.status === "done";
-                                                return (
-                                                  <Box key={sub.id} style={{ position: "relative" }}>
-                                                    {/* 수평 연결선 (L자형) */}
-                                                    <Box
-                                                      style={{
-                                                        position: "absolute",
-                                                        left: -8,
-                                                        top: 14,
-                                                        width: 8,
-                                                        height: 2,
-                                                        background: "var(--mantine-color-gray-3)",
-                                                      }}
-                                                    />
-                                                    <Paper
-                                                      withBorder
-                                                      radius="sm"
-                                                      p="xs"
-                                                      onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
-                                                      style={{
-                                                        cursor: "pointer",
-                                                        background: subDone ? "var(--mantine-color-gray-0)" : "white",
-                                                        opacity: subDone ? 0.8 : 1,
-                                                        boxShadow: "var(--mantine-shadow-xs)",
-                                                        borderColor: subDone ? "var(--mantine-color-gray-2)" : undefined,
-                                                      }}
-                                                    >
-                                                      <Group gap="xs" align="flex-start" wrap="nowrap">
-                                                        <Checkbox
-                                                          size="xs"
-                                                          checked={subDone}
-                                                          onClick={(e) => e.stopPropagation()}
-                                                          onChange={(e) => toggleDone(sub, e.currentTarget.checked)}
-                                                          mt={2}
-                                                        />
-                                                        <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                                                          <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
-                                                            {sub.title}
-                                                          </Text>
-                                                          <Group justify="space-between" wrap="nowrap">
-                                                            <Group gap={4}>
-                                                              <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
-                                                                {priorityLabels[sub.priority]}
-                                                              </Badge>
-                                                              {!subDone && sub.status !== "todo" && (
-                                                                <Badge size="10px" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
-                                                                  {statusColumns.find(c => c.id === sub.status)?.label}
+                                          {expanded && (
+                                            <Box mt={4} style={{ position: "relative", paddingLeft: 16 }}>
+                                              {/* 수직 계층선 */}
+                                              <Box
+                                                style={{
+                                                  position: "absolute",
+                                                  left: 8,
+                                                  top: -8,
+                                                  bottom: 24,
+                                                  width: 1,
+                                                  borderLeft: "2px solid var(--mantine-color-gray-3)",
+                                                }}
+                                              />
+                                              <Stack gap={6}>
+                                                {subTasks.map((sub) => {
+                                                  const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
+                                                  const subDone = sub.status === "done";
+                                                  return (
+                                                    <Box key={sub.id} style={{ position: "relative" }}>
+                                                      {/* 수평 연결선 (L자형) */}
+                                                      <Box
+                                                        style={{
+                                                          position: "absolute",
+                                                          left: -8,
+                                                          top: 14,
+                                                          width: 8,
+                                                          height: 2,
+                                                          background: "var(--mantine-color-gray-3)",
+                                                        }}
+                                                      />
+                                                      <Paper
+                                                        withBorder
+                                                        radius="sm"
+                                                        p="xs"
+                                                        onClick={(e) => { e.stopPropagation(); openEdit(sub.id); }}
+                                                        style={{
+                                                          cursor: "pointer",
+                                                          background: subDone ? "var(--mantine-color-gray-0)" : "white",
+                                                          opacity: subDone ? 0.8 : 1,
+                                                          boxShadow: "var(--mantine-shadow-xs)",
+                                                          borderColor: subDone ? "var(--mantine-color-gray-2)" : undefined,
+                                                        }}
+                                                      >
+                                                        <Group gap="xs" align="flex-start" wrap="nowrap">
+                                                          <Checkbox
+                                                            size="xs"
+                                                            checked={subDone}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            onChange={(e) => toggleDone(sub, e.currentTarget.checked)}
+                                                            mt={2}
+                                                          />
+                                                          <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                                                            <Text size="xs" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
+                                                              {sub.title}
+                                                            </Text>
+                                                            <Group justify="space-between" wrap="nowrap">
+                                                              <Group gap={4}>
+                                                                <Badge color={priorityColor(sub.priority)} size="10px" variant="light">
+                                                                  {priorityLabels[sub.priority]}
                                                                 </Badge>
+                                                                {!subDone && sub.status !== "todo" && (
+                                                                  <Badge size="10px" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
+                                                                    {statusColumns.find(c => c.id === sub.status)?.label}
+                                                                  </Badge>
+                                                                )}
+                                                              </Group>
+                                                              {subAssignee && (
+                                                                <Avatar
+                                                                  size={16}
+                                                                  radius="xl"
+                                                                  color={subAssignee.color ?? "blue"}
+                                                                >
+                                                                  {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
+                                                                </Avatar>
                                                               )}
                                                             </Group>
-                                                            {subAssignee && (
-                                                              <Avatar
-                                                                size={16}
-                                                                radius="xl"
-                                                                color={subAssignee.color ?? "blue"}
-                                                              >
-                                                                {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
-                                                              </Avatar>
-                                                            )}
-                                                          </Group>
-                                                        </Stack>
-                                                      </Group>
-                                                    </Paper>
-                                                  </Box>
-                                                );
-                                              })}
-                                            </Stack>
-                                          </Box>
-                                        )}
+                                                          </Stack>
+                                                        </Group>
+                                                      </Paper>
+                                                    </Box>
+                                                  );
+                                                })}
+                                              </Stack>
+                                            </Box>
+                                          )}
+                                        </Box>
                                       </Box>
                                     )}
                                   </Draggable>
                                 );
                               })}
+                              {provided.placeholder}
+
                               <Paper withBorder p="xs" radius="sm" style={{ borderStyle: "dashed", background: "transparent" }}>
                                 <TextInput
                                   variant="unstyled"
@@ -1292,7 +1332,6 @@ export default function TodoPage() {
                                   }}
                                 />
                               </Paper>
-                              {provided.placeholder}
                             </Stack>
                           )}
                         </Droppable>
@@ -1485,7 +1524,12 @@ export default function TodoPage() {
                       const val = (value as Todo["status"]) ?? "todo";
                       setForm((prev) => ({ ...prev, status: val }));
                       if (editorMode.mode === "edit") {
-                        syncTodo(editorMode.todoId, { status: val });
+                        if (val === "done") {
+                          const todo = todoById[editorMode.todoId];
+                          if (todo) toggleDone(todo, true);
+                        } else {
+                          syncTodo(editorMode.todoId, { status: val });
+                        }
                       }
                     }}
                     allowDeselect={false}
