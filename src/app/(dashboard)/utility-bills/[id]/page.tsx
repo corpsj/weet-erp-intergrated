@@ -100,8 +100,12 @@ const statusColor = (status: UtilityBillDetail["status"]) => {
 
 const stageLabel = (stage: string | null) => {
   switch (stage) {
-    case "PREPROCESS":
-      return "이미지 최적화 중";
+    case "DOWNLOAD":
+      return "이미지 로드 중";
+    case "PREPROCESS_CV":
+      return "이미지 분석 및 보정 중";
+    case "PREPROCESS_UPLOAD":
+      return "보정 이미지 저장 중";
     case "TEMPLATE_OCR":
       return "양식 분석 중";
     case "GENERAL_OCR":

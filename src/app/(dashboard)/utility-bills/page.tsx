@@ -88,8 +88,12 @@ const billTypeLabel = (value: string | null) => {
 
 const stageLabel = (stage: string | null) => {
   switch (stage) {
-    case "PREPROCESS":
-      return "이미지 최적화";
+    case "DOWNLOAD":
+      return "이미지 로딩";
+    case "PREPROCESS_CV":
+      return "분석 준비";
+    case "PREPROCESS_UPLOAD":
+      return "보정 이미지 저장";
     case "TEMPLATE_OCR":
       return "양식 분석";
     case "GENERAL_OCR":

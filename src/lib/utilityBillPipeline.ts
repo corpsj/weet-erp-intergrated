@@ -80,7 +80,7 @@ type OpenCv = {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-type SharpModule = (input: Buffer | ArrayBuffer | string) => import("sharp").Sharp;
+type SharpModule = (input: Buffer | ArrayBuffer | string, options?: import("sharp").SharpOptions) => import("sharp").Sharp;
 
 type LlmResult = {
   bill_type: BillType;
@@ -395,17 +395,31 @@ const loadSharp = async () => {
   return sharpPromise;
 };
 
-const loadOpenCv = async () => {
+const loadOpenCv = async (timeoutMs = 5000) => {
   if (cvPromise) return cvPromise;
-  cvPromise = import("@techstark/opencv-js").then((mod) => {
-    const cv = ((mod as unknown) as { default?: OpenCv }).default ?? (mod as unknown as OpenCv);
-    if (isRecord(cv) && typeof (cv as Record<string, unknown>).onRuntimeInitialized === "function") {
-      return new Promise<OpenCv>((resolve) => {
-        (cv as Record<string, unknown>).onRuntimeInitialized = () => resolve(cv);
+  cvPromise = (async () => {
+    try {
+      const loadPromise = import("@techstark/opencv-js").then((mod) => {
+        const cv = ((mod as unknown) as { default?: OpenCv }).default ?? (mod as unknown as OpenCv);
+        if (isRecord(cv) && typeof (cv as Record<string, unknown>).onRuntimeInitialized === "function") {
+          return new Promise<OpenCv>((resolve) => {
+            (cv as Record<string, unknown>).onRuntimeInitialized = () => resolve(cv);
+          });
+        }
+        return cv;
       });
+
+      return await Promise.race([
+        loadPromise,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("OpenCV load timeout")), timeoutMs)
+        ),
+      ]);
+    } catch (err) {
+      cvPromise = null; // Allow retry on failure
+      throw err;
     }
-    return cv;
-  });
+  })();
   return cvPromise;
 };
 
@@ -518,9 +532,10 @@ const preprocessImage = async (inputBuffer: Buffer): Promise<PreprocessResult> =
   let cv: OpenCv | null = null;
   let cvErrorNote: string | null = null;
   try {
-    cv = await loadOpenCv();
+    cv = await loadOpenCv(5000);
   } catch (error) {
     cvErrorNote = error instanceof Error ? error.message : "OpenCV 초기화 실패";
+    console.warn("Skipping OpenCV features:", cvErrorNote);
   }
 
   const base = sharp(inputBuffer).rotate();
@@ -561,12 +576,13 @@ const preprocessImage = async (inputBuffer: Buffer): Promise<PreprocessResult> =
         fullMat.delete();
 
         const channels = warped.channels();
-        const pngBuffer = await sharp(Buffer.from(warped.data))
-          .raw({
+        const pngBuffer = await sharp(Buffer.from(warped.data), {
+          raw: {
             width: warped.cols,
             height: warped.rows,
-            channels,
-          })
+            channels: channels as any,
+          },
+        })
           .png()
           .toBuffer();
         warped.delete();
@@ -602,12 +618,13 @@ const preprocessImage = async (inputBuffer: Buffer): Promise<PreprocessResult> =
       cv.bilateralFilter(gray, denoise, 9, 75, 75);
       cv.adaptiveThreshold(denoise, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 35, 10);
 
-      const pngBuffer = await sharp(Buffer.from(thresh.data))
-        .raw({
+      const pngBuffer = await sharp(Buffer.from(thresh.data), {
+        raw: {
           width: thresh.cols,
           height: thresh.rows,
           channels: 1,
-        },)
+        },
+      })
         .png()
         .toBuffer();
 
@@ -667,7 +684,7 @@ export const processUtilityBill = async (billId: string) => {
   };
 
   try {
-    await updateBill({ processing_stage: "PREPROCESS", last_error_code: null, last_error_message: null });
+    await updateBill({ processing_stage: "DOWNLOAD", last_error_code: null, last_error_message: null });
 
     const { data: originalBlob, error: downloadError } = await supabaseAdmin.storage
       .from(BUCKET)
@@ -676,8 +693,11 @@ export const processUtilityBill = async (billId: string) => {
       throw new Error(downloadError?.message ?? "원본 이미지를 다운로드하지 못했습니다.");
     }
     const originalBuffer = Buffer.from(await originalBlob.arrayBuffer());
+
+    await updateBill({ processing_stage: "PREPROCESS_CV" });
     const preprocess = await preprocessImage(originalBuffer);
 
+    await updateBill({ processing_stage: "PREPROCESS_UPLOAD" });
     const scanPath = `${bill.company_id}/${billId}/processed/scan.png`;
     const trackAPath = `${bill.company_id}/${billId}/processed/trackA.png`;
     const trackBPath = `${bill.company_id}/${billId}/processed/trackB.png`;
