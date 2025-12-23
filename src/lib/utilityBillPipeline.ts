@@ -50,10 +50,10 @@ type CvMatVector = {
 };
 
 type OpenCv = {
-  Mat: { new (...args: number[]): CvMat; ones: (rows: number, cols: number, type: number) => CvMat };
-  MatVector: { new (): CvMatVector };
-  Size: { new (width: number, height: number): unknown };
-  Point: { new (x: number, y: number): unknown };
+  Mat: { new(...args: number[]): CvMat; ones: (rows: number, cols: number, type: number) => CvMat };
+  MatVector: { new(): CvMatVector };
+  Size: { new(width: number, height: number): unknown };
+  Point: { new(x: number, y: number): unknown };
   COLOR_RGBA2GRAY: number;
   CV_8UC4: number;
   CV_8U: number;
@@ -561,13 +561,12 @@ const preprocessImage = async (inputBuffer: Buffer): Promise<PreprocessResult> =
         fullMat.delete();
 
         const channels = warped.channels();
-        const pngBuffer = await sharp(Buffer.from(warped.data), {
-          raw: {
+        const pngBuffer = await sharp(Buffer.from(warped.data))
+          .raw({
             width: warped.cols,
             height: warped.rows,
             channels,
-          },
-        })
+          })
           .png()
           .toBuffer();
         warped.delete();
@@ -603,13 +602,12 @@ const preprocessImage = async (inputBuffer: Buffer): Promise<PreprocessResult> =
       cv.bilateralFilter(gray, denoise, 9, 75, 75);
       cv.adaptiveThreshold(denoise, thresh, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 35, 10);
 
-      const pngBuffer = await sharp(Buffer.from(thresh.data), {
-        raw: {
+      const pngBuffer = await sharp(Buffer.from(thresh.data))
+        .raw({
           width: thresh.cols,
           height: thresh.rows,
           channels: 1,
-        },
-      })
+        },)
         .png()
         .toBuffer();
 
@@ -780,9 +778,19 @@ export const processUtilityBill = async (billId: string) => {
 };
 
 export const triggerUtilityBillProcessing = (billId: string) => {
+  // Attempt to trigger via external API call for better reliability in serverless environments
+  const siteUrl = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    const protocol = siteUrl.includes("localhost") ? "http" : "https";
+    const baseUrl = siteUrl.startsWith("http") ? siteUrl : `${protocol}://${siteUrl}`;
+    const secret = process.env.CRON_SECRET || "";
+    void fetch(`${baseUrl}/api/utility-bills/process?id=${billId}&cron_secret=${secret}`).catch(() => { });
+  }
+
+  // Local/Development fallback
   setTimeout(() => {
-    void processUtilityBill(billId);
-  }, 50);
+    void processUtilityBill(billId).catch(() => { });
+  }, 100);
 };
 
 export const buildUtilityBillPaths = (companyId: string, billId: string) => ({

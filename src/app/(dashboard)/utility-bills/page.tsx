@@ -86,6 +86,25 @@ const billTypeLabel = (value: string | null) => {
   }
 };
 
+const stageLabel = (stage: string | null) => {
+  switch (stage) {
+    case "PREPROCESS":
+      return "이미지 최적화";
+    case "TEMPLATE_OCR":
+      return "양식 분석";
+    case "GENERAL_OCR":
+      return "글자 인식";
+    case "GEMINI":
+      return "AI 분석";
+    case "VALIDATE":
+      return "데이터 검증";
+    case "DONE":
+      return "분석 완료";
+    default:
+      return "준비 중";
+  }
+};
+
 export default function UtilityBillsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -156,7 +175,7 @@ export default function UtilityBillsPage() {
                 {item.amount_due ? item.amount_due.toLocaleString() : "-"}원
               </Text>
               <Text size="xs" c="dimmed">
-                {item.processing_stage === "DONE" ? "처리 완료" : item.processing_stage ?? "처리중"}
+                {item.status === "PROCESSING" ? stageLabel(item.processing_stage) : "처리 완료"}
               </Text>
             </Stack>
 
@@ -208,7 +227,7 @@ export default function UtilityBillsPage() {
             label="월 필터"
             placeholder="YYYY-MM"
             value={monthFilter}
-            onChange={setMonthFilter}
+            onChange={(val: any) => setMonthFilter(val ? new Date(val) : null)}
             valueFormat="YYYY-MM"
             size="sm"
           />

@@ -98,7 +98,29 @@ const statusColor = (status: UtilityBillDetail["status"]) => {
   }
 };
 
-const statusLabel = (status: UtilityBillDetail["status"]) => {
+const stageLabel = (stage: string | null) => {
+  switch (stage) {
+    case "PREPROCESS":
+      return "이미지 최적화 중";
+    case "TEMPLATE_OCR":
+      return "양식 분석 중";
+    case "GENERAL_OCR":
+      return "글자 인식 중";
+    case "GEMINI":
+      return "AI 필드 추출 중";
+    case "VALIDATE":
+      return "데이터 검증 중";
+    case "DONE":
+      return "분석 완료";
+    default:
+      return "준비 중";
+  }
+};
+
+const statusLabel = (status: UtilityBillDetail["status"], stage?: string | null) => {
+  if (status === "PROCESSING") {
+    return stageLabel(stage ?? null);
+  }
   switch (status) {
     case "CONFIRMED":
       return "확정";
@@ -268,7 +290,7 @@ export default function UtilityBillDetailPage() {
           </Button>
           {item && (
             <Badge color={statusColor(item.status)} variant="filled" size="lg">
-              {statusLabel(item.status)}
+              {statusLabel(item.status, item.processing_stage)}
             </Badge>
           )}
         </Group>
@@ -316,7 +338,11 @@ export default function UtilityBillDetailPage() {
             <Stack gap="sm">
               <Group justify="space-between">
                 <Text fw={600}>필드 검수</Text>
-                {item && item.confidence !== null && (
+                {item && item.status === "PROCESSING" ? (
+                  <Badge color="blue" variant="outline" size="xs">
+                    {stageLabel(item.processing_stage)}
+                  </Badge>
+                ) : item && item.confidence !== null && (
                   <Group gap="xs">
                     <Text size="xs" c="dimmed">
                       신뢰도
@@ -328,13 +354,23 @@ export default function UtilityBillDetailPage() {
                 )}
               </Group>
 
-              {item && item.confidence !== null && (
+              {item && item.status === "PROCESSING" ? (
+                <Progress value={item.processing_stage === "DONE" ? 100 : 50} animated color="blue" />
+              ) : item && item.confidence !== null && (
                 <Progress value={Math.min(100, Math.max(0, item.confidence * 100))} color={statusColor(item.status)} />
               )}
 
+              {item?.status === "PROCESSING" && (
+                <Paper p="xs" radius="sm" withBorder style={{ backgroundColor: "var(--mantine-color-blue-0)", borderStyle: "dashed" }}>
+                  <Text size="xs" c="blue" fw={500}>
+                    지속적으로 '준비 중'이거나 변화가 없다면 아래 '재처리' 버튼을 눌러주세요.
+                  </Text>
+                </Paper>
+              )}
+
               {item?.last_error_message && (
-                <Text size="xs" c="red">
-                  {item.last_error_message}
+                <Text size="xs" c="red" fw={500}>
+                  에러: {item.last_error_message}
                 </Text>
               )}
 
