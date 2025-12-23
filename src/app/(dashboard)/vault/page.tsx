@@ -17,6 +17,7 @@ import {
   Container,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 import { IconCopy, IconEye, IconEyeOff, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -39,6 +40,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function VaultPage() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<VaultEntry[]>([]);
   const [revealed, setRevealed] = useState<Record<string, string>>({});
@@ -211,16 +213,17 @@ export default function VaultPage() {
     });
   }, [items, query]);
 
-  const rows = useMemo(() => {
+  const desktopRows = useMemo(() => {
     return filteredItems.map((item) => (
       <Table.Tr key={item.id}>
         <Table.Td>
-          <Box style={{ height: '36px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Text fw={600} size="sm" style={{ lineHeight: 1.2 }}>{item.title}</Text>
+          <Box style={{ minHeight: '44px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <Text fw={800} size="sm" style={{ lineHeight: 1.2, letterSpacing: '-0.01em' }}>{item.title}</Text>
             {item.url && (
               <Text
-                size="sm"
-                c="dimmed"
+                size="xs"
+                c="indigo.6"
+                fw={600}
                 lineClamp={1}
                 component="a"
                 href={item.url.startsWith("http") ? item.url : `https://${item.url}`}
@@ -233,33 +236,36 @@ export default function VaultPage() {
           </Box>
         </Table.Td>
         <Table.Td>
-          <Text size="sm" ff="monospace">{item.username ?? "-"}</Text>
+          <Text size="sm" fw={600} ff="monospace">{item.username ?? "-"}</Text>
         </Table.Td>
         <Table.Td>
-          <Group gap={4} wrap="nowrap" align="center">
-            <Text size="sm" ff="monospace">
+          <Group gap={8} wrap="nowrap" align="center">
+            <Text size="sm" ff="monospace" fw={600} c={revealed[item.id] ? "dark" : "dimmed"}>
               {revealed[item.id] ? revealed[item.id] : "••••••••"}
             </Text>
-            <ActionIcon
-              variant="subtle"
-              color="gray"
-              size="sm"
-              onClick={() =>
-                revealed[item.id]
-                  ? setRevealed((prev) => {
-                    const next = { ...prev };
-                    delete next[item.id];
-                    return next;
-                  })
-                  : void reveal(item.id)
-              }
-              title="비밀번호 표시/숨기기"
-            >
-              {revealed[item.id] ? <IconEyeOff size={16} /> : <IconEye size={16} />}
-            </ActionIcon>
-            <ActionIcon variant="subtle" color="gray" size="sm" onClick={() => void copyPassword(item.id)} title="복사">
-              <IconCopy size={16} />
-            </ActionIcon>
+            <Group gap={4}>
+              <ActionIcon
+                variant="light"
+                color="indigo"
+                radius="md"
+                size="sm"
+                onClick={() =>
+                  revealed[item.id]
+                    ? setRevealed((prev) => {
+                      const next = { ...prev };
+                      delete next[item.id];
+                      return next;
+                    })
+                    : void reveal(item.id)
+                }
+                title="비밀번호 표시/숨기기"
+              >
+                {revealed[item.id] ? <IconEyeOff size={16} /> : <IconEye size={16} />}
+              </ActionIcon>
+              <ActionIcon variant="light" color="indigo" radius="md" size="sm" onClick={() => void copyPassword(item.id)} title="복사">
+                <IconCopy size={16} />
+              </ActionIcon>
+            </Group>
           </Group>
         </Table.Td>
         <Table.Td>
@@ -269,10 +275,10 @@ export default function VaultPage() {
         </Table.Td>
         <Table.Td>
           <Group gap="xs" justify="flex-end" wrap="nowrap">
-            <Button size="compact-xs" variant="light" color="gray" onClick={() => openEdit(item)}>
+            <Button size="compact-xs" variant="subtle" color="indigo" radius="md" onClick={() => openEdit(item)}>
               편집
             </Button>
-            <ActionIcon variant="subtle" color="red" size="sm" onClick={() => void remove(item.id)}>
+            <ActionIcon variant="subtle" color="red" radius="md" size="sm" onClick={() => void remove(item.id)}>
               <IconTrash size={16} />
             </ActionIcon>
           </Group>
@@ -281,77 +287,202 @@ export default function VaultPage() {
     ));
   }, [copyPassword, filteredItems, remove, reveal, revealed]);
 
-  return (
-    <Container size="md" py="xl">
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>계정 공유</Title>
-          <Text c="dimmed" size="sm">
-            회사에서 사용하는 사이트 계정/비밀번호를 공유합니다.
-          </Text>
-        </div>
-        <Group gap="xs">
-          <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate}>
-            추가
-          </Button>
-        </Group>
-      </Group>
-
-      <Paper className="app-surface" p="lg" radius="md">
-        <Stack gap="md">
-          <Group gap="xs">
-            <TextInput
-              placeholder="제목, 아이디, URL 검색..."
-              size="sm"
-              value={query}
-              onChange={(e) => setQuery(e.currentTarget.value)}
-              style={{ flex: 1 }}
-            />
+  const mobileCards = useMemo(() => {
+    return filteredItems.map((item) => (
+      <Paper key={item.id} p="md" radius="md" withBorder shadow="xs" mb="sm" style={{ background: 'var(--mantine-color-white)' }}>
+        <Stack gap="sm">
+          <Group justify="space-between" wrap="nowrap" align="flex-start">
+            <Stack gap={2} style={{ flex: 1 }}>
+              <Text fw={900} size="md" style={{ letterSpacing: '-0.02em' }}>{item.title}</Text>
+              {item.url && (
+                <Text
+                  size="xs"
+                  c="indigo.6"
+                  fw={700}
+                  lineClamp={1}
+                  component="a"
+                  href={item.url.startsWith("http") ? item.url : `https://${item.url}`}
+                  target="_blank"
+                  style={{ textDecoration: 'none' }}
+                >
+                  {item.url}
+                </Text>
+              )}
+            </Stack>
+            <Group gap={4}>
+              <Button size="compact-xs" variant="light" color="indigo" radius="md" onClick={() => openEdit(item)}>
+                편집
+              </Button>
+              <ActionIcon variant="subtle" color="red" radius="md" size="sm" onClick={() => void remove(item.id)}>
+                <IconTrash size={16} />
+              </ActionIcon>
+            </Group>
           </Group>
 
+          <Paper withBorder p="xs" radius="md" bg="gray.0" style={{ borderStyle: 'dashed' }}>
+            <Stack gap={8}>
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed" fw={800} tt="uppercase">아이디</Text>
+                <Text size="sm" fw={700} ff="monospace">{item.username || '(없음)'}</Text>
+              </Group>
+              <Group justify="space-between">
+                <Text size="xs" c="dimmed" fw={800} tt="uppercase">비밀번호</Text>
+                <Group gap={6}>
+                  <Text size="sm" fw={700} ff="monospace" c={revealed[item.id] ? "indigo.7" : "gray.5"}>
+                    {revealed[item.id] ? revealed[item.id] : "••••••••"}
+                  </Text>
+                  <ActionIcon
+                    variant="filled"
+                    color="indigo"
+                    radius="md"
+                    size="sm"
+                    onClick={() => revealed[item.id] ? setRevealed(prev => {
+                      const n = { ...prev };
+                      delete n[item.id];
+                      return n;
+                    }) : void reveal(item.id)}
+                  >
+                    {revealed[item.id] ? <IconEyeOff size={14} /> : <IconEye size={14} />}
+                  </ActionIcon>
+                  <ActionIcon
+                    variant="light"
+                    color="indigo"
+                    radius="md"
+                    size="sm"
+                    disabled={!revealed[item.id]}
+                    onClick={() => void copyPassword(item.id)}
+                  >
+                    <IconCopy size={14} />
+                  </ActionIcon>
+                </Group>
+              </Group>
+            </Stack>
+          </Paper>
 
-          <Table.ScrollContainer minWidth={800}>
-            <Table verticalSpacing={7} highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th style={{ width: "20%" }}>항목</Table.Th>
-                  <Table.Th style={{ width: "20%" }}>아이디</Table.Th>
-                  <Table.Th style={{ width: "25%" }}>비밀번호</Table.Th>
-                  <Table.Th style={{ width: "25%" }}>메모</Table.Th>
-                  <Table.Th style={{ width: "10%" }} />
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>{rows}</Table.Tbody>
-            </Table>
-          </Table.ScrollContainer>
-          {!filteredItems.length && !loading && <Text size="sm" c="dimmed" ta="center" py="xl">등록된 계정이 없거나 검색 결과가 없습니다.</Text>}
+          {item.note && (
+            <Text size="xs" c="dimmed" lineClamp={2} style={{ background: 'var(--mantine-color-gray-0)', padding: '6px 10px', borderRadius: '8px' }}>
+              {item.note}
+            </Text>
+          )}
+        </Stack>
+      </Paper>
+    ));
+  }, [copyPassword, filteredItems, remove, reveal, revealed]);
+
+  return (
+    <Container size="md" py="xl" px={isMobile ? "md" : "xl"}>
+      <Box hiddenFrom="md" px="md" mb="lg">
+        <Title order={2} fw={800} style={{ letterSpacing: '-0.02em' }}>계정 공유</Title>
+      </Box>
+      <Group justify="space-between" mb="xl" visibleFrom="md">
+        <Box>
+          <Title order={1} fw={800} style={{ letterSpacing: '-0.02em' }}>계정 공유</Title>
+          <Text c="dimmed" size="sm" fw={500}>
+            공동으로 사용하는 사이트 계정 정보를 안전하게 관리합니다.
+          </Text>
+        </Box>
+        <Button
+          leftSection={<IconPlus size={18} />}
+          color="indigo"
+          radius="md"
+          variant="light"
+          onClick={openCreate}
+          size="md"
+        >
+          계정 추가
+        </Button>
+      </Group>
+
+      <Paper p="md" radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs" mb="lg">
+        <Stack gap="md">
+          <TextInput
+            placeholder="계정명, 아이디, URL 검색..."
+            size="sm"
+            radius="md"
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+            style={{ flex: 1 }}
+          />
+
+          <Box className="desktop-only">
+            <Table.ScrollContainer minWidth={800}>
+              <Table verticalSpacing="md" highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th style={{ width: "25%" }}><Text size="xs" fw={800} tt="uppercase">항목</Text></Table.Th>
+                    <Table.Th style={{ width: "20%" }}><Text size="xs" fw={800} tt="uppercase">아이디</Text></Table.Th>
+                    <Table.Th style={{ width: "20%" }}><Text size="xs" fw={800} tt="uppercase">비밀번호</Text></Table.Th>
+                    <Table.Th style={{ width: "25%" }}><Text size="xs" fw={800} tt="uppercase">메모</Text></Table.Th>
+                    <Table.Th style={{ width: "10%" }} />
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{desktopRows}</Table.Tbody>
+              </Table>
+            </Table.ScrollContainer>
+          </Box>
+
+          <Box className="mobile-only">
+            <Stack gap="sm">
+              {mobileCards}
+            </Stack>
+          </Box>
+
+          {!filteredItems.length && !loading && (
+            <Paper p="xl" withBorder radius="md" style={{ textAlign: 'center', borderStyle: 'dashed', background: 'transparent' }}>
+              <Text size="sm" c="dimmed" py="xl">등록된 계정이 없거나 검색 결과가 없습니다.</Text>
+            </Paper>
+          )}
         </Stack>
       </Paper>
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "계정 편집" : "계정 추가"} centered>
+      {/* FAB for Mobile */}
+      <ActionIcon
+        size={64}
+        radius="md"
+        color="indigo"
+        variant="filled"
+        className="mobile-only"
+        style={{
+          position: 'fixed',
+          bottom: '100px',
+          right: '24px',
+          boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)',
+          zIndex: 100
+        }}
+        onClick={openCreate}
+      >
+        <IconPlus size={32} />
+      </ActionIcon>
+
+      <Modal opened={opened} onClose={() => setOpened(false)} title={<Text fw={900}>{editing ? "계정 편집" : "계정 추가"}</Text>} centered radius="md">
         <Stack gap="sm">
-          <TextInput label="제목" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
-          <TextInput label="URL" value={url} onChange={(e) => setUrl(e.currentTarget.value)} placeholder="https://..." />
-          <TextInput label="아이디" value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
+          <TextInput label="사이트/항목명" radius="md" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required placeholder="예: 구글 워크스페이스" />
+          <TextInput label="접속 URL" radius="md" value={url} onChange={(e) => setUrl(e.currentTarget.value)} placeholder="https://..." />
+          <TextInput label="아이디/사용자명" radius="md" value={username} onChange={(e) => setUsername(e.currentTarget.value)} />
           <TextInput
             label="비밀번호"
+            radius="md"
             value={password}
             onChange={(e) => setPassword(e.currentTarget.value)}
             placeholder={editing ? "(변경 시에만 입력)" : ""}
             required={!editing}
           />
-          <Textarea label="메모" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
-          <Group justify="flex-end">
-            <Button variant="light" color="gray" onClick={() => setOpened(false)}>
+          <Textarea label="추가 메모" radius="md" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
+
+          <Paper p="xs" radius="md" bg="blue.0" mt="xs">
+            <Text size="xs" c="blue.7" fw={700}>
+              비밀번호는 서버에서 암호화되어 안전하게 저장됩니다.
+            </Text>
+          </Paper>
+
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" color="gray" radius="md" onClick={() => setOpened(false)}>
               취소
             </Button>
-            <Button color="gray" onClick={() => void save()} loading={saving}>
-              저장
+            <Button color="indigo" radius="md" onClick={() => void save()} loading={saving} px="xl">
+              저장하기
             </Button>
           </Group>
-          <Text size="sm" c="dimmed">
-            비밀번호는 서버에서 암호화되어 저장됩니다.
-          </Text>
         </Stack>
       </Modal>
     </Container>

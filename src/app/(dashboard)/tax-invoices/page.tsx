@@ -19,10 +19,13 @@ import {
     Text,
     TextInput,
     Title,
+    Affix,
+    Transition,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconTrash, IconReceipt2, IconReceipt } from "@tabler/icons-react";
+import { useMediaQuery } from "@mantine/hooks";
+import { IconSearch, IconPlus, IconCheck, IconX, IconTrash } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";
@@ -51,6 +54,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function TaxInvoicesPage() {
+    const isMobile = useMediaQuery("(max-width: 768px)");
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<TaxInvoice[]>([]);
     const [opened, setOpened] = useState(false);
@@ -165,41 +169,55 @@ export default function TaxInvoicesPage() {
             p="md"
             radius="md"
             withBorder
-            mb="xs"
-            className="app-surface"
-            style={{ cursor: "default" }}
+            mb="sm"
+            style={{
+                cursor: "pointer",
+                background: 'var(--mantine-color-white)',
+                boxShadow: 'var(--mantine-shadow-xs)',
+                transition: 'all 0.1s ease'
+            }}
+            className="invoice-row"
         >
             <Group justify="space-between" wrap="nowrap">
                 <Group gap="md" style={{ flex: 1 }}>
-                    <Box style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "rgba(0,0,0,0.03)" }}>
-                        <IconReceipt2 size={20} color="var(--mantine-color-gray-6)" />
+                    <Box style={{
+                        width: 44,
+                        height: 44,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 8,
+                        backgroundColor: "var(--mantine-color-gray-1)",
+                        flexShrink: 0
+                    }}>
+                        <IconReceipt2 size={22} color="var(--mantine-color-indigo-6)" />
                     </Box>
                     <Stack gap={0}>
                         <Group gap="xs">
-                            <Badge color={item.type === "sales" ? "blue" : "red"} variant="light" size="sm">
+                            <Badge color={item.type === "sales" ? "indigo" : "red"} variant="light" size="sm" radius="sm">
                                 {item.type === "sales" ? "매출" : "매입"}
                             </Badge>
-                            <Text fw={600} size="sm">
+                            <Text fw={700} size="sm" c="gray.9">
                                 {item.type === "sales" ? item.receiver_name : item.supplier_name}
                             </Text>
                         </Group>
-                        <Text size="xs" c="dimmed">
-                            {dayjs(item.issue_date).format("YYYY.MM.DD")} {item.description && `| ${item.description}`}
+                        <Text size="xs" c="dimmed" fw={500} mt={2}>
+                            {dayjs(item.issue_date).format("YYYY.MM.DD")} {item.description && `• ${item.description}`}
                         </Text>
                     </Stack>
                 </Group>
 
                 <Group gap="xl" wrap="nowrap">
                     <Stack gap={0} align="flex-end">
-                        <Text fw={700} size="sm">
+                        <Text fw={800} size="md" c="indigo.9">
                             {item.amount.toLocaleString()}원
                         </Text>
-                        <Text size="xs" c="dimmed">
-                            부가세 {item.vat.toLocaleString()}원
+                        <Text size="xs" c="dimmed" fw={600}>
+                            VAT {item.vat.toLocaleString()}원
                         </Text>
                     </Stack>
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={(e) => void remove(item.id, e)}>
-                        <IconTrash size={16} />
+                    <ActionIcon variant="subtle" color="gray" size="md" radius="md" onClick={(e) => void remove(item.id, e)}>
+                        <IconTrash size={18} />
                     </ActionIcon>
                 </Group>
             </Group>
@@ -207,39 +225,53 @@ export default function TaxInvoicesPage() {
     ));
 
     return (
-        <Container size={800} py="xl">
-            <Group justify="space-between" mb="lg">
+        <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>
+            <Box hiddenFrom="md" px="md" mb="lg">
+                <Title order={2} fw={800} style={{ letterSpacing: '-0.02em' }}>세금계산서 관리</Title>
+            </Box>
+            <Group justify="space-between" mb="xl" align="flex-end" visibleFrom="md">
                 <div>
-                    <Title order={2}>세금계산서 관리</Title>
-                    <Text c="dimmed" size="sm">매출 및 매입 세금계산서를 통합 관리합니다.</Text>
+                    <Title order={1} fw={800} style={{ letterSpacing: '-0.02em' }}>세금계산서 관리</Title>
+                    <Text c="dimmed" size="sm" fw={500}>매출 및 매입 세금계산서를 통합 관리합니다.</Text>
                 </div>
                 <Group>
-                    <Button color="gray" leftSection={<IconPlus size={16} />} onClick={() => setOpened(true)}>계산서 추가</Button>
+                    <Button
+                        leftSection={<IconPlus size={18} />}
+                        color="indigo"
+                        radius="md"
+                        variant="light"
+                        onClick={() => setOpened(true)}
+                        size="md"
+                    >
+                        세금계산서 추가
+                    </Button>
                 </Group>
             </Group>
 
             <Grid mb="xl">
                 <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">총 매출액</Text>
-                        <Text size="lg" fw={700}>{summary.sales.toLocaleString()}원</Text>
-                        <Text size="xs" c="blue">부가세: {summary.salesVat.toLocaleString()}원</Text>
+                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                        <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>총 매출액</Text>
+                        <Text size="xl" fw={900} c="indigo.9">{summary.sales.toLocaleString()}원</Text>
+                        <Text size="xs" c="dimmed" fw={600}>부가세: {summary.salesVat.toLocaleString()}원</Text>
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">총 매입액</Text>
-                        <Text size="lg" fw={700}>{summary.purchase.toLocaleString()}원</Text>
-                        <Text size="xs" c="red">부가세: {summary.purchaseVat.toLocaleString()}원</Text>
+                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                        <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>총 매입액</Text>
+                        <Text size="xl" fw={900} c="red.8">{summary.purchase.toLocaleString()}원</Text>
+                        <Text size="xs" c="dimmed" fw={600}>부가세: {summary.purchaseVat.toLocaleString()}원</Text>
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">부가세 수지</Text>
-                        <Text size="lg" fw={700} c={summary.salesVat - summary.purchaseVat >= 0 ? "blue" : "red"}>
+                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                        <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>부가세 수지</Text>
+                        <Text size="xl" fw={900} c={summary.salesVat - summary.purchaseVat >= 0 ? "indigo.7" : "red.7"}>
                             {(summary.salesVat - summary.purchaseVat).toLocaleString()}원
                         </Text>
-                        <Text size="xs">{summary.salesVat - summary.purchaseVat >= 0 ? "납부 예정" : "환급 예정"}</Text>
+                        <Badge variant="light" color={summary.salesVat - summary.purchaseVat >= 0 ? "indigo" : "red"} size="sm" radius="sm">
+                            {summary.salesVat - summary.purchaseVat >= 0 ? "납부 예정" : "환급 예정"}
+                        </Badge>
                     </Paper>
                 </Grid.Col>
             </Grid>
@@ -303,6 +335,28 @@ export default function TaxInvoicesPage() {
                     </Group>
                 </Stack>
             </Modal>
+
+            {/* Universal FAB - Mobile Only */}
+            <Affix position={{ bottom: 40, right: 40 }} className="mobile-only">
+                <Transition transition="slide-up" mounted={true}>
+                    {(transitionStyles) => (
+                        <ActionIcon
+                            size={64}
+                            radius="xl"
+                            color="indigo"
+                            variant="filled"
+                            style={{
+                                ...transitionStyles,
+                                boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)',
+                                zIndex: 1000,
+                            }}
+                            onClick={() => setOpened(true)}
+                        >
+                            <IconPlus size={32} />
+                        </ActionIcon>
+                    )}
+                </Transition>
+            </Affix>
         </Container>
     );
 }

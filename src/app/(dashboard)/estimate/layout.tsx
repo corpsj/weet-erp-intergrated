@@ -141,21 +141,12 @@ export default function EstimateLayout({ children }: { children: React.ReactNode
                 {displayName}
               </Text>
             )}
-            <Button
-              variant="light"
-              color="gray"
-              onClick={async () => {
-                await supabase.auth.signOut();
-              }}
-            >
-              로그아웃
-            </Button>
           </Group>
         </Group>
-        <Tabs value={activeTab} variant="pills" size="sm" mt="sm">
+        <Tabs value={activeTab} variant="pills" mt="sm">
           <Tabs.List>
             {tabItems.map((item) => (
-              <Tabs.Tab key={item.value} value={item.value} component={Link} href={item.href}>
+              <Tabs.Tab key={item.value} value={item.value} component={Link} href={item.href as any}>
                 {item.label}
               </Tabs.Tab>
             ))}

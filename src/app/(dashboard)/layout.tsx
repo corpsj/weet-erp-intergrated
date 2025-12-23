@@ -1,6 +1,6 @@
 "use client";
 
-import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box } from "@mantine/core";
+import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
   IconBolt,
@@ -37,9 +37,9 @@ const groupedNavItems = [
     group: "ERP 솔루션",
     items: [
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
+      { label: "공과금", icon: IconBolt, link: "/utility-bills" },
       { label: "세금계산서", icon: IconReceipt2, link: "/tax-invoices" },
       { label: "입출금 내역", icon: IconTransferIn, link: "/transactions" },
-      { label: "공과금", icon: IconBolt, link: "/utility-bills" },
     ],
   },
   {
@@ -165,29 +165,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       className="app-shell"
-      header={{ height: 68 }}
+      header={{ height: 64 }}
       navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
+      footer={{ height: 80, offset: true }}
       padding="md"
     >
-      <AppShell.Header>
+      <AppShell.Header style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-white)' }}>
         <Group h="100%" px="lg" justify="space-between">
-          <Group>
+          <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Box>
-              <Text className="brand-title" fw={700} size="lg">
-                WE-ET ERP
-              </Text>
-            </Box>
+            <Text className="brand-title" fw={900} size="xl" style={{ fontSize: rem(22), color: 'var(--mantine-color-gray-9)' }}>
+              WE-ET ERP
+            </Text>
           </Group>
           <Group gap="xs">
             {displayName && (
-              <Text size="sm" c="dimmed">
-                {displayName}
+              <Text size="sm" fw={700} c="gray.7" className="desktop-only" mr="xs">
+                {displayName}님 환영합니다
               </Text>
             )}
             <Button
-              variant="light"
+              variant="default"
               color="gray"
+              radius="md"
+              size="sm"
               onClick={async () => {
                 await supabase.auth.signOut();
                 router.replace("/login");
@@ -199,32 +200,107 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md">
-        {groupedNavItems.map((group) => (
-          <Box key={group.group} mb="md">
-            <Text size="xs" c="dimmed" fw={600} tt="uppercase">
-              {group.group}
-            </Text>
-            <Divider my="sm" />
-            {group.items.map((item) => (
-              <NavLink
-                key={item.link}
-                component={Link}
-                href={item.link}
-                label={item.label}
-                leftSection={<item.icon size={18} stroke={1.5} />}
-                active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
-                variant="light"
-                mb={6}
-                onClick={close}
-                hiddenFrom={item.label === "견적 시스템" ? "sm" : undefined}
-              />
-            ))}
-          </Box>
-        ))}
+      <AppShell.Navbar p="md" style={{ borderRight: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)' }}>
+        <ScrollArea style={{ flex: 1 }} type="scroll">
+          {groupedNavItems.map((group) => (
+            <Box key={group.group} mb="xl">
+              <Text size="xs" c="indigo.7" fw={800} tt="uppercase" mb="xs" style={{ letterSpacing: '0.05em' }}>
+                {group.group}
+              </Text>
+              <Stack gap={4}>
+                {group.items.map((item) => (
+                  <NavLink
+                    key={item.link}
+                    component={Link}
+                    href={item.link}
+                    label={item.label}
+                    leftSection={<item.icon size={20} stroke={2} />}
+                    active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
+                    variant="filled"
+                    onClick={close}
+                    styles={{
+                      root: {
+                        transition: 'all 0.1s ease',
+                        borderRadius: 'var(--mantine-radius-md)',
+                        padding: '10px 12px',
+                        backgroundColor: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link)
+                          ? 'var(--mantine-color-indigo-6)'
+                          : 'transparent',
+                        color: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link)
+                          ? 'var(--mantine-color-white)'
+                          : 'var(--mantine-color-gray-7)',
+                      },
+                      label: { fontWeight: 600, fontSize: '14px' },
+                      section: { color: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link) ? 'inherit' : 'var(--mantine-color-indigo-5)' }
+                    }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          ))}
+        </ScrollArea>
       </AppShell.Navbar>
 
-      <AppShell.Main>{children}</AppShell.Main>
+      <AppShell.Main style={{ background: 'var(--mantine-color-gray-0)' }}>{children}</AppShell.Main>
+
+      <AppShell.Footer hiddenFrom="sm" p="0" style={{ borderTop: 'none', background: 'transparent', zIndex: 1000, height: 'auto' }}>
+        <Box
+          style={{
+            background: 'var(--mantine-color-white)',
+            borderTop: '1px solid var(--mantine-color-gray-2)',
+            paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+            boxShadow: '0 -2px 10px rgba(0,0,0,0.05)'
+          }}
+        >
+          <Group grow gap={0} p={4} justify="space-around">
+            {[
+              { label: "허브", icon: IconHome, link: "/" },
+              { label: "To-Do", icon: IconCheckbox, link: "/todo" },
+              { label: "메모", icon: IconNotes, link: "/memos" },
+              { label: "경비", icon: IconReceipt, link: "/expenses" },
+              { label: "공과금", icon: IconBolt, link: "/utility-bills" },
+            ].map((item) => {
+              const active = pathname === item.link;
+              return (
+                <Button
+                  key={item.link}
+                  component={Link}
+                  href={item.link}
+                  variant="subtle"
+                  color={active ? "indigo" : "gray"}
+                  radius="md"
+                  h={60}
+                  px={0}
+                  style={{
+                    flexDirection: 'column',
+                    gap: 2,
+                    height: 'auto',
+                    padding: '8px 0',
+                    backgroundColor: active ? 'var(--mantine-color-indigo-0)' : 'transparent',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <item.icon
+                    size={24}
+                    stroke={active ? 2.5 : 2}
+                    color={active ? 'var(--mantine-color-indigo-6)' : 'var(--mantine-color-gray-6)'}
+                  />
+                  <Text
+                    size="xs"
+                    fw={active ? 800 : 600}
+                    style={{
+                      fontSize: '10px',
+                      color: active ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-6)'
+                    }}
+                  >
+                    {item.label}
+                  </Text>
+                </Button>
+              );
+            })}
+          </Group>
+        </Box>
+      </AppShell.Footer>
     </AppShell>
   );
 }

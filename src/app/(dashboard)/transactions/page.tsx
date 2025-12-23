@@ -17,9 +17,12 @@ import {
     Text,
     TextInput,
     Title,
+    Affix,
+    Transition,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 import { IconPlus, IconTrash, IconTransferIn, IconArrowDownLeft, IconArrowUpRight } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -46,6 +49,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function TransactionsPage() {
+    const isMobile = useMediaQuery("(max-width: 768px)");
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<Transaction[]>([]);
     const [opened, setOpened] = useState(false);
@@ -147,83 +151,110 @@ export default function TransactionsPage() {
             p="md"
             radius="md"
             withBorder
-            mb="xs"
-            className="app-surface"
-            style={{ cursor: "default" }}
+            mb="sm"
+            style={{
+                cursor: "pointer",
+                background: 'var(--mantine-color-white)',
+                boxShadow: 'var(--mantine-shadow-xs)',
+                transition: 'all 0.1s ease'
+            }}
+            className="transaction-row"
+            onClick={() => {/* Edit logic if any */ }}
         >
-            <Group justify="space-between" wrap="nowrap">
-                <Group gap="md" style={{ flex: 1 }}>
-                    <Box style={{
-                        width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8,
-                        backgroundColor: item.type === "deposit" ? "var(--mantine-color-blue-0)" : "var(--mantine-color-red-0)"
-                    }}>
-                        {item.type === "deposit" ? (
-                            <IconArrowDownLeft size={22} color="var(--mantine-color-blue-6)" />
-                        ) : (
-                            <IconArrowUpRight size={22} color="var(--mantine-color-red-6)" />
-                        )}
-                    </Box>
-                    <Stack gap={0}>
-                        <Text fw={600} size="sm">
-                            {item.description || (item.type === "deposit" ? "입금" : "출금")}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            {dayjs(item.transaction_date).format("YYYY.MM.DD HH:mm")} | {item.bank_name} ({item.account_number})
-                        </Text>
-                    </Stack>
-                </Group>
+            <Stack gap="sm">
+                <Group justify="space-between" wrap="nowrap" align="center">
+                    <Group gap="md" wrap="nowrap" style={{ flex: 1 }}>
+                        <Box style={{
+                            width: 44,
+                            height: 44,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 8,
+                            backgroundColor: "var(--mantine-color-gray-1)",
+                            flexShrink: 0
+                        }}>
+                            {item.type === "deposit" ? (
+                                <IconArrowDownLeft size={24} color="var(--mantine-color-blue-6)" />
+                            ) : (
+                                <IconArrowUpRight size={24} color="var(--mantine-color-orange-6)" />
+                            )}
+                        </Box>
+                        <Stack gap={0} style={{ overflow: 'hidden' }}>
+                            <Text fw={700} size="sm" c="gray.9" lineClamp={1}>
+                                {item.description || (item.type === "deposit" ? "입금" : "출금")}
+                            </Text>
+                            <Text size="xs" c="dimmed" fw={600} mt={2}>
+                                {item.bank_name} • {dayjs(item.transaction_date).format("MM.DD HH:mm")}
+                            </Text>
+                        </Stack>
+                    </Group>
 
-                <Group gap="xl" wrap="nowrap">
-                    <Stack gap={0} align="flex-end">
-                        <Text fw={700} size="sm" c={item.type === "deposit" ? "blue" : "red"}>
+                    <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
+                        <Text fw={800} size="md" c={item.type === "deposit" ? "blue.7" : "orange.7"} style={{ letterSpacing: '-0.02em' }}>
                             {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
                         </Text>
                         {item.category && (
-                            <Badge variant="outline" color="gray" size="xs">{item.category}</Badge>
+                            <Badge variant="light" color="gray" size="xs" radius="sm">{item.category}</Badge>
                         )}
                     </Stack>
-                    <ActionIcon variant="subtle" color="red" size="sm" onClick={(e) => void remove(item.id, e)}>
+                </Group>
+
+                <Group justify="flex-end">
+                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
                         <IconTrash size={16} />
                     </ActionIcon>
                 </Group>
-            </Group>
+            </Stack>
         </Paper>
     ));
 
     return (
-        <Container size={800} py="xl">
-            <Group justify="space-between" mb="lg">
-                <div>
-                    <Title order={2}>입출금 내역</Title>
-                    <Text c="dimmed" size="sm">은행 거래 내역을 관리하고 지출과 연동합니다.</Text>
-                </div>
-                <Group>
-                    <Button color="gray" leftSection={<IconPlus size={16} />} onClick={() => setOpened(true)}>거래 추가</Button>
-                </Group>
+        <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>
+            <Box hiddenFrom="md" px="md" mb="lg">
+                <Title order={2} fw={800} style={{ letterSpacing: '-0.02em' }}>입출금 내역</Title>
+            </Box>
+            <Group justify="space-between" mb="xl" visibleFrom="md" align="flex-end">
+                <Box>
+                    <Title order={1} fw={800} style={{ letterSpacing: '-0.02em' }}>입출금 내역</Title>
+                    <Text c="dimmed" size="sm" fw={500}>등록된 은행 거래 내역을 관리하고 지출과 연동합니다.</Text>
+                </Box>
+                <Button
+                    color="indigo"
+                    radius="md"
+                    leftSection={<IconPlus size={18} />}
+                    onClick={() => setOpened(true)}
+                    size="md"
+                    variant="light"
+                >
+                    거래 내역 추가
+                </Button>
             </Group>
 
-            <Grid mb="xl">
-                <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">총 입금</Text>
-                        <Text size="lg" fw={700} color="blue">{summary.income.toLocaleString()}원</Text>
-                    </Paper>
-                </Grid.Col>
-                <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">총 출금</Text>
-                        <Text size="lg" fw={700} color="red">{summary.expense.toLocaleString()}원</Text>
-                    </Paper>
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" className="app-surface">
-                        <Text size="xs" c="dimmed" fw={700} tt="uppercase">수지합계</Text>
-                        <Text size="lg" fw={700} color={summary.income - summary.expense >= 0 ? "blue" : "red"}>
-                            {(summary.income - summary.expense).toLocaleString()}원
-                        </Text>
-                    </Paper>
-                </Grid.Col>
-            </Grid>
+            <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)" mb="xl">
+                <Grid gutter="md">
+                    <Grid.Col span={{ base: 6, md: 4 }}>
+                        <Stack gap={4}>
+                            <Text size="xs" c="dimmed" fw={800} tt="uppercase">총 입금</Text>
+                            <Text size="lg" fw={900} c="blue.7">{summary.income.toLocaleString()}원</Text>
+                        </Stack>
+                    </Grid.Col>
+                    <Grid.Col span={{ base: 6, md: 4 }}>
+                        <Stack gap={4}>
+                            <Text size="xs" c="dimmed" fw={800} tt="uppercase">총 출금</Text>
+                            <Text size="lg" fw={900} c="orange.7">{summary.expense.toLocaleString()}원</Text>
+                        </Stack>
+                    </Grid.Col>
+                    <Grid.Col span={{ base: 12, md: 4 }}>
+                        <Stack gap={4} align="flex-end" style={{ textAlign: 'right' }}>
+                            <Text size="xs" c="dimmed" fw={800} tt="uppercase">합계 잔액</Text>
+                            <Text size="lg" fw={900} c={summary.income - summary.expense >= 0 ? "indigo.7" : "red.7"}>
+                                {(summary.income - summary.expense).toLocaleString()}원
+                            </Text>
+                        </Stack>
+                    </Grid.Col>
+                </Grid>
+            </Paper>
 
             <Stack gap="xs">
                 {rows}
@@ -234,33 +265,55 @@ export default function TransactionsPage() {
                 )}
             </Stack>
 
-            <Modal opened={opened} onClose={() => setOpened(false)} title="거래 내역 등록" centered size="md">
-                <Stack gap="sm">
-                    <Grid>
+            <Modal opened={opened} onClose={() => setOpened(false)} title={<Text fw={800}>거래 내역 등록</Text>} centered size="md" radius="md">
+                <Stack gap="md">
+                    <Grid gutter="sm">
                         <Grid.Col span={6}>
-                            <Select label="구분" data={[{ value: "deposit", label: "입금" }, { value: "withdrawal", label: "출금" }]} value={type} onChange={(v) => setType(v || "deposit")} />
+                            <Select label="구분" radius="md" data={[{ value: "deposit", label: "입금" }, { value: "withdrawal", label: "출금" }]} value={type} onChange={(v) => setType(v || "deposit")} />
                         </Grid.Col>
                         <Grid.Col span={6}>
-                            <DateTimePicker label="거래일시" value={transactionDate} onChange={(v) => setTransactionDate(v ? new Date(v) : null)} placeholder="날짜 및 시간 선택" />
+                            <DateTimePicker label="거래일시" radius="md" value={transactionDate} onChange={(v) => setTransactionDate(v ? new Date(v) : null)} placeholder="일시 선택" />
                         </Grid.Col>
                     </Grid>
 
-                    <NumberInput label="금액" value={amount} onChange={setAmount} thousandSeparator suffix="원" required />
-                    <TextInput label="내용/적요" value={description} onChange={(e) => setDescription(e.currentTarget.value)} placeholder="" />
+                    <NumberInput label="거래 금액" radius="md" placeholder="0" value={amount} onChange={setAmount} thousandSeparator suffix="원" required />
+                    <TextInput label="내용/적요" radius="md" placeholder="거래처명 또는 항목" value={description} onChange={(e) => setDescription(e.currentTarget.value)} />
 
-                    <Grid>
-                        <Grid.Col span={6}><TextInput label="은행명" value={bankName} onChange={(e) => setBankName(e.currentTarget.value)} /></Grid.Col>
-                        <Grid.Col span={6}><TextInput label="계좌번호" value={accountNumber} onChange={(e) => setAccountNumber(e.currentTarget.value)} /></Grid.Col>
+                    <Grid gutter="sm">
+                        <Grid.Col span={6}><TextInput label="은행명" radius="md" value={bankName} onChange={(e) => setBankName(e.currentTarget.value)} /></Grid.Col>
+                        <Grid.Col span={6}><TextInput label="계좌번호" radius="md" value={accountNumber} onChange={(e) => setAccountNumber(e.currentTarget.value)} /></Grid.Col>
                     </Grid>
 
-                    <TextInput label="분류" value={category} onChange={(e) => setCategory(e.currentTarget.value)} placeholder="" />
+                    <TextInput label="분류" radius="md" placeholder="식비, 자재비 등" value={category} onChange={(e) => setCategory(e.currentTarget.value)} />
 
-                    <Group justify="flex-end" mt="md">
-                        <Button variant="light" color="gray" onClick={() => setOpened(false)}>취소</Button>
-                        <Button color="gray" onClick={() => void save()} loading={saving}>저장하기</Button>
+                    <Group justify="flex-end" mt="xl" gap="sm">
+                        <Button variant="subtle" color="gray" radius="md" onClick={() => setOpened(false)}>취소</Button>
+                        <Button color="indigo" radius="md" onClick={() => void save()} loading={saving} px="xl">저장하기</Button>
                     </Group>
                 </Stack>
             </Modal>
+
+            {/* Universal FAB - Mobile Only */}
+            <Affix position={{ bottom: 40, right: 40 }} className="mobile-only">
+                <Transition transition="slide-up" mounted={true}>
+                    {(transitionStyles) => (
+                        <ActionIcon
+                            size={64}
+                            radius="xl"
+                            color="indigo"
+                            variant="filled"
+                            style={{
+                                ...transitionStyles,
+                                boxShadow: '0 8px 24px rgba(99, 102, 241, 0.4)',
+                                zIndex: 1000,
+                            }}
+                            onClick={() => setOpened(true)}
+                        >
+                            <IconPlus size={32} />
+                        </ActionIcon>
+                    )}
+                </Transition>
+            </Affix>
         </Container>
     );
 }

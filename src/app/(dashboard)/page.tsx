@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid, ScrollArea } from "@mantine/core";
+import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid, ScrollArea, Box, rem, Divider } from "@mantine/core";
 import { Calendar, type DateStringValue } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar } from "@tabler/icons-react";
@@ -17,6 +17,11 @@ type ExpenseStats = {
   total: number;
   pending: number;
   approved: number;
+};
+
+type UtilityStats = {
+  total: number;
+  unpaidCount: number;
 };
 
 const statusLabels: Record<TodoStatus, string> = {
@@ -64,7 +69,9 @@ export default function HubPage() {
   const [hoveredDate, setHoveredDate] = useState<DateStringValue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expenseStats, setExpenseStats] = useState<ExpenseStats>({ total: 0, pending: 0, approved: 0 });
+  const [utilityStats, setUtilityStats] = useState<UtilityStats>({ total: 0, unpaidCount: 0 });
   const [loadingExpenses, setLoadingExpenses] = useState(false);
+  const [displayName, setDisplayName] = useState<string | null>(null);
 
   const loadExpenseStats = useCallback(async () => {
     setLoadingExpenses(true);
@@ -73,13 +80,14 @@ export default function HubPage() {
       const token = sessionData.session?.access_token;
       if (!token) return;
 
-      const response = await fetch("/api/expenses", {
-        headers: { authorization: `Bearer ${token}` },
-      });
-      const payload = await response.json();
-      if (response.ok && payload.items) {
-        const items = payload.items as any[];
-        const stats = items.reduce(
+      const [expRes, utilRes] = await Promise.all([
+        fetch("/api/expenses", { headers: { authorization: `Bearer ${token}` } }),
+        fetch("/api/utility-bills", { headers: { authorization: `Bearer ${token}` } })
+      ]);
+
+      const expPayload = await expRes.json();
+      if (expRes.ok && expPayload.items) {
+        const stats = (expPayload.items as any[]).reduce(
           (acc, item) => {
             const amt = Number(item.amount) || 0;
             acc.total += amt;
@@ -91,8 +99,22 @@ export default function HubPage() {
         );
         setExpenseStats(stats);
       }
+
+      const utilPayload = await utilRes.json();
+      if (utilRes.ok && utilPayload.items) {
+        const stats = (utilPayload.items as any[]).reduce(
+          (acc, item) => {
+            const amt = Number(item.amount) || 0;
+            acc.total += amt;
+            if (!item.is_paid) acc.unpaidCount += 1;
+            return acc;
+          },
+          { total: 0, unpaidCount: 0 }
+        );
+        setUtilityStats(stats);
+      }
     } catch (error) {
-      console.error("Failed to load expense stats:", error);
+      console.error("Failed to load stats:", error);
     } finally {
       setLoadingExpenses(false);
     }
@@ -147,6 +169,20 @@ export default function HubPage() {
     loadTodos();
     loadUsers();
     loadExpenseStats();
+
+    // Fetch display name
+    const fetchDisplayName = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from("app_users")
+          .select("name")
+          .eq("id", session.user.id)
+          .maybeSingle();
+        setDisplayName(profile?.name || session.user.user_metadata?.name || session.user.email?.split("@")[0] || null);
+      }
+    };
+    fetchDisplayName();
   }, [loadTodos, loadUsers, loadExpenseStats]);
 
   useEffect(() => {
@@ -202,26 +238,18 @@ export default function HubPage() {
     <>
       <Container size="xl" p="md">
         <Stack gap="xl">
-          <Paper className="app-surface" p="md" radius="md">
-            <Group gap="md">
-              <TextInput
-                placeholder="전역 검색 (업무, 일정, 계정...)"
-                size="lg"
-                leftSection={<IconSearch size={20} />}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.currentTarget.value)}
-                style={{ flex: 1 }}
-                styles={{
-                  input: {
-                    fontSize: "16px",
-                    fontWeight: 500,
-                    backgroundColor: "rgba(0,0,0,0.02)",
-                    border: "none",
-                  },
-                }}
-              />
-              <Stack gap={0}>
-                <Text fw={700} size="sm">
+          <Box className="animate-fade-in-up">
+            <Group justify="space-between" align="flex-end" mb="lg">
+              <Box>
+                <Title order={1} fw={800} style={{ fontSize: rem(28), letterSpacing: '-0.02em' }}>
+                  안녕하세요, {displayName ? `${displayName}님` : '관리자님'} 👋
+                </Title>
+                <Text c="dimmed" size="sm" fw={500}>
+                  오늘도 효율적인 업무를 도와드릴게요.
+                </Text>
+              </Box>
+              <Stack gap={0} align="flex-end" className="desktop-only">
+                <Text fw={700} size="md">
                   {dayjs().format("YYYY년 M월 D일")}
                 </Text>
                 <Text c="dimmed" size="xs">
@@ -229,7 +257,31 @@ export default function HubPage() {
                 </Text>
               </Stack>
             </Group>
-          </Paper>
+
+            <Paper
+              p="md"
+              radius="md"
+              withBorder
+              bg="var(--mantine-color-white)"
+              shadow="xs"
+            >
+              <TextInput
+                placeholder="찾으시는 업무나 일정이 있으신가요?"
+                size="lg"
+                variant="unstyled"
+                leftSection={<IconSearch size={22} color="var(--mantine-color-gray-6)" />}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.currentTarget.value)}
+                styles={{
+                  input: {
+                    fontSize: "18px",
+                    fontWeight: 500,
+                    paddingLeft: '48px'
+                  },
+                }}
+              />
+            </Paper>
+          </Box>
 
           <Grid gutter="lg">
             <Grid.Col span={{ base: 12, md: 8 }}>
@@ -241,18 +293,19 @@ export default function HubPage() {
                 <Group justify="space-between" mb="md">
                   <Group gap="xs">
                     <Title order={4}>캘린더</Title>
-                    <Badge variant="light" color="gray">
+                    <Badge variant="light" color="gray" radius="md">
                       이번 달 {events.length}건
                     </Badge>
                   </Group>
                   <Group gap="xs">
-                    <Text size="sm" c="dimmed">
-                      {dayjs(currentDate).format("YYYY년 M월")}
+                    <Text size="sm" c="dimmed" fw={600}>
+                      {dayjs(currentDate).format("M월")}
                     </Text>
                     <Button
                       size="xs"
                       variant="light"
                       color="gray"
+                      radius="md"
                       onClick={() => setCurrentDate(dayjs().format("YYYY-MM-DD"))}
                     >
                       오늘
@@ -260,6 +313,7 @@ export default function HubPage() {
                   </Group>
                 </Group>
                 <Calendar
+                  className="desktop-only"
                   size="md"
                   locale="ko"
                   firstDayOfWeek={0}
@@ -267,19 +321,11 @@ export default function HubPage() {
                   onDateChange={setCurrentDate}
                   getDayProps={(date) => {
                     const isSelected = dayjs(date).isSame(currentDate, "day");
-                    const isHovered = hoveredDate ? dayjs(date).isSame(hoveredDate, "day") : false;
-
                     return {
                       selected: isSelected,
                       onClick: () => setCurrentDate(date),
-                      onMouseEnter: () => setHoveredDate(date),
-                      onMouseLeave: () => setHoveredDate(null),
                       style: {
-                        backgroundColor: isSelected
-                          ? "var(--mantine-color-gray-5)"
-                          : isHovered
-                            ? "var(--mantine-color-gray-2)"
-                            : undefined,
+                        borderRadius: 'var(--mantine-radius-md)',
                       },
                     };
                   }}
@@ -287,16 +333,19 @@ export default function HubPage() {
                   style={{ width: "100%" }}
                   styles={{
                     month: { width: "100%", tableLayout: "fixed" },
-                    monthCell: { verticalAlign: "top" },
+                    monthCell: { verticalAlign: "top", padding: '2px' },
                     day: {
                       width: "100%",
-                      height: 96,
+                      minHeight: 50,
+                      height: "auto",
+                      aspectRatio: "1/1",
                       alignItems: "flex-start",
                       justifyContent: "flex-start",
-                      padding: "6px",
+                      padding: "4px",
                       cursor: "pointer",
+                      fontSize: rem(14),
                     },
-                    weekday: { textAlign: "left" },
+                    weekday: { textAlign: "center", fontSize: rem(12), color: 'var(--mantine-color-gray-5)', fontWeight: 700 },
                   }}
                   renderDay={(date) => {
                     const key = dayjs(date).format("YYYY-MM-DD");
@@ -304,38 +353,82 @@ export default function HubPage() {
                     const visibleEvents = dayEvents.slice(0, 2);
                     const extraCount = dayEvents.length - visibleEvents.length;
                     return (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, width: "100%" }}>
-                        <Text size="sm" fw={700}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%", height: "100%", position: 'relative' }}>
+                        <Text size="sm" fw={700} ta="center" style={{ width: "100%", zIndex: 1 }}>
                           {dayjs(date).date()}
                         </Text>
-                        {visibleEvents.map((event) => (
-                          <div
-                            key={event.id}
-                            style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}
-                          >
+
+                        {/* Desktop: Text View */}
+                        <div className="desktop-only" style={{ width: "100%", display: "flex", flexDirection: "column", gap: 2 }}>
+                          {visibleEvents.map((event) => (
+                            <div
+                              key={event.id}
+                              style={{ display: "flex", alignItems: "center", gap: 4, width: "100%" }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  backgroundColor: `var(--mantine-color-${event.color ?? "gray"}-6)`,
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <Text size="xs" lineClamp={1} style={{ flex: 1 }}>
+                                {event.title}
+                              </Text>
+                            </div>
+                          ))}
+                          {extraCount > 0 && (
+                            <Text size="xs" c="dimmed" fw={600} ta="center">
+                              +{extraCount}
+                            </Text>
+                          )}
+                        </div>
+
+                        {/* Mobile: Dot View */}
+                        <div className="mobile-only" style={{ display: "flex", justifyContent: "center", gap: 2, flexWrap: "wrap", width: '100%' }}>
+                          {dayEvents.slice(0, 3).map((event) => (
                             <span
+                              key={event.id}
                               style={{
-                                width: 6,
-                                height: 6,
+                                width: 4,
+                                height: 4,
                                 borderRadius: "50%",
                                 backgroundColor: `var(--mantine-color-${event.color ?? "gray"}-6)`,
-                                flexShrink: 0,
                               }}
                             />
-                            <Text size="sm" lineClamp={1} style={{ flex: 1 }}>
-                              {event.title}
-                            </Text>
-                          </div>
-                        ))}
-                        {extraCount > 0 && (
-                          <Text size="sm" c="dimmed" fw={600}>
-                            +{extraCount}건
-                          </Text>
-                        )}
+                          ))}
+                          {dayEvents.length > 3 && (
+                            <span style={{ width: 4, height: 4, borderRadius: "50%", backgroundColor: "var(--mantine-color-gray-4)" }} />
+                          )}
+                        </div>
                       </div>
                     );
                   }}
                 />
+
+                {/* Mobile: Full Schedule List for the Month */}
+                <Box className="mobile-only" mt="xl">
+                  <Divider label="이달의 전체 일정" labelPosition="center" mb="lg" />
+                  <Stack gap="sm">
+                    {events.length > 0 ? (
+                      events.map((event) => (
+                        <Paper key={event.id} p="sm" radius="md" withBorder style={{ borderLeft: `4px solid var(--mantine-color-${event.color ?? "gray"}-5)` }}>
+                          <Group justify="space-between" align="flex-start" wrap="nowrap">
+                            <Stack gap={2}>
+                              <Text size="xs" c="dimmed" fw={700}>{dayjs(event.event_date).format('MM.DD (ddd)')}</Text>
+                              <Text size="sm" fw={700}>{event.title}</Text>
+                            </Stack>
+                            <Badge variant="light" color={event.color ?? "gray"} size="xs">{event.color ? '중요' : '일반'}</Badge>
+                          </Group>
+                        </Paper>
+                      ))
+                    ) : (
+                      <Text size="sm" c="dimmed" ta="center">이달의 일정이 없습니다.</Text>
+                    )}
+                  </Stack>
+                </Box>
               </Paper>
             </Grid.Col>
 
@@ -357,28 +450,30 @@ export default function HubPage() {
                       {todos.length}건
                     </Text>
                   </Group>
-                  <ScrollArea h={250} offsetScrollbars>
-                    <Table verticalSpacing="xs">
-                      <Table.Tbody>{summaryTodos.map((todo) => (
-                        <Table.Tr key={todo.id}>
-                          <Table.Td style={{ width: 80 }}>
-                            <Badge color={priorityColor(todo.priority)} variant="light" size="xs" fullWidth>
-                              {priorityLabels[todo.priority]}
-                            </Badge>
-                          </Table.Td>
-                          <Table.Td>
-                            <Text size="sm" fw={500} lineClamp={1}>
-                              {todo.title}
-                            </Text>
-                          </Table.Td>
-                          <Table.Td style={{ width: 80 }}>
-                            <Badge color={statusColor(todo.status)} variant="dot" size="xs">
+                  <ScrollArea h={300} offsetScrollbars>
+                    <Stack gap={0}>
+                      {summaryTodos.map((todo) => (
+                        <Box key={todo.id} py={8} style={{ borderBottom: '1px solid var(--mantine-color-gray-1)' }}>
+                          <Group justify="space-between" wrap="nowrap" gap="xs">
+                            <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                              <Box style={{ width: 4, height: 16, borderRadius: 2, backgroundColor: `var(--mantine-color-${priorityColor(todo.priority)}-5)` }} />
+                              <Text size="sm" fw={600} lineClamp={1} style={{ flex: 1 }}>
+                                {todo.title}
+                              </Text>
+                            </Group>
+                            <Badge
+                              color={statusColor(todo.status)}
+                              variant="dot"
+                              size="xs"
+                              radius="md"
+                              style={{ flexShrink: 0 }}
+                            >
                               {statusLabels[todo.status]}
                             </Badge>
-                          </Table.Td>
-                        </Table.Tr>
-                      ))}</Table.Tbody>
-                    </Table>
+                          </Group>
+                        </Box>
+                      ))}
+                    </Stack>
                   </ScrollArea>
                   {!summaryTodos.length && (
                     <Text size="sm" c="dimmed" mt="sm">
@@ -391,36 +486,74 @@ export default function HubPage() {
                   className="app-surface"
                   p="lg"
                   radius="md"
+                  withBorder
                   style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
                   onClick={() => router.push("/expenses")}
                 >
                   <Group justify="space-between" mb="md">
                     <Group gap="xs">
                       <Title order={4}>경비 청구</Title>
-                      <IconReceipt size={20} color="var(--mantine-color-gray-6)" />
+                      <IconReceipt size={20} color="var(--mantine-color-indigo-6)" />
                     </Group>
                     <IconChartBar size={20} color="var(--mantine-color-gray-4)" />
                   </Group>
                   <Stack gap="xs">
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">총 청구액</Text>
-                      <Text size="sm" fw={700}>{expenseStats.total.toLocaleString()}원</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">승인 대기</Text>
-                      <Text size="sm" fw={700} c="yellow.7">{expenseStats.pending.toLocaleString()}원</Text>
-                    </Group>
-                    <Group justify="space-between">
-                      <Text size="sm" c="dimmed">승인/지급 완료</Text>
-                      <Text size="sm" fw={700} c="green.7">{expenseStats.approved.toLocaleString()}원</Text>
-                    </Group>
+                    <Paper withBorder p="md" radius="md" bg="gray.0" style={{ borderStyle: 'solid' }}>
+                      <Group justify="space-between">
+                        <Text size="xs" fw={800} c="dimmed" tt="uppercase">전체 청구액</Text>
+                        <Text size="lg" fw={900}>{expenseStats.total.toLocaleString()}원</Text>
+                      </Group>
+                    </Paper>
+                    <SimpleGrid cols={2} spacing="xs">
+                      <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                        <Stack gap={2}>
+                          <Text size="xs" fw={800} c="orange.7">대기</Text>
+                          <Text size="md" fw={900}>{expenseStats.pending.toLocaleString()}원</Text>
+                        </Stack>
+                      </Paper>
+                      <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                        <Stack gap={2}>
+                          <Text size="xs" fw={800} c="indigo.7">지급</Text>
+                          <Text size="md" fw={900}>{expenseStats.approved.toLocaleString()}원</Text>
+                        </Stack>
+                      </Paper>
+                    </SimpleGrid>
                   </Stack>
                 </Paper>
 
-                <Paper className="app-surface" p="lg" radius="md">
+                <Paper
+                  className="app-surface"
+                  p="lg"
+                  radius="md"
+                  withBorder
+                  style={{ cursor: "pointer", transition: "transform 0.1s, box-shadow 0.1s" }}
+                  onClick={() => router.push("/utility-bills")}
+                >
+                  <Group justify="space-between" mb="md">
+                    <Group gap="xs">
+                      <Title order={4}>공과금 관리</Title>
+                      <Box bg="indigo.6" style={{ borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <IconChartBar size={14} color="white" />
+                      </Box>
+                    </Group>
+                    <Badge variant="light" color={utilityStats.unpaidCount > 0 ? "orange" : "gray"} radius="md">
+                      미납 {utilityStats.unpaidCount}건
+                    </Badge>
+                  </Group>
+                  <Stack gap="xs">
+                    <Paper withBorder p="md" radius="md" bg="gray.0" style={{ borderStyle: 'solid' }}>
+                      <Group justify="space-between">
+                        <Text size="xs" fw={800} c="dimmed" tt="uppercase">총 청구액</Text>
+                        <Text size="lg" fw={900}>{utilityStats.total.toLocaleString()}원</Text>
+                      </Group>
+                    </Paper>
+                  </Stack>
+                </Paper>
+
+                <Paper className="app-surface" p="lg" radius="md" withBorder>
                   <Group justify="space-between" mb="sm">
                     <Text fw={700} size="md">오늘의 일정</Text>
-                    <Badge variant="light" color="gray">
+                    <Badge variant="light" color="gray" radius="md">
                       {selectedEvents.length}건
                     </Badge>
                   </Group>
@@ -432,9 +565,9 @@ export default function HubPage() {
                           withBorder
                           p="sm"
                           radius="md"
+                          bg="gray.0"
                           style={{
                             borderLeft: `4px solid var(--mantine-color-${event.color ?? "gray"}-6)`,
-                            backgroundColor: "rgba(0,0,0,0.01)",
                           }}
                         >
                           <Stack gap={4}>

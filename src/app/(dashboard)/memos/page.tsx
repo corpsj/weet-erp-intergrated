@@ -214,21 +214,22 @@ export default function MemosPage() {
     return filteredItems.map((item) => (
       <Paper
         key={item.id}
-        withBorder
         p="lg"
         radius="md"
-        className="app-surface"
-        style={{ cursor: "pointer", transition: "transform 0.2s" }}
+        withBorder
+        shadow="xs"
+        style={{ cursor: "pointer", transition: "transform 0.2s, background 0.2s", background: 'var(--mantine-color-white)' }}
         onClick={() => void openEdit(item)}
       >
         <Stack gap="md" h="100%">
           <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Text fw={700} size="lg" lineClamp={1} style={{ flex: 1 }}>
+            <Text fw={800} size="lg" lineClamp={1} style={{ flex: 1, letterSpacing: '-0.01em' }}>
               {item.title || "(제목 없음)"}
             </Text>
             <ActionIcon
               variant="subtle"
               color="red"
+              radius="md"
               onClick={(e) => {
                 e.stopPropagation();
                 void remove(item.id);
@@ -239,16 +240,16 @@ export default function MemosPage() {
             </ActionIcon>
           </Group>
 
-          <Text size="sm" lineClamp={4} c="dimmed" style={{ whiteSpace: "pre-wrap", flex: 1 }}>
+          <Text size="sm" lineClamp={4} c="dimmed" style={{ whiteSpace: "pre-wrap", flex: 1, lineHeight: 1.6 }}>
             {item.body}
           </Text>
 
           <Group justify="space-between" align="center" mt="auto">
-            <Text size="xs" c="dimmed">
-              {dayjs(item.created_at).format("YYYY-MM-DD HH:mm")}
+            <Text size="xs" fw={500} c="dimmed">
+              {dayjs(item.created_at).format("YYYY-MM-DD")}
             </Text>
-            <Button size="compact-xs" variant="light" color="gray">
-              자세히 보기
+            <Button size="compact-xs" variant="light" color="indigo" radius="md">
+              열기
             </Button>
           </Group>
         </Stack>
@@ -259,7 +260,7 @@ export default function MemosPage() {
   return (
     <>
       <Stack gap="lg">
-        <Paper className="app-surface" p="lg" radius="md">
+        <Paper p="md" radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs">
           <Group gap="md">
             <TextInput
               placeholder="메모 제목 또는 내용 검색..."
@@ -268,12 +269,17 @@ export default function MemosPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.currentTarget.value)}
               style={{ flex: 1 }}
+              radius="md"
             />
-            <Group gap="xs">
-              <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate}>
-                작성
-              </Button>
-            </Group>
+            <Button
+              leftSection={<IconPlus size={16} />}
+              color="indigo"
+              radius="md"
+              onClick={openCreate}
+              className="desktop-only"
+            >
+              작성
+            </Button>
           </Group>
         </Paper>
 
@@ -289,21 +295,43 @@ export default function MemosPage() {
         </Box>
       </Stack>
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "메모 편집" : "메모 작성"} centered size="lg">
-        <Stack gap="sm">
-          <TextInput label="제목" value={title} onChange={(e) => setTitle(e.currentTarget.value)} />
-          <Textarea label="내용" value={body} onChange={(e) => setBody(e.currentTarget.value)} autosize minRows={8} />
+      <Modal
+        opened={opened}
+        onClose={() => setOpened(false)}
+        title={<Text fw={800}>{editing ? "메모 편집" : "새 메모 작성"}</Text>}
+        centered
+        size="lg"
+        radius="md"
+      >
+        <Stack gap="md">
+          <TextInput
+            label="제목"
+            placeholder="제목을 입력하세요"
+            value={title}
+            onChange={(e) => setTitle(e.currentTarget.value)}
+            radius="md"
+          />
+          <Textarea
+            label="내용"
+            placeholder="자유롭게 메모를 남겨보세요"
+            value={body}
+            onChange={(e) => setBody(e.currentTarget.value)}
+            autosize
+            minRows={10}
+            radius="md"
+          />
 
-          <Paper withBorder p="md" radius="md">
+          <Paper withBorder p="md" radius="md" bg="gray.0">
             <Group justify="space-between" align="center" mb="xs">
-              <Text fw={600}>첨부</Text>
+              <Text fw={700} size="sm">첨부 파일</Text>
               <FileButton onChange={(file) => file && void upload(file)} accept="*/*">
                 {(props) => (
                   <Button
                     {...props}
                     size="xs"
                     variant="light"
-                    color="gray"
+                    color="indigo"
+                    radius="md"
                     leftSection={<IconPaperclip size={14} />}
                     loading={uploading}
                   >
@@ -319,37 +347,58 @@ export default function MemosPage() {
                     <Button
                       key={a.id}
                       variant="subtle"
-                      color="gray"
+                      color="indigo"
+                      radius="md"
                       justify="space-between"
                       onClick={() => void openAttachment(a.id)}
                       leftSection={<IconPaperclip size={14} />}
+                      styles={{ label: { fontSize: '13px' } }}
                     >
                       {a.filename ?? a.object_path}
                     </Button>
                   ))}
                 </Stack>
               ) : (
-                <Text size="sm" c="dimmed">
+                <Text size="xs" c="dimmed">
                   업로드된 첨부가 없습니다.
                 </Text>
               )
             ) : (
-              <Text size="sm" c="dimmed">
-                먼저 저장한 뒤 첨부를 업로드하세요.
+              <Text size="xs" c="dimmed">
+                먼저 저장한 뒤 첨부를 업로드할 수 있습니다.
               </Text>
             )}
           </Paper>
 
-          <Group justify="flex-end">
-            <Button variant="light" color="gray" onClick={() => setOpened(false)}>
-              닫기
+          <Group justify="flex-end" mt="md">
+            <Button variant="subtle" color="gray" radius="md" onClick={() => setOpened(false)}>
+              취소
             </Button>
-            <Button color="gray" onClick={() => void save()} loading={saving}>
-              저장
+            <Button color="indigo" radius="md" onClick={() => void save()} loading={saving} px="xl">
+              저장하기
             </Button>
           </Group>
         </Stack>
       </Modal>
+
+      {/* FAB for Mobile */}
+      <ActionIcon
+        size={60}
+        radius="md"
+        color="indigo"
+        variant="filled"
+        className="mobile-only"
+        style={{
+          position: 'fixed',
+          bottom: '100px',
+          right: '24px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          zIndex: 100
+        }}
+        onClick={openCreate}
+      >
+        <IconPlus size={32} />
+      </ActionIcon>
     </>
   );
 }

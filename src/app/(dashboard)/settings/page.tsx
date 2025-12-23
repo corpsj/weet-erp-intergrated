@@ -18,8 +18,10 @@ import {
   Grid,
   rem,
   Select,
+  Container,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useMediaQuery } from "@mantine/hooks";
 import {
   IconEye,
   IconEyeOff,
@@ -83,6 +85,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function SettingsPage() {
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [activeTab, setActiveTab] = useState<string | null>("profile");
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<InviteCodeItem[]>([]);
@@ -402,8 +405,9 @@ export default function SettingsPage() {
             <Group gap="xs" justify="flex-end" wrap="nowrap">
               <Button
                 size="compact-xs"
-                variant="light"
-                color="gray"
+                variant="subtle"
+                color="indigo"
+                radius="md"
                 onClick={() => void toggleActive(item.id, !item.active)}
               >
                 {item.active ? "차단" : "복구"}
@@ -478,15 +482,15 @@ export default function SettingsPage() {
   const tabsStyles = {
     tab: {
       ...navStyles.tab,
-      "&[data-active]": {
-        backgroundColor: "var(--mantine-color-gray-1)",
-        color: "var(--mantine-color-black)",
-      },
+      color: "var(--mantine-color-indigo-9)",
     },
   };
 
   return (
-    <Box p="xl" maw={1200} mx="auto">
+    <Container size="xl" py="xl" px={isMobile ? "md" : "xl"} maw={1200} mx="auto">
+      <Box hiddenFrom="md" px="md" mb="lg">
+        <Title order={2} fw={800} style={{ letterSpacing: '-0.02em' }}>설정</Title>
+      </Box>
       <Group justify="space-between" mb={40}>
         <div>
           <Title order={1} mb={4}>
@@ -574,6 +578,7 @@ export default function SettingsPage() {
                         <Grid.Col span={{ base: 12, sm: 4 }}>
                           <TextInput
                             label="만료 기한"
+                            radius="md"
                             description="일 단위 입력"
                             placeholder="3"
                             value={expiresInDays}
@@ -583,6 +588,7 @@ export default function SettingsPage() {
                         <Grid.Col span={{ base: 12, sm: 4 }}>
                           <TextInput
                             label="최대 사용 횟수"
+                            radius="md"
                             description={unlimited ? "제한 없음" : "사용 가능한 횟수"}
                             placeholder="1"
                             value={maxUses}
@@ -602,17 +608,20 @@ export default function SettingsPage() {
 
                       <TextInput
                         label="용도 및 메모"
-                        placeholder=""
+                        radius="md"
+                        placeholder="이 승인코드의 목적을 입력하세요"
                         value={note}
                         onChange={(event) => setNote(event.currentTarget.value)}
                       />
 
                       <Group justify="flex-end">
                         <Button
-                          variant="light"
-                          color="gray"
+                          variant="filled"
+                          color="indigo"
+                          radius="md"
                           onClick={() => void createInvite()}
                           loading={creating}
+                          px="xl"
                         >
                           승인코드 생성 및 복사
                         </Button>
@@ -715,6 +724,7 @@ export default function SettingsPage() {
                           분석 모델 선택
                         </Text>
                         <Select
+                          radius="md"
                           data={[
                             { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
                             { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Standard)" },
@@ -777,7 +787,7 @@ export default function SettingsPage() {
             </Box>
           </Grid.Col>
         </Grid>
-      </Tabs >
-    </Box >
+      </Tabs>
+    </Container>
   );
 }

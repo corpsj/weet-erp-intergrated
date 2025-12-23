@@ -3,29 +3,33 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 
 import {
-  ActionIcon,
-  Autocomplete,
-  Avatar,
-  Badge,
-  Box,
-  Button,
-  Checkbox,
-  Drawer,
+  Container,
   Group,
-  Menu,
-  Modal,
   Paper,
-  Popover,
-  SegmentedControl,
-  Select,
-  SimpleGrid,
   Stack,
   Text,
   TextInput,
   Title,
+  Box,
+  rem,
+  Affix,
+  Transition,
+  Drawer,
+  Modal,
+  SegmentedControl,
+  ActionIcon,
+  Menu,
+  Autocomplete,
+  Avatar,
+  Badge,
+  Button,
+  Checkbox,
+  Popover,
+  Select,
+  SimpleGrid,
 } from "@mantine/core";
 import { DateInput, type DateStringValue } from "@mantine/dates";
-import { useDisclosure, useHotkeys } from "@mantine/hooks";
+import { useDisclosure, useHotkeys, useMediaQuery } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
   IconCalendar,
@@ -258,9 +262,10 @@ function TodoCard({
     >
       <Popover.Target>
         <Paper
-          withBorder
+          p="md"
           radius="md"
-          p="xs"
+          withBorder
+          className="soft-card animate-fade-in-up"
           onClick={(e) => {
             if ((e.target as HTMLElement).closest('button')) return;
             onSelect();
@@ -271,9 +276,11 @@ function TodoCard({
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            background: selected ? "var(--mantine-color-gray-0)" : undefined,
+            background: done ? "var(--mantine-color-gray-0)" : "var(--mantine-color-white)",
             opacity: done ? 0.7 : 1,
             borderColor,
+            transition: "all 0.2s ease",
+            boxShadow: "var(--mantine-shadow-xs)",
           }}
         >
           <Stack gap={6} style={{ flex: 1 }}>
@@ -346,11 +353,11 @@ function TodoCard({
             ) : (
               <Text
                 size="sm"
-                fw={700}
+                fw={800}
                 td={done ? "line-through" : "none"}
                 c={done ? "dimmed" : "dark"}
                 lineClamp={3}
-                style={{ flex: 1 }}
+                style={{ flex: 1, letterSpacing: '-0.01em' }}
                 onDoubleClick={(e) => {
                   e.stopPropagation();
                   onEdit();
@@ -365,6 +372,7 @@ function TodoCard({
                 color={priorityColor(todo.priority)}
                 size="xs"
                 variant="light"
+                radius="md"
                 leftSection={<IconFlag size={12} />}
               >
                 {priorityLabels[todo.priority]}
@@ -374,19 +382,20 @@ function TodoCard({
                   color={overdue ? "red" : "gray"}
                   size="xs"
                   variant={overdue ? "filled" : "light"}
+                  radius="md"
                   leftSection={<IconCalendar size={12} />}
                 >
                   {formatDue(todo.due_date)}
                 </Badge>
               )}
               {overdue && (
-                <Badge color="red" size="xs" variant="filled">
+                <Badge color="red" size="xs" variant="filled" radius="md">
                   지연
                 </Badge>
               )}
             </Group>
 
-            <Group justify="space-between" align="center" wrap="nowrap">
+            <Group justify="space-between" align="center" wrap="nowrap" mt="xs">
               {assignee ? (
                 <Group gap={6} wrap="nowrap" style={{ minWidth: 0 }}>
                   <Avatar size={20} radius="xl" color={assignee.color ?? "blue"}>
@@ -405,7 +414,7 @@ function TodoCard({
               <Group gap={4} wrap="nowrap">
                 <ActionIcon
                   size="sm"
-                  variant="light"
+                  variant="subtle"
                   color="gray"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -416,21 +425,7 @@ function TodoCard({
                   <IconPlus size={16} />
                 </ActionIcon>
                 {hasChildren ? (
-                  <ActionIcon
-                    size="sm"
-                    variant="light"
-                    color="gray"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onToggleExpanded();
-                    }}
-                    aria-label={expanded ? "접기" : "펼치기"}
-                  >
-                    {expanded ? <IconChevronDown size={16} /> : <IconChevronRight size={16} />}
-                  </ActionIcon>
-                ) : null}
-                {hasChildren ? (
-                  <Badge color="gray" variant="light" size="xs">
+                  <Badge color="indigo" variant="light" size="xs" radius="md">
                     {childCount}
                   </Badge>
                 ) : null}
@@ -442,7 +437,7 @@ function TodoCard({
       <Popover.Dropdown>
         {renderEditor?.()}
       </Popover.Dropdown>
-    </Popover>
+    </Popover >
   );
 }
 
@@ -450,6 +445,7 @@ function TodoListItem({
   todo,
   assignee,
   depth,
+  isMobile,
   onToggleDone,
   onOpen,
   onAddChild,
@@ -480,6 +476,7 @@ function TodoListItem({
   opened?: boolean;
   renderEditor?: () => ReactNode;
   onClose?: () => void;
+  isMobile?: boolean;
 }) {
   const done = todo.status === "done";
   const overdue = isOverdue(todo.due_date ?? null, done);
@@ -499,9 +496,9 @@ function TodoListItem({
     >
       <Popover.Target>
         <Paper
+          radius="md"
           withBorder
-          radius="sm"
-          p="xs"
+          p={isMobile ? "xs" : "sm"}
           onClick={(e) => {
             if ((e.target as HTMLElement).closest('button, a')) return;
             onOpen();
@@ -509,21 +506,21 @@ function TodoListItem({
           style={{
             cursor: "pointer",
             background: done
-              ? "var(--mantine-color-gray-0)"
+              ? "var(--mantine-color-gray-1)"
               : depth > 0
-                ? "var(--mantine-color-gray-1)"
-                : "white",
-            opacity: done ? 0.8 : 1,
-            borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
-            marginLeft: depth * 24,
-            borderLeft: depth > 0 ? `3px solid var(--mantine-color-blue-2)` : undefined,
-            transition: "all 0.2s ease",
+                ? "var(--mantine-color-gray-0)"
+                : "var(--mantine-color-white)",
+            opacity: done ? 0.7 : 1,
+            borderColor: overdue ? "var(--mantine-color-red-4)" : "var(--mantine-color-gray-2)",
+            marginLeft: depth * (isMobile ? 12 : 24),
+            borderLeft: depth > 0 ? `4px solid var(--mantine-color-indigo-1)` : undefined,
+            transition: "all 0.1s ease",
             boxShadow: depth === 0 ? "var(--mantine-shadow-xs)" : "none",
           }}
-          className="todo-list-item"
+          className="todo-list-item animate-fade-in-up"
         >
-          <Group justify="space-between" wrap="nowrap">
-            <Group gap="sm" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+          <Group justify="space-between" wrap="nowrap" gap="xs">
+            <Group gap={6} wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
               {hasChildren && (
                 <ActionIcon
                   size="xs"
@@ -537,14 +534,14 @@ function TodoListItem({
                   {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
                 </ActionIcon>
               )}
-              {!hasChildren && depth > 0 && <Box w={22} />}
+              {!hasChildren && depth > 0 && <Box w={18} />}
               <Checkbox
-                size="sm"
+                size={isMobile ? "xs" : "sm"}
                 checked={done}
                 onClick={(event) => event.stopPropagation()}
                 onChange={(event) => onToggleDone(event.currentTarget.checked)}
               />
-              <Stack gap={2} style={{ flex: 1, minWidth: 0 }}>
+              <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
                 {editingId === todo.id ? (
                   <TextInput
                     autoFocus
@@ -559,7 +556,7 @@ function TodoListItem({
                   />
                 ) : (
                   <Text
-                    size="sm"
+                    size={isMobile ? "xs" : "sm"}
                     fw={700}
                     td={done ? "line-through" : "none"}
                     c={done ? "dimmed" : "dark"}
@@ -572,51 +569,64 @@ function TodoListItem({
                     {todo.title}
                   </Text>
                 )}
-                <Group gap={6} wrap="nowrap">
-                  <Badge
-                    color={priorityColor(todo.priority)}
-                    size="xs"
-                    variant="light"
-                    leftSection={<IconFlag size={10} />}
-                  >
-                    {priorityLabels[todo.priority]}
-                  </Badge>
-                  {todo.due_date && (
+                {!isMobile && (
+                  <Group gap={6} wrap="nowrap" mt={2}>
                     <Badge
-                      color={overdue ? "red" : "gray"}
+                      color={priorityColor(todo.priority)}
                       size="xs"
-                      variant={overdue ? "filled" : "light"}
-                      leftSection={<IconCalendar size={10} />}
+                      variant="light"
+                      radius="md"
+                      leftSection={<IconFlag size={10} />}
                     >
-                      {formatDue(todo.due_date)}
+                      {priorityLabels[todo.priority]}
                     </Badge>
-                  )}
-                  {hasChildren && !expanded && (
-                    <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
-                      {childCount}
-                    </Badge>
-                  )}
-                </Group>
+                    {todo.due_date && (
+                      <Badge
+                        color={overdue ? "red" : "gray"}
+                        size="xs"
+                        variant={overdue ? "filled" : "light"}
+                        radius="md"
+                        leftSection={<IconCalendar size={10} />}
+                      >
+                        {formatDue(todo.due_date)}
+                      </Badge>
+                    )}
+                  </Group>
+                )}
               </Stack>
             </Group>
 
-            <Group gap="xs" wrap="nowrap">
-              {assignee && (
-                <Avatar size={24} radius="xl" color={assignee.color ?? "blue"} title={assignee.name}>
-                  {assignee.initials ?? assignee.name.slice(0, 1)}
-                </Avatar>
+            <Group gap={4} wrap="nowrap">
+              {isMobile ? (
+                <>
+                  {todo.priority === 'high' && <IconFlag size={14} color="var(--mantine-color-red-6)" />}
+                  {assignee && (
+                    <Avatar size={20} radius="xl" color={assignee.color ?? "blue"}>
+                      {assignee.initials ?? assignee.name.slice(0, 1)}
+                    </Avatar>
+                  )}
+                </>
+              ) : (
+                <>
+                  {assignee && (
+                    <Avatar size={24} radius="xl" color={assignee.color ?? "blue"} title={assignee.name}>
+                      {assignee.initials ?? assignee.name.slice(0, 1)}
+                    </Avatar>
+                  )}
+                  <ActionIcon
+                    variant="light"
+                    color="indigo"
+                    radius="md"
+                    size="md"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onAddChild();
+                    }}
+                  >
+                    <IconPlus size={16} />
+                  </ActionIcon>
+                </>
               )}
-              <ActionIcon
-                variant="light"
-                color="gray"
-                size="md"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onAddChild();
-                }}
-              >
-                <IconPlus size={16} />
-              </ActionIcon>
             </Group>
           </Group>
         </Paper>
@@ -635,11 +645,20 @@ export default function TodoPage() {
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list" | "board">("board");
 
+  const isMobile = useMediaQuery("(max-width: 768px)");
+
+  useEffect(() => {
+    if (isMobile) {
+      setViewMode("list");
+    }
+  }, [isMobile]);
+
   const [query, setQuery] = useState("");
   const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("all");
   const [showDone, setShowDone] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("due");
 
+  const [mobileStatusTab, setMobileStatusTab] = useState<Todo["status"]>("todo");
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1038,7 +1057,13 @@ export default function TodoPage() {
 
 
   const renderTree = (parentId: string | null, depth: number): ReactNode => {
-    const list = childrenByParent.get(parentId) ?? [];
+    let list = childrenByParent.get(parentId) ?? [];
+
+    // Status filter for mobile tab navigation (only for root items)
+    if (isMobile && parentId === null) {
+      list = list.filter(todo => todo.status === mobileStatusTab);
+    }
+
     if (list.length === 0 && parentId === null) return null;
 
     return (
@@ -1104,6 +1129,7 @@ export default function TodoPage() {
                   opened={selectedId === todo.id && editorOpened}
                   renderEditor={renderEditorContent}
                   onClose={closeEditor}
+                  isMobile={isMobile}
                 />
               )}
               {expanded && renderTree(todo.id, depth + 1)}
@@ -1264,22 +1290,21 @@ export default function TodoPage() {
                                               <Box
                                                 style={{
                                                   position: "absolute",
-                                                  top: 4, left: 4, right: -4, bottom: -4,
+                                                  top: 3, left: 3, right: -3, bottom: -3,
                                                   background: "white",
                                                   border: "1px solid var(--mantine-color-gray-3)",
-                                                  borderRadius: "var(--mantine-radius-sm)",
+                                                  borderRadius: "4px",
                                                   zIndex: 0
                                                 }}
                                               />
                                               <Box
                                                 style={{
                                                   position: "absolute",
-                                                  top: 8, left: 8, right: -8, bottom: -8,
+                                                  top: 6, left: 6, right: -6, bottom: -6,
                                                   background: "white",
                                                   border: "1px solid var(--mantine-color-gray-2)",
-                                                  borderRadius: "var(--mantine-radius-sm)",
+                                                  borderRadius: "4px",
                                                   zIndex: -1,
-                                                  opacity: 0.6
                                                 }}
                                               />
                                             </>
@@ -1304,9 +1329,7 @@ export default function TodoPage() {
                                                 p="xs"
                                                 onClick={(e) => {
                                                   if (e.detail > 1) return;
-                                                  // Ignore if clicking on buttons/icons to avoid unintended expansion trigger conflicts
                                                   if ((e.target as HTMLElement).closest('button')) return;
-
                                                   openEdit(todo.id);
                                                   if (hasChildren) {
                                                     setExpandedById((prev) => ({ ...prev, [todo.id]: !prev[todo.id] }));
@@ -1321,8 +1344,9 @@ export default function TodoPage() {
                                                   zIndex: 1,
                                                   cursor: "pointer",
                                                   background: selectedId === todo.id || editingId === todo.id ? "var(--mantine-color-gray-1)" : "white",
-                                                  borderColor: overdue ? "var(--mantine-color-red-4)" : undefined,
+                                                  borderColor: overdue ? "var(--mantine-color-red-4)" : "var(--mantine-color-gray-2)",
                                                   boxShadow: "var(--mantine-shadow-xs)",
+                                                  transition: 'all 0.1s ease'
                                                 }}
                                               >
                                                 <Stack gap={6}>
@@ -1673,6 +1697,7 @@ export default function TodoPage() {
 
         <TextInput
           label="업무"
+          radius="md"
           placeholder="업무 내용을 입력하세요"
           value={form.title}
           onChange={(event) => {
@@ -1692,6 +1717,7 @@ export default function TodoPage() {
         <Group grow gap="xs">
           <Select
             label="우선순위"
+            radius="md"
             data={priorityOptions}
             value={form.priority}
             onChange={(value) => {
@@ -1704,6 +1730,7 @@ export default function TodoPage() {
           />
           <Select
             label="담당자"
+            radius="md"
             placeholder="담당자 선택"
             data={editorAssigneeData}
             value={form.assigneeInput || "none"}
@@ -1721,6 +1748,7 @@ export default function TodoPage() {
         <Group grow gap="xs">
           <Select
             label="상태"
+            radius="md"
             data={[
               { value: "todo", label: "할 일" },
               { value: "in_progress", label: "진행 중" },
@@ -1743,6 +1771,7 @@ export default function TodoPage() {
           />
           <DateInput
             label="마감일"
+            radius="md"
             placeholder="날짜 선택"
             locale="ko"
             valueFormat="YYYY. MM. DD (ddd)"
@@ -1761,12 +1790,12 @@ export default function TodoPage() {
           />
         </Group>
 
-        <Paper withBorder radius="md" p="sm">
+        <Paper withBorder radius="md" p="md" bg="var(--mantine-color-gray-0)">
           <Group justify="space-between" mb="xs">
-            <Text fw={700} size="sm">
+            <Text fw={700} size="sm" c="gray.7">
               하위 업무 ({editorChildren.length})
             </Text>
-            <ActionIcon variant="light" color="gray" size="sm" onClick={() => openCreate(editorMode.mode === "edit" ? editorMode.todoId : null)}>
+            <ActionIcon variant="light" color="indigo" size="sm" onClick={() => openCreate(editorMode.mode === "edit" ? editorMode.todoId : null)}>
               <IconPlus size={14} />
             </ActionIcon>
           </Group>
@@ -1781,7 +1810,12 @@ export default function TodoPage() {
                   radius="md"
                   p="xs"
                   onClick={() => openEdit(child.id)}
-                  style={{ cursor: "pointer", background: "white", borderColor: "var(--mantine-color-gray-3)" }}
+                  style={{
+                    cursor: "pointer",
+                    background: "white",
+                    borderColor: "var(--mantine-color-gray-2)",
+                    boxShadow: 'var(--mantine-shadow-xs)'
+                  }}
                 >
                   <Group justify="space-between" wrap="nowrap">
                     <Group gap="sm" wrap="nowrap">
@@ -1791,36 +1825,35 @@ export default function TodoPage() {
                         onClick={(e) => e.stopPropagation()}
                         onChange={(e) => toggleDone(child, e.currentTarget.checked)}
                       />
-                      <Stack gap={2}>
-                        <Text size="sm" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"}>
+                      <Stack gap={0}>
+                        <Text size="sm" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"} lineClamp={1}>
                           {child.title}
                         </Text>
-                        <Badge color={priorityColor(child.priority)} size="xs" variant="light">
-                          {priorityLabels[child.priority]}
-                        </Badge>
+                        <Group gap={4} mt={2}>
+                          <Badge color={priorityColor(child.priority)} size="xs" variant="light" radius="md">
+                            {priorityLabels[child.priority]}
+                          </Badge>
+                          {childAssignee && (
+                            <Badge variant="dot" color="blue" size="xs">{childAssignee.name}</Badge>
+                          )}
+                        </Group>
                       </Stack>
                     </Group>
-                    <Group gap="xs">
-                      {childAssignee && (
-                        <Avatar size={24} radius="xl">
-                          {childAssignee.initials ?? childAssignee.name.slice(0, 1)}
-                        </Avatar>
-                      )}
-                      <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); openCreate(child.id); }}
-                      >
-                        <IconPlus size={14} />
-                      </ActionIcon>
-                    </Group>
+                    <ActionIcon
+                      variant="subtle"
+                      color="indigo"
+                      size="sm"
+                      radius="md"
+                      onClick={(e) => { e.stopPropagation(); openCreate(child.id); }}
+                    >
+                      <IconPlus size={14} />
+                    </ActionIcon>
                   </Group>
                 </Paper>
               );
             })}
             {editorChildren.length === 0 && (
-              <Text size="xs" c="dimmed" ta="center">하위 업무가 없습니다.</Text>
+              <Text size="xs" c="dimmed" ta="center" py="md">하위 업무가 없습니다.</Text>
             )}
           </Stack>
         </Paper>
@@ -1845,9 +1878,9 @@ export default function TodoPage() {
           )}
 
           <Group gap="sm">
-            <Button variant="default" onClick={closeEditor}>닫기</Button>
+            <Button variant="subtle" color="gray" radius="md" onClick={closeEditor}>취소</Button>
             {editorMode.mode === "create" && (
-              <Button onClick={saveEditor} loading={saving}>추가</Button>
+              <Button color="indigo" radius="md" onClick={saveEditor} loading={saving}>추가하기</Button>
             )}
           </Group>
         </Group>
@@ -1856,72 +1889,116 @@ export default function TodoPage() {
   };
 
   return (
-    <Stack gap="sm">
-      <Group justify="space-between" align="flex-end">
-        <Stack gap={2}>
-          <Title order={2}>To-Do</Title>
-          <Text size="sm" c="dimmed">
-            진행 {activeCount} · 완료 {doneCount}
-          </Text>
-        </Stack>
-        <Button size="sm" color="gray" leftSection={<IconPlus size={16} />} onClick={() => openCreate(null)}>
-          새 업무
+    <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>
+      {/* Desktop Header Title & Action */}
+      <Group justify="space-between" mb="xl" visibleFrom="md" align="flex-end">
+        <Box>
+          <Title order={1} fw={800} style={{ letterSpacing: '-0.02em' }}>To-Do</Title>
+          <Text c="dimmed" size="sm" fw={500}>프로젝트 진행 상황을 파악하고 업무를 관리합니다.</Text>
+        </Box>
+        <Button
+          leftSection={<IconPlus size={18} />}
+          color="indigo"
+          radius="md"
+          variant="light"
+          onClick={() => openCreate(null)}
+          size="md"
+        >
+          새 업무 추가
         </Button>
       </Group>
 
-      <Paper withBorder radius="md" p="xs">
-        <Stack gap="xs">
+      {/* Global Controls & Filters */}
+      <Group justify="space-between" mb="lg">
+        <Group>
+          <Box className="mobile-only" px="md">
+            <Title order={2} fw={800} style={{ letterSpacing: '-0.02em' }}>To-Do</Title>
+          </Box>
+          <SegmentedControl
+            value={viewMode}
+            onChange={(val) => setViewMode(val as any)}
+            data={[
+              { label: <Group gap={4} wrap="nowrap"><IconColumns3 size={16} /><span>보드</span></Group>, value: "board" },
+              { label: <Group gap={4} wrap="nowrap"><IconList size={16} /><span>목록</span></Group>, value: "list" },
+            ]}
+          />
+        </Group>
+      </Group>
+
+      <Paper withBorder radius="md" p="md" bg="var(--mantine-color-white)">
+        <Stack gap="md">
           <TextInput
-            placeholder="검색"
-            aria-label="업무 검색"
-            size="sm"
-            leftSection={<IconSearch size={16} />}
+            placeholder="업무 제목, 내용 검색..."
+            size="md"
+            leftSection={<IconSearch size={18} stroke={1.5} />}
             value={query}
             onChange={(event) => setQuery(event.currentTarget.value)}
+            radius="md"
           />
-          <Group gap={6} wrap="wrap">
-            <Text size="sm" fw={700} c="dimmed" tt="uppercase" mr={4}>담당자 필터:</Text>
-            <Badge
+          <Group gap="xs" wrap="wrap">
+            <Text size="sm" fw={700} c="dimmed" mr={4}>담당자</Text>
+            <Button
               variant={assigneeFilter === "all" ? "filled" : "light"}
-              color="gray"
-              size="md"
-              radius="sm"
-              style={{ cursor: "pointer" }}
+              color={assigneeFilter === "all" ? "indigo" : "gray"}
+              size="compact-sm"
+              radius="xl"
               onClick={() => setAssigneeFilter("all")}
             >
               전체
-            </Badge>
-            <Badge
-              variant={assigneeFilter === "anyone" ? "filled" : "light"}
-              color="gray"
-              size="md"
-              radius="sm"
-              style={{ cursor: "pointer" }}
-              onClick={() => setAssigneeFilter("anyone")}
-            >
-              누구나
-            </Badge>
-            {sortedUsers.map((user) => (
-              <Badge
+            </Button>
+            {sortedUsers.slice(0, isMobile ? 3 : undefined).map((user) => (
+              <Button
                 key={user.id}
                 variant={assigneeFilter === user.id ? "filled" : "light"}
-                color="gray"
-                size="md"
-                radius="sm"
-                style={{ cursor: "pointer" }}
+                color={assigneeFilter === user.id ? "indigo" : "gray"}
+                size="compact-sm"
+                radius="xl"
                 onClick={() => setAssigneeFilter(user.id)}
               >
                 {user.name}
-              </Badge>
+              </Button>
             ))}
+            {isMobile && sortedUsers.length > 3 && (
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <Button variant="light" color="gray" size="compact-sm" radius="xl">
+                    기타...
+                  </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {sortedUsers.slice(3).map(user => (
+                    <Menu.Item key={user.id} onClick={() => setAssigneeFilter(user.id)}>
+                      {user.name}
+                    </Menu.Item>
+                  ))}
+                </Menu.Dropdown>
+              </Menu>
+            )}
           </Group>
         </Stack>
       </Paper>
 
+      {isMobile && (
+        <SegmentedControl
+          fullWidth
+          radius="md"
+          size="sm"
+          value={mobileStatusTab}
+          onChange={(v) => setMobileStatusTab(v as Todo["status"])}
+          data={[
+            { label: '할 일', value: 'todo' },
+            { label: '진행 중', value: 'in_progress' },
+            { label: '완료', value: 'done' }
+          ]}
+          color="indigo"
+          mb="xs"
+        />
+      )}
+
       <Box pos="relative" style={{ height: "calc(100vh - 200px)" }}>
         <Paper
-          withBorder
           radius="md"
+          withBorder
           p="xs"
           style={{
             width: "100%",
@@ -1929,6 +2006,7 @@ export default function TodoPage() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
+            background: 'var(--mantine-color-white)'
           }}
         >
           <Box id="todo-scroll-container" ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "4px", position: "relative" }}>
@@ -1936,16 +2014,61 @@ export default function TodoPage() {
               renderBoard()
             ) : (
               renderTree(null, 0) || (
-                <Text size="sm" c="dimmed" ta="center" mt="xl">
+                <Text size="sm" c="dimmed" ta="center" mt="xl" py="xl">
                   표시할 업무가 없습니다.
                 </Text>
               )
             )}
           </Box>
         </Paper>
-
-        <Box style={{ display: 'none' }} />
       </Box>
-    </Stack>
+
+      {/* Task Editor - Drawer for Mobile, Modal for Creation ONLY on Desktop (Editing uses Popover) */}
+      {isMobile ? (
+        <Drawer
+          opened={editorOpened}
+          onClose={closeEditor}
+          position="bottom"
+          size="90%"
+          title={<Text fw={700}>업무 편집</Text>}
+          radius="lg"
+        >
+          {renderEditorContent()}
+        </Drawer>
+      ) : (
+        <Modal
+          opened={editorOpened && editorMode.mode === "create"}
+          onClose={closeEditor}
+          title={<Text fw={700}>새 업무 추가</Text>}
+          centered
+          size="md"
+          radius="md"
+        >
+          {renderEditorContent()}
+        </Modal>
+      )}
+
+      {/* Universal FAB - Mobile Only */}
+      <Affix position={{ bottom: isMobile ? 100 : 40, right: isMobile ? 24 : 40 }} className="mobile-only">
+        <Transition transition="slide-up" mounted={true}>
+          {(transitionStyles) => (
+            <ActionIcon
+              size={64}
+              radius="xl"
+              color="indigo"
+              variant="filled"
+              style={{
+                ...transitionStyles,
+                boxShadow: '0 8px 32px rgba(99, 102, 241, 0.4)',
+                zIndex: 1000,
+              }}
+              onClick={() => openCreate(null)}
+            >
+              <IconPlus size={32} />
+            </ActionIcon>
+          )}
+        </Transition>
+      </Affix>
+    </Container>
   );
 }

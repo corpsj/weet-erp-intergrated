@@ -528,21 +528,20 @@ export default function EstimatePage() {
 
   return (
     <Stack gap="md">
-      <Paper className="app-surface" p="md" radius="md">
-        <Group justify="flex-end" align="center">
-          <Button color="gray" onClick={openEstimateModal}>
-            신규 견적
-          </Button>
-        </Group>
-        <Divider my="sm" />
+      <Paper className="app-surface" p="md" radius="lg">
         <Group align="flex-start" gap="md" wrap="nowrap">
           <Paper className="app-surface" p="md" radius="lg" w={360}>
             <Stack gap="sm">
               <Group justify="space-between">
                 <Text fw={600}>견적</Text>
-                <Text size="sm" c="dimmed">
-                  {filteredEstimates.length}건
-                </Text>
+                <Group gap="xs">
+                  <Text size="sm" c="dimmed">
+                    {filteredEstimates.length}건
+                  </Text>
+                  <Button size="compact-xs" variant="light" color="indigo" onClick={openEstimateModal}>
+                    신규 견적
+                  </Button>
+                </Group>
               </Group>
               <TextInput
                 placeholder="견적 검색"

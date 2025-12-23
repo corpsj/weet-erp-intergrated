@@ -123,6 +123,7 @@ export function ProfileEditor() {
         <Text fw={600}>프로필</Text>
         <TextInput
           label="이름"
+          radius="md"
           placeholder="홍길동"
           value={name}
           onChange={(event) => setName(event.currentTarget.value)}
@@ -131,13 +132,15 @@ export function ProfileEditor() {
         />
         <TextInput
           label="직책"
-          placeholder=""
+          radius="md"
+          placeholder="팀장, 매니저 등"
           value={position}
           onChange={(event) => setPosition(event.currentTarget.value)}
           disabled={loading}
         />
         <Textarea
           label="자기소개"
+          radius="md"
           placeholder="나를 소개하는 한 마디"
           value={bio}
           onChange={(event) => setBio(event.currentTarget.value)}
@@ -147,14 +150,15 @@ export function ProfileEditor() {
         />
 
         <Stack gap={4}>
-          <Text size="sm" fw={500}>퍼스널 컬러</Text>
+          <Text size="sm" fw={800} tt="uppercase" c="dimmed">퍼스널 컬러</Text>
           <Group gap="xs">
             {colors.map((c) => (
               <ColorSwatch
                 key={c}
                 color={c}
                 onClick={() => setColor(c)}
-                style={{ cursor: "pointer", color: "#fff" }}
+                style={{ cursor: "pointer", color: "#fff", transition: 'transform 0.2s ease' }}
+                className="color-swatch-hover"
               >
                 {color === c && <CheckIcon style={{ width: rem(12), height: rem(12) }} />}
               </ColorSwatch>
@@ -162,9 +166,9 @@ export function ProfileEditor() {
           </Group>
         </Stack>
 
-        <Group justify="flex-end" mt="md">
-          <Button color="gray" onClick={() => void save()} loading={saving} disabled={loading}>
-            저장
+        <Group justify="flex-end" mt="xl">
+          <Button color="indigo" radius="md" onClick={() => void save()} loading={saving} disabled={loading} px="xl">
+            변경 사항 저장
           </Button>
         </Group>
         <Text size="xs" c="dimmed">

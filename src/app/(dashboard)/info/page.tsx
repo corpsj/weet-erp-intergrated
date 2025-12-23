@@ -180,13 +180,13 @@ export default function InfoPage() {
           >
             새로고침
           </Button>
-          <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate}>
+          <Button leftSection={<IconPlus size={16} />} color="indigo" radius="md" onClick={openCreate}>
             카드 추가
           </Button>
         </Group>
       </Group>
 
-      <Paper className="app-surface" p="lg" radius="md">
+      <Paper p="lg" radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs">
         {!!pinnedItems.length && (
           <Stack gap="md" mb="lg">
             <Group gap="xs">
@@ -218,7 +218,7 @@ export default function InfoPage() {
         {!items.length && !loading && <Text size="sm" c="dimmed">등록된 카드가 없습니다.</Text>}
       </Paper>
 
-      <Modal opened={opened} onClose={() => setOpened(false)} title={editing ? "카드 편집" : "카드 추가"} centered>
+      <Modal opened={opened} onClose={() => setOpened(false)} title={<Text fw={900}>{editing ? "카드 편집" : "카드 추가"}</Text>} centered radius="md">
         <Stack gap="sm">
           <TextInput label="제목" value={title} onChange={(e) => setTitle(e.currentTarget.value)} required />
           <Textarea label="내용" value={body} onChange={(e) => setBody(e.currentTarget.value)} autosize minRows={4} />
@@ -227,7 +227,7 @@ export default function InfoPage() {
             <Button variant="light" color="gray" onClick={() => setOpened(false)}>
               취소
             </Button>
-            <Button color="gray" onClick={() => void save()} loading={saving}>
+            <Button color="indigo" radius="md" onClick={() => void save()} loading={saving}>
               저장
             </Button>
           </Group>
