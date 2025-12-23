@@ -96,6 +96,10 @@ export default function UtilityBillsPage() {
     }, []);
 
     useEffect(() => {
+        void load();
+    }, [load]);
+
+    useEffect(() => {
         const item = items.find(x => x.id === selectedId);
         if (item && selectedId !== lastSavedId) {
             setLocalNote(item.note || "");

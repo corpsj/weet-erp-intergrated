@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/app/api/settings/_auth";
 import { callOpenRouter } from "@/lib/openrouter";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function POST(request: Request) {
     const auth = await requireUserId(request);
@@ -42,8 +43,15 @@ Response must be valid JSON only.`;
             }
         ];
 
-        // Using google/gemini-2.5-flash as requested by user
-        const aiResponse = await callOpenRouter(messages, "google/gemini-2.5-flash");
+        // Fetch AI Model setting
+        const { data: settingsData } = await supabaseAdmin
+            .from("app_settings")
+            .select("value")
+            .eq("key", "ai_model")
+            .single();
+        const preferredModel = settingsData?.value || "google/gemini-2.5-flash";
+
+        const aiResponse = await callOpenRouter(messages, preferredModel);
 
         let content = aiResponse.choices[0].message.content;
         // Remove markdown code blocks if any

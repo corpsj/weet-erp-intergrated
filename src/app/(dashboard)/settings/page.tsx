@@ -17,6 +17,7 @@ import {
   Divider,
   Grid,
   rem,
+  Select,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -29,6 +30,7 @@ import {
   IconShieldLock,
   IconSettings,
   IconUsers,
+  IconSparkles,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -93,6 +95,7 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [aiModel, setAiModel] = useState("google/gemini-2.5-flash");
   const [savingAiModel, setSavingAiModel] = useState(false);
 
   const load = useCallback(async () => {
@@ -136,11 +139,37 @@ export default function SettingsPage() {
   }, []);
 
   const loadAiModel = useCallback(async () => {
-    // Removed
+    try {
+      const response = await fetchWithAuth("/api/settings/ai-model");
+      const payload = await response.json();
+      if (response.ok && payload.model) {
+        setAiModel(payload.model);
+      }
+    } catch (error) {
+      console.error("AI 모델 설정 로드 실패:", error);
+    }
   }, []);
 
-  const saveAiModel = useCallback(async () => {
-    // Removed
+  const saveAiModel = useCallback(async (model: string) => {
+    setSavingAiModel(true);
+    try {
+      const response = await fetchWithAuth("/api/settings/ai-model", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ model }),
+      });
+      if (!response.ok) throw new Error("저장에 실패했습니다.");
+      setAiModel(model);
+      notifications.show({ title: "설정 저장", message: "AI 모델이 변경되었습니다.", color: "green" });
+    } catch (error) {
+      notifications.show({
+        title: "설정 저장 실패",
+        message: error instanceof Error ? error.message : "오류가 발생했습니다.",
+        color: "red",
+      });
+    } finally {
+      setSavingAiModel(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -498,6 +527,12 @@ export default function SettingsPage() {
                 사용자 관리
               </Tabs.Tab>
               <Tabs.Tab
+                value="ai"
+                leftSection={<IconSparkles size={18} />}
+              >
+                AI 설정
+              </Tabs.Tab>
+              <Tabs.Tab
                 value="security"
                 leftSection={<IconShieldLock size={18} />}
               >
@@ -659,6 +694,42 @@ export default function SettingsPage() {
                       </Table>
                     </Paper>
                   </Box>
+                </Stack>
+              </Tabs.Panel>
+
+              <Tabs.Panel value="ai">
+                <Stack gap="xl">
+                  <Box>
+                    <Title order={3} mb="xs">
+                      AI 설정
+                    </Title>
+                    <Text size="sm" c="dimmed" mb="xl">
+                      문서 분석 및 데이터 추출에 사용할 AI 모델을 선택합니다.
+                    </Text>
+                  </Box>
+
+                  <Paper withBorder p="xl" radius="md">
+                    <Stack gap="lg">
+                      <Box>
+                        <Text fw={600} size="sm" mb="xs">
+                          분석 모델 선택
+                        </Text>
+                        <Select
+                          data={[
+                            { value: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (Free)" },
+                            { value: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash (Standard)" },
+                            { value: "google/gemini-pro-1.5", label: "Gemini 1.5 Pro (Powerful)" },
+                            { value: "openai/gpt-4o-mini", label: "GPT-4o mini" },
+                          ]}
+                          value={aiModel}
+                          onChange={(val) => val && saveAiModel(val)}
+                          disabled={savingAiModel}
+                          description="모델에 따라 분석 속도와 정확도가 다를 수 있습니다."
+                        />
+                      </Box>
+                      {savingAiModel && <Text size="xs" c="blue">저장 중...</Text>}
+                    </Stack>
+                  </Paper>
                 </Stack>
               </Tabs.Panel>
 
