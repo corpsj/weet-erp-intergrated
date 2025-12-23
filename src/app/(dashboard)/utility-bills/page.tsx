@@ -31,7 +31,6 @@ import { notifications } from "@mantine/notifications";
 import {
     IconBolt,
     IconPlus,
-    IconRefresh,
     IconTrash,
     IconUpload,
     IconEdit,
@@ -348,15 +347,6 @@ export default function UtilityBillsPage() {
                         </Text>
                     </Box>
                     <Group>
-                        <Button
-                            variant="light"
-                            color="gray"
-                            leftSection={<IconRefresh size={18} />}
-                            onClick={load}
-                            loading={loading}
-                        >
-                            새로고침
-                        </Button>
                         <FileButton key={uploadKey} onChange={onUpload} accept="image/*">
                             {(props) => (
                                 <Button {...props} leftSection={<IconUpload size={18} />} color="blue">

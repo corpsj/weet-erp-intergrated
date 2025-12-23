@@ -217,6 +217,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 variant="light"
                 mb={6}
                 onClick={close}
+                hiddenFrom={item.label === "견적 시스템" ? "sm" : undefined}
               />
             ))}
           </Box>

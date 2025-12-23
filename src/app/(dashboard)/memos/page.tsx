@@ -17,7 +17,7 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconPaperclip, IconPlus, IconRefresh, IconSearch, IconTrash } from "@tabler/icons-react";
+import { IconPaperclip, IconPlus, IconSearch, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -270,15 +270,6 @@ export default function MemosPage() {
               style={{ flex: 1 }}
             />
             <Group gap="xs">
-              <Button
-                leftSection={<IconRefresh size={16} />}
-                variant="light"
-                color="gray"
-                onClick={() => void load()}
-                loading={loading}
-              >
-                새로고침
-              </Button>
               <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate}>
                 작성
               </Button>

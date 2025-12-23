@@ -20,7 +20,7 @@ import {
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconRefresh, IconTrash, IconTransferIn, IconArrowDownLeft, IconArrowUpRight } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconTransferIn, IconArrowDownLeft, IconArrowUpRight } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";
@@ -198,7 +198,6 @@ export default function TransactionsPage() {
                     <Text c="dimmed" size="sm">은행 거래 내역을 관리하고 지출과 연동합니다.</Text>
                 </div>
                 <Group>
-                    <Button variant="light" color="gray" leftSection={<IconRefresh size={16} />} onClick={() => void load()} loading={loading}>새로고침</Button>
                     <Button color="gray" leftSection={<IconPlus size={16} />} onClick={() => setOpened(true)}>거래 추가</Button>
                 </Group>
             </Group>
@@ -242,7 +241,7 @@ export default function TransactionsPage() {
                             <Select label="구분" data={[{ value: "deposit", label: "입금" }, { value: "withdrawal", label: "출금" }]} value={type} onChange={(v) => setType(v || "deposit")} />
                         </Grid.Col>
                         <Grid.Col span={6}>
-                            <DateTimePicker label="거래일시" value={transactionDate} onChange={setTransactionDate} placeholder="날짜 및 시간 선택" />
+                            <DateTimePicker label="거래일시" value={transactionDate} onChange={(v) => setTransactionDate(v ? new Date(v) : null)} placeholder="날짜 및 시간 선택" />
                         </Grid.Col>
                     </Grid>
 

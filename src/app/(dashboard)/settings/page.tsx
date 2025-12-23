@@ -22,7 +22,6 @@ import { notifications } from "@mantine/notifications";
 import {
   IconEye,
   IconEyeOff,
-  IconRefresh,
   IconCopy,
   IconTrash,
   IconUser,
@@ -468,17 +467,6 @@ export default function SettingsPage() {
             애플리케이션 및 계정 환경설정을 관리합니다.
           </Text>
         </div>
-        <Button
-          leftSection={<IconRefresh size={16} />}
-          variant="subtle"
-          color="gray"
-          onClick={() => {
-            void load();
-          }}
-          loading={loading}
-        >
-          전체 새로고침
-        </Button>
       </Group>
 
       <Tabs

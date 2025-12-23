@@ -20,7 +20,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar, IconPlus, IconRefresh, IconTrash, IconPaperclip } from "@tabler/icons-react";
+import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar, IconPlus, IconTrash, IconPaperclip } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -397,9 +397,6 @@ export default function ExpensesPage() {
               </Badge>
             ))}
           </Group>
-          <Button leftSection={<IconRefresh size={16} />} variant="light" color="gray" size="xs" onClick={() => void load()} loading={loading}>
-            새로고침
-          </Button>
         </Group>
 
         <Box>

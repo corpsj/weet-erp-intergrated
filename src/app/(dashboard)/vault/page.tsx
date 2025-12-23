@@ -17,7 +17,7 @@ import {
   Container,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconCopy, IconEye, IconEyeOff, IconPlus, IconRefresh, IconTrash } from "@tabler/icons-react";
+import { IconCopy, IconEye, IconEyeOff, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -291,9 +291,6 @@ export default function VaultPage() {
           </Text>
         </div>
         <Group gap="xs">
-          <Button leftSection={<IconRefresh size={16} />} variant="light" color="gray" onClick={() => void load()} loading={loading}>
-            새로고침
-          </Button>
           <Button leftSection={<IconPlus size={16} />} color="gray" onClick={openCreate}>
             추가
           </Button>
@@ -310,9 +307,6 @@ export default function VaultPage() {
               onChange={(e) => setQuery(e.currentTarget.value)}
               style={{ flex: 1 }}
             />
-            <Button variant="light" color="gray" size="sm" leftSection={<IconRefresh size={16} />} onClick={() => void load()} loading={loading}>
-              새로고침
-            </Button>
           </Group>
 
 

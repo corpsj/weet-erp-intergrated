@@ -10,6 +10,15 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "weet ERP",
   description: "업무 허브와 견적 산출을 통합한 ERP",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "weet ERP",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 const bodyFont = IBM_Plex_Sans_KR({

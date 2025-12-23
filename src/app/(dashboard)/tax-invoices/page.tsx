@@ -22,7 +22,7 @@ import {
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconRefresh, IconTrash, IconReceipt2, IconReceipt } from "@tabler/icons-react";
+import { IconPlus, IconTrash, IconReceipt2, IconReceipt } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";
@@ -214,7 +214,6 @@ export default function TaxInvoicesPage() {
                     <Text c="dimmed" size="sm">매출 및 매입 세금계산서를 통합 관리합니다.</Text>
                 </div>
                 <Group>
-                    <Button variant="light" color="gray" leftSection={<IconRefresh size={16} />} onClick={() => void load()} loading={loading}>새로고침</Button>
                     <Button color="gray" leftSection={<IconPlus size={16} />} onClick={() => setOpened(true)}>계산서 추가</Button>
                 </Group>
             </Group>
@@ -261,7 +260,7 @@ export default function TaxInvoicesPage() {
                             <Select label="구분" data={[{ value: "sales", label: "매출" }, { value: "purchase", label: "매입" }]} value={type} onChange={(v) => setType(v || "sales")} />
                         </Grid.Col>
                         <Grid.Col span={6}>
-                            <DateInput label="발행일" value={issueDate} onChange={setIssueDate} placeholder="날짜 선택" />
+                            <DateInput label="발행일" value={issueDate} onChange={(v) => setIssueDate(v ? new Date(v) : null)} placeholder="날짜 선택" />
                         </Grid.Col>
                     </Grid>
 
