@@ -20,12 +20,13 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { calculateEstimate, sumPresetItems } from "@/lib/calc";
 import { asNumber, formatCurrency } from "@/lib/format";
 import type { Estimate, EstimateItem, EstimatePreset, Material, PresetWithItems } from "@/lib/types";
 import { SearchableSelect } from "@/components/SearchableSelect";
+import { useReactToPrint } from "react-to-print";
 
 const emptyEstimate = {
   name: "",
@@ -65,7 +66,7 @@ export default function EstimatePage() {
   const [estimateForm, setEstimateForm] = useState(emptyEstimate);
   const [linkForm, setLinkForm] = useState(emptyLink);
   const [estimateItemForm, setEstimateItemForm] = useState(emptyEstimateItem);
-  const [addMode, setAddMode] = useState<"preset" | "material">("preset");
+  const [addMode, setAddMode] = useState<"preset" | "material" | "manual">("preset");
   const [savingEstimate, setSavingEstimate] = useState(false);
   const [savingLink, setSavingLink] = useState(false);
   const [estimateSearch, setEstimateSearch] = useState("");
@@ -315,6 +316,11 @@ export default function EstimatePage() {
     );
   }, [selectedEstimate, totals]);
 
+  const printRef = useRef<HTMLDivElement>(null);
+  const handlePrint = useReactToPrint({
+    contentRef: printRef,
+  });
+
   const openEstimateModal = () => {
     setEstimateForm(emptyEstimate);
     estimateModal.open();
@@ -418,8 +424,14 @@ export default function EstimatePage() {
 
   const handleAddMaterial = async () => {
     if (!selectedEstimate) return;
-    if (!estimateItemForm.material_id) {
+
+    if (addMode === "material" && !estimateItemForm.material_id) {
       notifications.show({ title: "자재 선택 필요", message: "자재를 선택하세요.", color: "yellow" });
+      return;
+    }
+
+    if (addMode === "manual" && !estimateItemForm.label.trim()) {
+      notifications.show({ title: "항목명 필요", message: "항목 이름을 입력하세요.", color: "yellow" });
       return;
     }
 
@@ -430,7 +442,7 @@ export default function EstimatePage() {
       label: estimateItemForm.label,
       quantity: estimateItemForm.quantity,
       unit_cost: estimateItemForm.unit_cost,
-      material_id: estimateItemForm.material_id,
+      material_id: addMode === "manual" ? null : estimateItemForm.material_id,
     });
     setSavingLink(false);
 
@@ -614,11 +626,17 @@ export default function EstimatePage() {
                         {selectedEstimate.description || "설명 없음"}
                       </Text>
                     </Box>
-                    <Button variant="light" color="gray" onClick={openLinkModal}>
-                      항목 추가
-                    </Button>
+                    <Group>
+                      <Button variant="light" color="gray" onClick={() => handlePrint()}>
+                        PDF 내보내기
+                      </Button>
+                      <Button variant="light" color="gray" onClick={openLinkModal}>
+                        항목 추가
+                      </Button>
+                    </Group>
                   </Group>
                   <Divider />
+                  {/* Visible Table for Web View */}
                   <Table verticalSpacing="sm" highlightOnHover>
                     <Table.Thead>
                       <Table.Tr>
@@ -985,16 +1003,299 @@ export default function EstimatePage() {
                       </Paper>
                     </Group>
                   </Stack>
+
+                  <div style={{ display: "none" }}>
+                    <div ref={printRef} style={{ padding: "40px 30px", fontFamily: "'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif", color: "#111", lineHeight: 1.3 }}>
+                      <style type="text/css" media="print">
+                        {`
+                          @page { size: A4; margin: 10mm; }
+                          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                          .print-container { width: 100%; max-width: 210mm; margin: 0 auto; box-sizing: border-box; }
+                          
+                          .header-title { 
+                            font-size: 26px; /* Reduced from 36px */
+                            font-weight: 900; 
+                            text-align: center; 
+                            margin-bottom: 30px; 
+                            letter-spacing: 8px;
+                            text-decoration: underline;
+                            text-underline-offset: 6px;
+                          }
+
+                          /* Supplier/Recipient Grid */
+                          .top-section { display: flex; gap: 20px; margin-bottom: 20px; align-items: stretch; }
+                          .recipient-box { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 2px; }
+                          
+                          /* Supplier Table - Adjusted size */
+                          .supplier-table { width: 350px; border-collapse: collapse; border: 2px solid #000; font-size: 11px; }
+                          .supplier-table td { border: 1px solid #000; padding: 4px 6px; text-align: center; height: 24px; }
+                          .supplier-label { background-color: #eee; font-weight: bold; width: 25px; }
+                          .supplier-field { background-color: #eee; font-weight: bold; width: 70px; } /* Increased from 50px */
+                          .supplier-value { text-align: left !important; padding-left: 6px !important; }
+
+                          /* Total Amount Box - Reduced size */
+                          .total-box { 
+                            border: 2px solid #000; 
+                            padding: 8px 15px; /* Reduced padding */
+                            margin-bottom: 20px; 
+                            display: flex; 
+                            justify-content: space-between; 
+                            align-items: center; 
+                            background-color: #fff;
+                          }
+
+                          /* Main Items Table */
+                          .items-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px; border-top: 2px solid #000; }
+                          .items-table th { 
+                            background-color: #eee; 
+                            border-bottom: 1px solid #000; 
+                            padding: 8px 4px; 
+                            font-weight: bold; 
+                            color: #000;
+                            text-align: center;
+                          }
+                          .items-table td { 
+                            padding: 6px 4px; 
+                            border-bottom: 1px solid #ccc; 
+                            color: #333;
+                          }
+                          .items-table tr:last-child td { border-bottom: 1px solid #000; }
+                          
+                          /* Footer Summary */
+                          .footer-table { width: 100%; border-collapse: collapse; margin-top: 0px; font-size: 11px; }
+                          .footer-table td { padding: 4px 8px; border-bottom: 1px solid #ddd; }
+                          .footer-label { font-weight: bold; text-align: left; width: 100px; background-color: #f9f9f9; }
+                          
+                          .stamp-box { position: relative; width: 100%; height: 100%; min-height: 20px; display: flex; align-items: center; }
+                          .stamp-img { 
+                            position: absolute; 
+                            left: 20px; /* Offset from center/left to overlap naturally */
+                            top: 50%; 
+                            transform: translateY(-50%); 
+                            width: 60px; /* Real size scale */
+                            height: 60px; 
+                            opacity: 0.75; 
+                            pointer-events: none; /* Ensure it doesn't interfere with interaction */
+                            z-index: 10;
+                          }
+
+                          .text-right { text-align: right; }
+                          .text-center { text-align: center; }
+                          .text-bold { font-weight: bold; }
+                        `}
+                      </style>
+
+                      <div className="print-container">
+                        <div className="header-title">견 적 서</div>
+
+                        <div className="top-section">
+                          <div className="recipient-box">
+                            <div style={{ fontSize: "12px", marginBottom: "12px", color: "#555" }}>
+                              견적번호 : {new Date().getFullYear()}-{String(new Date().getMonth() + 1).padStart(2, '0')}{String(new Date().getDate()).padStart(2, '0')}-001
+                            </div>
+                            <div style={{ fontSize: "18px", marginBottom: "8px" }}>
+                              <span style={{ borderBottom: "1px solid #000", paddingBottom: "2px", display: "inline-block", minWidth: "180px", fontWeight: "bold" }}>&nbsp;</span> 귀하
+                            </div>
+                            <div style={{ fontSize: "12px", marginTop: "8px", lineHeight: "1.6" }}>
+                              <div>• 견적명 : <span style={{ fontWeight: "bold" }}>{selectedEstimate.name}</span></div>
+                              <div>• 견적일 : {new Date().toLocaleDateString()}</div>
+                              <div style={{ color: "#555", fontWeight: "bold" }}>• 유효기간 : 견적일로부터 30일</div>
+                            </div>
+                          </div>
+
+                          <table className="supplier-table">
+                            <tbody>
+                              <tr>
+                                <td rowSpan={4} className="supplier-label">공<br />급<br />자</td>
+                                <td className="supplier-field">등록번호</td>
+                                <td colSpan={3} className="supplier-value font-bold">660-86-01862</td>
+                              </tr>
+                              <tr>
+                                <td className="supplier-field">상 호</td>
+                                <td className="supplier-value">주식회사 위트</td>
+                                <td className="supplier-field">성 명</td>
+                                <td className="supplier-value" style={{ width: "80px", position: "relative" }}>
+                                  <div className="stamp-box">
+                                    박현태 (인)
+                                    <img
+                                      src="/stamp.png"
+                                      className="stamp-img"
+                                      alt="stamp"
+                                    />
+                                  </div>
+                                </td>
+                              </tr>
+                              <tr>
+                                <td className="supplier-field">주 소</td>
+                                <td colSpan={3} className="supplier-value" style={{ fontSize: "10px" }}>전남 함평군 대동면 금산길 205-27</td>
+                              </tr>
+                              <tr>
+                                <td className="supplier-field">업 태</td>
+                                <td className="supplier-value">제조업</td>
+                                <td className="supplier-field">종 목</td>
+                                <td className="supplier-value">이동식주택</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        <div className="total-box">
+                          <div style={{ fontSize: "13px", fontWeight: "bold" }}>합계금액 (VAT 포함)</div>
+                          <div style={{ fontSize: "16px", fontWeight: "900", letterSpacing: "0px" }}>
+                            {(() => {
+                              const total = Math.floor(breakdown?.total ?? 0);
+                              const units = ["", "만", "억", "조"];
+                              const nums = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+                              const tenUnits = ["", "십", "백", "천"];
+
+                              let result = "";
+                              let unitIndex = 0;
+                              let tempAmount = total;
+
+                              if (tempAmount === 0) return "영원整";
+
+                              while (tempAmount > 0) {
+                                const part = tempAmount % 10000;
+                                if (part > 0) {
+                                  let partResult = "";
+                                  let partTemp = part;
+                                  for (let i = 0; i < 4; i++) {
+                                    const digit = partTemp % 10;
+                                    if (digit > 0) {
+                                      partResult = nums[digit] + tenUnits[i] + partResult;
+                                    }
+                                    partTemp = Math.floor(partTemp / 10);
+                                  }
+                                  result = partResult + units[unitIndex] + result;
+                                }
+                                tempAmount = Math.floor(tempAmount / 10000);
+                                unitIndex++;
+                              }
+                              return `금${result}원整 (₩${total.toLocaleString()})`;
+                            })()}
+                          </div>
+                        </div>
+
+                        <table className="items-table">
+                          <thead>
+                            <tr>
+                              <th style={{ width: "40%" }}>품명 / 규격</th>
+                              <th style={{ width: "10%" }}>정보</th>
+                              <th style={{ width: "10%" }}>단위</th>
+                              <th style={{ width: "10%" }}>수량</th>
+                              <th style={{ width: "15%" }}>단가</th>
+                              <th style={{ width: "15%" }}>공급가액</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Links (Presets) */}
+                            {selectedLinks.map((link) => {
+                              const preset = presetMap.get(link.preset_id);
+                              const presetTotals = preset ? sumPresetItems(preset.process_preset_items ?? []) : null;
+                              const unitCost = Math.floor(presetTotals ? presetTotals.material + presetTotals.labor + presetTotals.expense : 0);
+                              const amount = Math.floor(unitCost * link.quantity);
+                              return (
+                                <tr key={`link-${link.id}`}>
+                                  <td>
+                                    <div className="text-bold">{preset?.name}</div>
+                                  </td>
+                                  <td className="text-center" style={{ fontSize: "10px", color: "#666" }}>프리셋</td>
+                                  <td className="text-center">식</td>
+                                  <td className="text-center">{link.quantity.toLocaleString()}</td>
+                                  <td className="text-right">{unitCost.toLocaleString()}</td>
+                                  <td className="text-right">{amount.toLocaleString()}</td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* Estimate Items */}
+                            {selectedEstimateItems.map((item) => {
+                              const unitCost = Math.floor(item.unit_cost);
+                              const amount = Math.floor(item.quantity * unitCost);
+                              return (
+                                <tr key={`item-${item.id}`}>
+                                  <td>
+                                    <div className="text-bold">{item.label}</div>
+                                  </td>
+                                  <td className="text-center" style={{ fontSize: "10px", color: "#666" }}>
+                                    {item.cost_category === "material" ? "자재" : item.cost_category === "labor" ? "노무" : "경비"}
+                                  </td>
+                                  <td className="text-center">-</td>
+                                  <td className="text-center">{item.quantity.toLocaleString()}</td>
+                                  <td className="text-right">{unitCost.toLocaleString()}</td>
+                                  <td className="text-right">{amount.toLocaleString()}</td>
+                                </tr>
+                              );
+                            })}
+
+                            {/* Filler Rows to Maintain Minimum Height */}
+                            {Array.from({ length: Math.max(0, 14 - selectedLinks.length - selectedEstimateItems.length) }).map((_, i) => (
+                              <tr key={`empty-${i}`}>
+                                <td style={{ height: "28px" }}>&nbsp;</td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                                <td></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+
+                        <div style={{ marginTop: "60px", textAlign: "center" }}>
+                          <div style={{ fontSize: "14px", fontWeight: "bold" }}>위와 같이 견적을 제출합니다.</div>
+                        </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "40px" }}>
+                          <table className="footer-table" style={{ width: "45%", borderTop: "2px solid #000" }}>
+                            <tbody>
+                              <tr>
+                                <td className="footer-label">공급가액 소계</td>
+                                <td className="text-right">{Math.floor(breakdown?.subtotal ?? 0).toLocaleString()}</td>
+                              </tr>
+                              <tr>
+                                <td className="footer-label">
+                                  일반관리비
+                                  {selectedEstimate.general_admin_type === 'percent' && (
+                                    <span style={{ fontWeight: 'normal', fontSize: '10px' }}> ({selectedEstimate.general_admin_value}%)</span>
+                                  )}
+                                </td>
+                                <td className="text-right">{Math.floor(breakdown?.generalAdmin ?? 0).toLocaleString()}</td>
+                              </tr>
+                              <tr>
+                                <td className="footer-label">
+                                  영업이윤
+                                  {selectedEstimate.sales_profit_type === 'percent' && (
+                                    <span style={{ fontWeight: 'normal', fontSize: '10px' }}> ({selectedEstimate.sales_profit_value}%)</span>
+                                  )}
+                                </td>
+                                <td className="text-right">{Math.floor(breakdown?.salesProfit ?? 0).toLocaleString()}</td>
+                              </tr>
+                              <tr>
+                                <td className="footer-label">부가가치세</td>
+                                <td className="text-right">{Math.floor(breakdown?.vat ?? 0).toLocaleString()}</td>
+                              </tr>
+                              <tr style={{ backgroundColor: "#f0f0f0", borderTop: "1px solid #000" }}>
+                                <td className="footer-label" style={{ backgroundColor: "#e0e0e0" }}>총 합 계</td>
+                                <td className="text-right text-bold" style={{ fontSize: "14px" }}>{Math.floor(breakdown?.total ?? 0).toLocaleString()}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </Stack>
               ) : (
                 <Text size="sm" c="dimmed">
                   왼쪽에서 견적을 선택하세요.
                 </Text>
-              )}
-            </Paper>
-          </Box>
-        </Group>
-      </Paper>
+              )
+              }
+            </Paper >
+          </Box >
+        </Group >
+      </Paper >
 
       <Modal opened={estimateModalOpened} onClose={estimateModal.close} title="신규 견적" size="lg">
         <Stack>
@@ -1035,6 +1336,7 @@ export default function EstimatePage() {
             data={[
               { value: "preset", label: "프리셋" },
               { value: "material", label: "자재" },
+              { value: "manual", label: "직접입력" },
             ]}
             value={addMode}
             onChange={(value) => {
@@ -1180,6 +1482,62 @@ export default function EstimatePage() {
               </Group>
             </>
           )}
+
+          {addMode === "manual" && (
+            <>
+              <TextInput
+                label="항목명"
+                placeholder="항목 이름 입력"
+                value={estimateItemForm.label}
+                onChange={(event) =>
+                  setEstimateItemForm((prev) => ({ ...prev, label: event.currentTarget.value }))
+                }
+                required
+              />
+              <Group grow align="flex-end">
+                <Stack gap={4}>
+                  <Text size="sm" fw={500}>
+                    비용 구분
+                  </Text>
+                  <SegmentedControl
+                    data={[
+                      { value: "material", label: "재료" },
+                      { value: "labor", label: "노무" },
+                      { value: "expense", label: "경비" },
+                    ]}
+                    value={estimateItemForm.cost_category}
+                    onChange={(value) => {
+                      const nextValue = (value as EstimateItem["cost_category"]) ?? "material";
+                      setEstimateItemForm((prev) => ({ ...prev, cost_category: nextValue }));
+                    }}
+                  />
+                </Stack>
+                <NumberInput
+                  label="수량"
+                  value={estimateItemForm.quantity}
+                  min={0}
+                  onChange={(value) =>
+                    setEstimateItemForm((prev) => ({
+                      ...prev,
+                      quantity: typeof value === "number" ? value : 1,
+                    }))
+                  }
+                />
+                <NumberInput
+                  label="단가"
+                  value={estimateItemForm.unit_cost}
+                  min={0}
+                  thousandSeparator=","
+                  onChange={(value) =>
+                    setEstimateItemForm((prev) => ({
+                      ...prev,
+                      unit_cost: typeof value === "number" ? value : 0,
+                    }))
+                  }
+                />
+              </Group>
+            </>
+          )}
           <Group justify="flex-end">
             <Button variant="light" onClick={linkModal.close}>
               취소
@@ -1194,6 +1552,6 @@ export default function EstimatePage() {
           </Group>
         </Stack>
       </Modal>
-    </Stack>
+    </Stack >
   );
 }

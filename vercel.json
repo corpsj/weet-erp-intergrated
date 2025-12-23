@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/utility-bills/process",
+      "schedule": "*/10 * * * *"
+    }
+  ]
+}

@@ -3,6 +3,7 @@
 import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import {
+  IconBolt,
   IconBuildingStore,
   IconCalculator,
   IconCalendar,
@@ -36,6 +37,7 @@ const groupedNavItems = [
     group: "ERP 솔루션",
     items: [
       { label: "경비 청구", icon: IconReceipt, link: "/expenses" },
+      { label: "공과금 고지서", icon: IconBolt, link: "/utility-bills" },
       { label: "세금계산서", icon: IconReceipt2, link: "/tax-invoices" },
       { label: "입출금 내역", icon: IconTransferIn, link: "/transactions" },
     ],
