@@ -71,7 +71,11 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
   return fetch(input, { ...init, headers: { ...(init?.headers ?? {}), authorization: `Bearer ${token}` } });
 };
 
-const toDate = (value: string | null) => (value ? new Date(`${value}T00:00:00`) : null);
+const toDate = (value: string | null) => {
+  if (!value) return null;
+  const d = value.includes("T") ? new Date(value) : new Date(`${value}T00:00:00`);
+  return isNaN(d.getTime()) ? null : d;
+};
 
 const formatDate = (value: Date | null) => {
   if (!value) return null;
@@ -151,7 +155,7 @@ export default function UtilityBillDetailPage() {
     if (!item) return;
     setVendorName(item.vendor_name ?? "");
     setBillType(item.bill_type ?? "ETC");
-    setAmountDue(item.amount_due ?? "");
+    setAmountDue(item.amount_due?.toString() ?? "");
     setDueDate(toDate(item.due_date));
     setBillingStart(toDate(item.billing_period_start));
     setBillingEnd(toDate(item.billing_period_end));
@@ -312,7 +316,7 @@ export default function UtilityBillDetailPage() {
             <Stack gap="sm">
               <Group justify="space-between">
                 <Text fw={600}>필드 검수</Text>
-                {item?.confidence !== null && (
+                {item && item.confidence !== null && (
                   <Group gap="xs">
                     <Text size="xs" c="dimmed">
                       신뢰도
@@ -324,7 +328,7 @@ export default function UtilityBillDetailPage() {
                 )}
               </Group>
 
-              {item?.confidence !== null && (
+              {item && item.confidence !== null && (
                 <Progress value={Math.min(100, Math.max(0, item.confidence * 100))} color={statusColor(item.status)} />
               )}
 
