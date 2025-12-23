@@ -1,47 +1,77 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/app/api/settings/_auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { buildUtilityBillPaths } from "@/lib/utilityBillPipeline";
 
-export const runtime = "nodejs";
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const auth = await requireUserId(request);
+    if (!auth.ok) return auth.response;
 
-const signUrl = async (path: string | null) => {
-  if (!path) return null;
-  const { data, error } = await supabaseAdmin.storage.from("utility-bills").createSignedUrl(path, 60 * 5);
-  if (error) return null;
-  return data?.signedUrl ?? null;
-};
+    const body: any = await request.json().catch(() => null);
+    const { id } = await params;
 
-export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
-  const auth = await requireUserId(request);
-  if (!auth.ok) return auth.response;
+    // Sanitize image_url: extract path from full URL if needed
+    let imageUrl = body?.image_url;
+    if (imageUrl && imageUrl.includes('/public/receipts/')) {
+        imageUrl = imageUrl.split('/public/receipts/').pop();
+    }
 
-  const { id } = await context.params;
-  if (!id) return NextResponse.json({ message: "id is required" }, { status: 400 });
+    const { data, error } = await supabaseAdmin
+        .from("utility_bills")
+        .update({
+            category: body?.category,
+            billing_month: body?.billing_month,
+            amount: Number(body?.amount || 0),
+            image_url: imageUrl,
+            note: body?.note,
+            status: body?.status || "manual",
+            is_paid: body?.is_paid !== undefined ? !!body.is_paid : undefined,
+            updated_at: new Date().toISOString()
+        })
+        .eq("id", id)
+        .eq("company_id", auth.userId)
+        .select("*")
+        .single();
 
-  const { data, error } = await supabaseAdmin
-    .from("utility_bills")
-    .select("*")
-    .eq("id", id)
-    .eq("company_id", auth.userId)
-    .single();
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
 
-  if (error || !data) return NextResponse.json({ message: error?.message ?? "Not found" }, { status: 404 });
+    // Generate a signed URL for the response
+    let finalImageUrl = data.image_url;
+    if (data.image_url && !data.image_url.startsWith('http')) {
+        const { data: signedData } = await supabaseAdmin.storage
+            .from("receipts")
+            .createSignedUrl(data.image_url, 3600);
+        finalImageUrl = signedData?.signedUrl || null;
+    }
 
-  const processedPaths = buildUtilityBillPaths(data.company_id, data.id);
+    return NextResponse.json({ item: { ...data, image_url: finalImageUrl } });
+}
 
-  const originalUrl = await signUrl(data.file_url);
-  const processedUrl = await signUrl(data.processed_file_url ?? processedPaths.scan);
-  const trackAUrl = await signUrl(processedPaths.trackA);
-  const trackBUrl = await signUrl(processedPaths.trackB);
+export async function DELETE(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    const auth = await requireUserId(request);
+    if (!auth.ok) return auth.response;
 
-  return NextResponse.json({
-    item: {
-      ...data,
-      original_url: originalUrl,
-      processed_url: processedUrl,
-      trackA_url: trackAUrl,
-      trackB_url: trackBUrl,
-    },
-  });
+    const { id } = await params;
+
+    // UUID format check to prevent "invalid input syntax for type uuid" error
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+        return NextResponse.json({ message: "유효하지 않은 ID 형식입니다." }, { status: 400 });
+    }
+
+    const { error, count } = await supabaseAdmin
+        .from("utility_bills")
+        .delete({ count: "exact" })
+        .eq("id", id)
+        .eq("company_id", auth.userId);
+
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
+    if (count === 0) return NextResponse.json({ message: "삭제할 데이터를 찾지 못했거나 권한이 없습니다." }, { status: 404 });
+
+    return NextResponse.json({ success: true });
 }

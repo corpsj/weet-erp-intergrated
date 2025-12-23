@@ -1,263 +1,641 @@
 "use client";
 
 import {
-  Badge,
-  Box,
-  Button,
-  Container,
-  Group,
-  Paper,
-  Stack,
-  Text,
-  TextInput,
-  Title,
+    ActionIcon,
+    Badge,
+    Box,
+    Button,
+    Container,
+    FileButton,
+    Group,
+    Modal,
+    Paper,
+    Stack,
+    Table,
+    Text,
+    TextInput,
+    Textarea,
+    Title,
+    Loader,
+    Image,
+    SimpleGrid,
+    Divider,
+    SegmentedControl,
+    Grid,
+    ScrollArea,
+    Center,
+    Card,
 } from "@mantine/core";
-import { MonthPickerInput } from "@mantine/dates";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconBolt, IconPlus, IconRefresh } from "@tabler/icons-react";
+import {
+    IconBolt,
+    IconPlus,
+    IconRefresh,
+    IconTrash,
+    IconUpload,
+    IconEdit,
+    IconSearch,
+    IconPhoto,
+} from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-
-type UtilityBill = {
-  id: string;
-  vendor_name: string | null;
-  bill_type: string | null;
-  amount_due: number | null;
-  due_date: string | null;
-  status: "PROCESSING" | "NEEDS_REVIEW" | "CONFIRMED" | "REJECTED";
-  processing_stage: string | null;
-  created_at: string;
-};
-
-type ApiListResponse<T> = {
-  items?: T[];
-  message?: string;
-};
+import { UtilityBill } from "@/lib/types";
 
 const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new Error("로그인이 필요합니다.");
-  return fetch(input, { ...init, headers: { ...(init?.headers ?? {}), authorization: `Bearer ${token}` } });
-};
-
-const statusColor = (status: UtilityBill["status"]) => {
-  switch (status) {
-    case "CONFIRMED":
-      return "green";
-    case "NEEDS_REVIEW":
-      return "orange";
-    case "REJECTED":
-      return "red";
-    default:
-      return "blue";
-  }
-};
-
-const statusLabel = (status: UtilityBill["status"]) => {
-  switch (status) {
-    case "CONFIRMED":
-      return "확정";
-    case "NEEDS_REVIEW":
-      return "검수 필요";
-    case "REJECTED":
-      return "폐기";
-    default:
-      return "처리중";
-  }
-};
-
-const billTypeLabel = (value: string | null) => {
-  switch (value) {
-    case "ELECTRICITY":
-      return "전기";
-    case "WATER":
-      return "수도";
-    case "GAS":
-      return "가스";
-    case "TELECOM":
-      return "통신";
-    case "TAX":
-      return "세금";
-    default:
-      return "기타";
-  }
-};
-
-const stageLabel = (stage: string | null) => {
-  switch (stage) {
-    case "DOWNLOAD":
-      return "이미지 로딩";
-    case "PREPROCESS_CV":
-      return "분석 준비";
-    case "PREPROCESS_UPLOAD":
-      return "보정 이미지 저장";
-    case "TEMPLATE_OCR":
-      return "양식 분석";
-    case "GENERAL_OCR":
-      return "글자 인식";
-    case "GEMINI":
-      return "AI 분석";
-    case "VALIDATE":
-      return "데이터 검증";
-    case "DONE":
-      return "분석 완료";
-    default:
-      return "준비 중";
-  }
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) throw new Error("로그인이 필요합니다.");
+    return fetch(input, {
+        ...init,
+        headers: {
+            ...(init?.headers ?? {}),
+            authorization: `Bearer ${token}`,
+        },
+    });
 };
 
 export default function UtilityBillsPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<UtilityBill[]>([]);
-  const [statusFilter, setStatusFilter] = useState<UtilityBill["status"] | "all">("all");
-  const [monthFilter, setMonthFilter] = useState<Date | null>(null);
-  const [siteFilter, setSiteFilter] = useState("");
+    const [loading, setLoading] = useState(true);
+    const [items, setItems] = useState<UtilityBill[]>([]);
+    const [search, setSearch] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("전체");
+    const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const query = new URLSearchParams();
-      if (statusFilter !== "all") query.set("status", statusFilter);
-      if (monthFilter) query.set("month", dayjs(monthFilter).format("YYYY-MM"));
-      if (siteFilter.trim()) query.set("site_id", siteFilter.trim());
+    const [isEditing, setIsEditing] = useState(false);
+    const [editing, setEditing] = useState<Partial<UtilityBill> | null>(null);
+    const [saving, setSaving] = useState(false);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [modalFile, setModalFile] = useState<File | null>(null);
+    const [uploadKey, setUploadKey] = useState(0);
+    const [sessionBlobUrls, setSessionBlobUrls] = useState<Record<string, string>>({});
+    const [lightboxOpened, { open: openLightbox, close: closeLightbox }] = useDisclosure(false);
 
-      const response = await fetchWithAuth(`/api/utility-bills?${query.toString()}`);
-      const payload = (await response.json().catch(() => null)) as ApiListResponse<UtilityBill> | null;
-      if (!response.ok) throw new Error(payload?.message ?? "불러오기 실패");
-      setItems((payload?.items ?? []) as UtilityBill[]);
-    } catch (error) {
-      notifications.show({
-        title: "불러오기 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [monthFilter, siteFilter, statusFilter]);
+    const load = useCallback(async () => {
+        setLoading(true);
+        try {
+            const response = await fetchWithAuth("/api/utility-bills");
+            const payload = await response.json();
+            if (!response.ok) throw new Error(payload.message || "불러오기 실패");
+            const fetchedItems = payload.items || [];
+            setItems(fetchedItems);
+        } catch (error: any) {
+            notifications.show({
+                title: "오류",
+                message: error.message,
+                color: "red",
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+    useEffect(() => {
+        load();
+    }, [load]);
 
-  const rows = useMemo(() => {
-    return items.map((item) => (
-      <Paper
-        key={item.id}
-        p="sm"
-        radius="md"
-        withBorder
-        style={{
-          transition: "transform 0.1s, box-shadow 0.1s",
-          cursor: "pointer",
-          marginBottom: "var(--mantine-spacing-xs)",
-        }}
-        onClick={() => router.push(`/utility-bills/${item.id}`)}
-      >
-        <Group justify="space-between" wrap="nowrap">
-          <Group gap="md" style={{ flex: 1 }}>
-            <Box style={{ width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 8, backgroundColor: "rgba(0,0,0,0.03)" }}>
-              <IconBolt size={20} color="var(--mantine-color-gray-6)" />
-            </Box>
-            <Stack gap={0}>
-              <Text fw={600} size="sm">
-                {item.vendor_name || "공과금 고지서"}
-              </Text>
-              <Text size="xs" c="dimmed">
-                {billTypeLabel(item.bill_type)} · {item.due_date ? dayjs(item.due_date).format("YY.MM.DD") : "기한 미확인"}
-              </Text>
+    const onUpload = async (file: File | null) => {
+        if (!file) return;
+
+        const tempId = "temp-" + Math.random().toString(36).slice(2);
+        const localUrl = URL.createObjectURL(file);
+
+        const newItem: UtilityBill = {
+            id: tempId,
+            company_id: "",
+            category: "분석 중...",
+            billing_month: dayjs().format("YYYY-MM"),
+            amount: 0,
+            image_url: localUrl,
+            note: "",
+            status: "processing",
+            is_paid: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+        };
+
+        setSessionBlobUrls(prev => ({ ...prev, [tempId]: localUrl }));
+        setItems(prev => [newItem, ...prev]);
+        setSelectedId(tempId);
+        setIsEditing(false);
+        setEditing(null);
+
+        try {
+            const ext = file.name.split(".").pop();
+            const path = `utility-bills/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from("receipts")
+                .upload(path, file);
+
+            let imageUrl = null;
+            if (uploadError) {
+                console.error("Storage upload error:", uploadError);
+                notifications.show({ title: "이미지 업로드 실패", message: uploadError.message, color: "orange" });
+            } else if (uploadData) {
+                const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+                imageUrl = urlData.publicUrl;
+                console.log("Uploaded Image URL:", imageUrl);
+            }
+
+            const formData = new FormData();
+            formData.append("file", file);
+            const aiRes = await fetchWithAuth("/api/utility-bills/process", {
+                method: "POST",
+                body: formData,
+            });
+            const aiPayload = await aiRes.json();
+            if (!aiRes.ok) throw new Error(aiPayload.message || "AI 분석 실패");
+
+            const result = aiPayload.result;
+
+            const saveRes = await fetchWithAuth("/api/utility-bills", {
+                method: "POST",
+                body: JSON.stringify({
+                    category: result.category || "기타",
+                    billing_month: result.billing_month || dayjs().format("YYYY-MM"),
+                    amount: result.amount || 0,
+                    image_url: path, // Save the PATH, not the full URL
+                    note: "",
+                    status: "processed",
+                }),
+            });
+
+            const savedPayload = await saveRes.json();
+            if (!saveRes.ok) throw new Error("데이터 저장 실패");
+
+            // Ensure we save the PERMANENT image URL to the database, never the blob URL
+            const permanentImageUrl = imageUrl || savedPayload.item.image_url;
+            console.log("[onUpload] Permanent URL:", permanentImageUrl);
+            const savedItem = { ...savedPayload.item, image_url: permanentImageUrl || localUrl };
+
+            if (!savedItem || !savedItem.id) throw new Error("분석 결과 저장에 실패했습니다.");
+
+            notifications.show({ title: "완료", message: "분석 및 업로드가 완료되었습니다.", color: "green" });
+
+            setItems(prev => prev.map(x => x.id === tempId ? savedItem : x));
+            setSessionBlobUrls(prev => ({ ...prev, [savedItem.id]: localUrl }));
+            setSelectedId(savedItem.id);
+            setUploadKey(prev => prev + 1);
+        } catch (error: any) {
+            console.error("고지서 분석 및 저장 오류:", error);
+            notifications.show({ title: "실패", message: error.message, color: "red" });
+            setItems(prev => prev.filter(x => x.id !== tempId));
+            setSelectedId(null);
+        }
+    };
+
+    const save = async () => {
+        if (!editing?.category || !editing?.billing_month) {
+            notifications.show({ message: "항목과 청구년월은 필수입니다.", color: "yellow" });
+            return;
+        }
+
+        setSaving(true);
+        try {
+            let imageUrl = editing.image_url;
+
+            // 1. If there's a new file selected in the modal, upload it first
+            if (modalFile) {
+                const ext = modalFile.name.split(".").pop();
+                const path = `utility-bills/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from("receipts")
+                    .upload(path, modalFile);
+
+                if (uploadError) throw new Error("이미지 업로드 실패: " + uploadError.message);
+
+                const { data: urlData } = supabase.storage.from("receipts").getPublicUrl(path);
+                imageUrl = urlData.publicUrl;
+                // We only need the path for the database, not the full public URL here.
+                imageUrl = path;
+            }
+
+            const method = editing.id ? "PATCH" : "POST";
+            const url = editing.id ? `/api/utility-bills/${editing.id}` : "/api/utility-bills";
+
+            // Sanitize image_url: if it's a blob URL, we must replace it with the relative path or null
+            // If imageUrl was just uploaded, it's the path.
+            let finalImageUrl = imageUrl || editing.image_url;
+            if (finalImageUrl?.startsWith('http') && finalImageUrl.includes('/public/receipts/')) {
+                finalImageUrl = finalImageUrl.split('/public/receipts/').pop() || null;
+            } else if (finalImageUrl?.startsWith('blob:')) {
+                finalImageUrl = null; // Should have been handled by imageUrl upload
+            }
+
+            const sanitizedEditing = {
+                ...editing,
+                image_url: finalImageUrl,
+                status: "manual" // Always set to manual if edited
+            };
+
+            const response = await fetchWithAuth(url, {
+                method,
+                body: JSON.stringify(sanitizedEditing),
+            });
+            if (!response.ok) throw new Error("저장 실패");
+
+            notifications.show({ title: "성공", message: "저장되었습니다.", color: "green" });
+            setIsEditing(false);
+            setModalFile(null);
+            load();
+        } catch (error: any) {
+            notifications.show({ title: "오류", message: error.message, color: "red" });
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const togglePaid = async (item: UtilityBill) => {
+        const newPaid = !item.is_paid;
+        try {
+            const res = await fetchWithAuth(`/api/utility-bills/${item.id}`, {
+                method: "PATCH",
+                body: JSON.stringify({ is_paid: newPaid }),
+            });
+            if (!res.ok) throw new Error("상태 변경 실패");
+
+            setItems(prev => prev.map(x => x.id === item.id ? { ...x, is_paid: newPaid } : x));
+            notifications.show({
+                message: newPaid ? "납부 완료로 표시되었습니다." : "납부 전으로 표시되었습니다.",
+                color: "blue",
+                autoClose: 2000
+            });
+        } catch (error: any) {
+            notifications.show({ title: "오류", message: error.message, color: "red" });
+        }
+    };
+
+    const remove = async (id: string) => {
+        if (!id || id === 'undefined' || id.startsWith('temp-') || typeof id !== 'string') {
+            notifications.show({ title: "삭제 불가", message: "아직 저장되지 않았거나 유효하지 않은 항목입니다.", color: "yellow" });
+            return;
+        }
+
+        try {
+            const res = await fetchWithAuth(`/api/utility-bills/${id}`, { method: "DELETE" });
+            if (!res.ok) {
+                const payload = await res.json().catch(() => ({}));
+                throw new Error(payload.message || "삭제 실패");
+            }
+
+            notifications.show({ message: "삭제되었습니다.", color: "green" });
+            setDeletingId(null);
+            if (selectedId === id) setSelectedId(null);
+            load();
+        } catch (error: any) {
+            notifications.show({ title: "삭제 오류", message: error.message, color: "red" });
+        }
+    };
+
+    const filtered = useMemo(() => {
+        return items.filter((item) => {
+            const matchesSearch =
+                (item.category || "").includes(search) ||
+                (item.billing_month || "").includes(search) ||
+                (item.note || "").includes(search);
+
+            if (categoryFilter === "전체") return matchesSearch;
+            if (categoryFilter === "보험") return matchesSearch && (item.category || "").includes("보험");
+            return matchesSearch && (item.category || "") === categoryFilter;
+        });
+    }, [items, search, categoryFilter]);
+
+    const selectedItem = useMemo(() => items.find(x => x.id === selectedId), [items, selectedId]);
+
+    return (
+        <Container size="100%" py="xl" px="xl">
+            <Stack gap="lg">
+                <Group justify="space-between" align="flex-end">
+                    <Box>
+                        <Title order={2}>공과금 관리</Title>
+                        <Text c="dimmed" size="sm">
+                            고지서를 업로드하면 AI가 자동으로 항목과 금액을 분석합니다.
+                        </Text>
+                    </Box>
+                    <Group>
+                        <Button
+                            variant="light"
+                            color="gray"
+                            leftSection={<IconRefresh size={18} />}
+                            onClick={load}
+                            loading={loading}
+                        >
+                            새로고침
+                        </Button>
+                        <FileButton key={uploadKey} onChange={onUpload} accept="image/*">
+                            {(props) => (
+                                <Button {...props} leftSection={<IconUpload size={18} />} color="blue">
+                                    고지서 업로드
+                                </Button>
+                            )}
+                        </FileButton>
+                        <Button
+                            leftSection={<IconPlus size={18} />}
+                            variant="filled"
+                            color="gray"
+                            onClick={() => {
+                                setEditing({
+                                    category: "전기세",
+                                    billing_month: dayjs().format("YYYY-MM"),
+                                    amount: 0,
+                                    status: "manual",
+                                    image_url: null,
+                                });
+                                setModalFile(null);
+                                setSelectedId(null);
+                                setIsEditing(true);
+                            }}
+                        >
+                            직접 입력
+                        </Button>
+                    </Group>
+                </Group>
+
+                <Grid gutter="md" align="stretch">
+                    <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Paper withBorder p="md" radius="md" h="100%">
+                            <Group justify="space-between" mb="md">
+                                <SegmentedControl
+                                    value={categoryFilter}
+                                    onChange={setCategoryFilter}
+                                    data={["전체", "전기세", "보험", "세금"]}
+                                    size="sm"
+                                />
+                                <TextInput
+                                    placeholder="검색..."
+                                    leftSection={<IconSearch size={16} />}
+                                    value={search}
+                                    onChange={(e) => setSearch(e.currentTarget.value)}
+                                    style={{ flex: 1, maxWidth: 150 }}
+                                />
+                            </Group>
+
+                            <ScrollArea h={700} offsetScrollbars>
+                                <Table highlightOnHover verticalSpacing="sm" style={{ cursor: 'pointer' }}>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>분류</Table.Th>
+                                            <Table.Th>청구월</Table.Th>
+                                            <Table.Th>금액</Table.Th>
+                                            <Table.Th style={{ width: 80 }}>상태</Table.Th>
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {filtered.map((item) => (
+                                            <Table.Tr
+                                                key={item.id}
+                                                onClick={() => {
+                                                    setSelectedId(item.id);
+                                                    setIsEditing(false);
+                                                    setEditing(item);
+                                                }}
+                                                bg={item.status === 'processing' ? 'var(--mantine-color-blue-0)' : (selectedId === item.id ? 'var(--mantine-color-blue-light)' : undefined)}
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    opacity: item.status === 'processing' ? 0.8 : 1,
+                                                }}
+                                            >
+                                                <Table.Td>
+                                                    <Group gap={4}>
+                                                        <Text size="sm" fw={700}>
+                                                            {item.category || "미지정"}
+                                                        </Text>
+                                                        {item.status === 'processing' && <Loader size={10} />}
+                                                    </Group>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <Text size="sm" fw={700}>{item.billing_month || "-"}</Text>
+                                                </Table.Td>
+                                                <Table.Td>
+                                                    <Text size="sm" fw={700}>
+                                                        {item.status === 'processing' ? "-" : `${(item.amount || 0).toLocaleString()}원`}
+                                                    </Text>
+                                                </Table.Td>
+                                                <Table.Td onClick={(e) => e.stopPropagation()}>
+                                                    {item.status === 'processing' ? (
+                                                        <Badge variant="dot" size="xs">분석</Badge>
+                                                    ) : (
+                                                        <Badge
+                                                            variant={item.is_paid ? "filled" : "light"}
+                                                            color={item.is_paid ? "green" : "gray"}
+                                                            size="sm"
+                                                            style={{ cursor: "pointer" }}
+                                                            onClick={() => togglePaid(item)}
+                                                        >
+                                                            {item.is_paid ? "납부" : "납부 전"}
+                                                        </Badge>
+                                                    )}
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ))}
+                                        {filtered.length === 0 && (
+                                            <Table.Tr>
+                                                <Table.Td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                                    <Text c="dimmed" size="xs">데이터가 없습니다.</Text>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        )}
+                                    </Table.Tbody>
+                                </Table>
+                            </ScrollArea>
+                        </Paper>
+                    </Grid.Col>
+
+                    <Grid.Col span={{ base: 12, md: 6 }}>
+                        <Paper withBorder p="md" radius="md" h="100%" bg="gray.0">
+                            <Stack h="100%">
+                                <Group justify="space-between" align="center" mb="xs">
+                                    <Title order={4}>고지서 정보</Title>
+                                    <Group gap="xs">
+                                        {selectedItem && !isEditing && selectedItem.status !== 'processing' && (
+                                            <>
+                                                <Button
+                                                    size="compact-xs"
+                                                    variant="light"
+                                                    leftSection={<IconEdit size={14} />}
+                                                    onClick={() => { setEditing(selectedItem); setIsEditing(true); }}
+                                                >
+                                                    수정
+                                                </Button>
+                                                {deletingId === selectedItem.id ? (
+                                                    <Group gap={4}>
+                                                        <Button size="compact-xs" color="red" variant="filled" onClick={() => remove(selectedItem.id)}>삭제 확인</Button>
+                                                        <Button size="compact-xs" color="gray" variant="subtle" onClick={() => setDeletingId(null)}>취소</Button>
+                                                    </Group>
+                                                ) : (
+                                                    <ActionIcon variant="light" color="red" size="sm" onClick={() => setDeletingId(selectedItem.id)}>
+                                                        <IconTrash size={14} />
+                                                    </ActionIcon>
+                                                )}
+                                            </>
+                                        )}
+                                    </Group>
+                                </Group>
+                                <Divider mb="md" />
+
+                                {selectedId ? (
+                                    <Stack h="100%" gap="md" style={{ flex: 1 }}>
+                                        <Box mb="md">
+                                            <Paper withBorder p="xs" radius="md" bg="white">
+                                                {(modalFile || sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url)) ? (
+                                                    <Image
+                                                        src={modalFile ? URL.createObjectURL(modalFile) : (sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url))}
+                                                        alt="Bill Preview"
+                                                        radius="md"
+                                                        fit="contain"
+                                                        mah={500}
+                                                        style={{ cursor: "pointer" }}
+                                                        onClick={openLightbox}
+                                                        fallbackSrc="https://placehold.co/600x800?text=이미지를 불러올 수 없습니다"
+                                                        onError={() => {
+                                                            const currentSrc = modalFile ? "blob-modal" : (sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url));
+                                                            console.error("Image load failed for URL:", currentSrc);
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <Center h={200}>
+                                                        <Stack align="center" gap="xs">
+                                                            <IconPhoto size={32} color="gray" />
+                                                            <Text size="xs" c="dimmed">이미지가 없습니다.</Text>
+                                                        </Stack>
+                                                    </Center>
+                                                )}
+                                                {isEditing && (
+                                                    <Box mt="xs" style={{ textAlign: "center" }}>
+                                                        <FileButton onChange={setModalFile} accept="image/*">
+                                                            {(props) => (
+                                                                <Button {...props} variant="light" size="compact-xs" leftSection={<IconUpload size={14} />}>
+                                                                    이미지 변경
+                                                                </Button>
+                                                            )}
+                                                        </FileButton>
+                                                    </Box>
+                                                )}
+                                            </Paper>
+                                        </Box>
+
+                                        <ScrollArea style={{ flex: 1 }}>
+                                            {isEditing ? (
+                                                <Stack gap="sm">
+                                                    <TextInput
+                                                        label="분류"
+                                                        value={editing?.category || ""}
+                                                        onChange={(e) => setEditing({ ...editing, category: e.currentTarget.value } as any)}
+                                                        required
+                                                    />
+                                                    <TextInput
+                                                        label="청구년월"
+                                                        placeholder="YYYY-MM"
+                                                        value={editing?.billing_month || ""}
+                                                        onChange={(e) => setEditing({ ...editing, billing_month: e.currentTarget.value } as any)}
+                                                        required
+                                                    />
+                                                    <TextInput
+                                                        label="납부금액(원)"
+                                                        type="number"
+                                                        value={editing?.amount || 0}
+                                                        onChange={(e) => setEditing({ ...editing, amount: Number(e.currentTarget.value) } as any)}
+                                                        required
+                                                    />
+                                                    <Textarea
+                                                        label="메모"
+                                                        value={editing?.note || ""}
+                                                        onChange={(e) => setEditing({ ...editing, note: e.currentTarget.value } as any)}
+                                                        minRows={3}
+                                                    />
+                                                    <Group grow mt="md">
+                                                        <Button variant="outline" color="gray" onClick={() => { setIsEditing(false); setModalFile(null); }}>취소</Button>
+                                                        <Button color="blue" onClick={save} loading={saving}>저장</Button>
+                                                    </Group>
+                                                </Stack>
+                                            ) : (
+                                                <Stack gap="md">
+                                                    <Stack gap={4}>
+                                                        <Text size="xs" fw={700} c="dimmed">납부 상태</Text>
+                                                        <Group gap="xs">
+                                                            <Badge
+                                                                variant={selectedItem?.is_paid ? "filled" : "light"}
+                                                                color={selectedItem?.is_paid ? "green" : "gray"}
+                                                                style={{ cursor: "pointer" }}
+                                                                onClick={() => togglePaid(selectedItem!)}
+                                                            >
+                                                                {selectedItem?.is_paid ? "납부 완료" : "납부 전 (클릭하여 전환)"}
+                                                            </Badge>
+                                                            {selectedItem?.status === 'processing' ? (
+                                                                <Badge variant="dot" color="blue">AI 분석 중</Badge>
+                                                            ) : (
+                                                                <Badge variant="light" color={selectedItem?.status === "processed" ? "blue" : "gray"}>
+                                                                    {selectedItem?.status === "processed" ? "AI 자동 분석" : "수동 입력"}
+                                                                </Badge>
+                                                            )}
+                                                        </Group>
+                                                    </Stack>
+
+                                                    <SimpleGrid cols={2}>
+                                                        <Stack gap={4}>
+                                                            <Text size="xs" fw={700} c="dimmed">분류</Text>
+                                                            <Text fw={500}>{selectedItem?.category}</Text>
+                                                        </Stack>
+                                                        <Stack gap={4}>
+                                                            <Text size="xs" fw={700} c="dimmed">청구년월</Text>
+                                                            <Text fw={500}>{selectedItem?.billing_month}</Text>
+                                                        </Stack>
+                                                    </SimpleGrid>
+
+                                                    <Stack gap={4}>
+                                                        <Text size="xs" fw={700} c="dimmed">납부금액</Text>
+                                                        <Text size="xl" fw={800} color="blue">
+                                                            {selectedItem?.status === 'processing' ? "-" : `${(selectedItem?.amount || 0).toLocaleString()}원`}
+                                                        </Text>
+                                                    </Stack>
+
+                                                    <Stack gap={4}>
+                                                        <Text size="xs" fw={700} c="dimmed">메모</Text>
+                                                        <Paper p="xs" withBorder radius="sm" bg="white">
+                                                            <Text size="sm">{selectedItem?.note || "관련 메모가 없습니다."}</Text>
+                                                        </Paper>
+                                                    </Stack>
+                                                </Stack>
+                                            )}
+                                        </ScrollArea>
+                                    </Stack>
+                                ) : (
+                                    <Center style={{ flex: 1 }}>
+                                        <Stack align="center" gap="xs">
+                                            <IconSearch size={48} color="var(--mantine-color-gray-3)" stroke={1.5} />
+                                            <Text c="dimmed" size="sm" ta="center">
+                                                목록에서 고지서를 선택하면<br />상세 정보와 미리보기가 나타납니다.
+                                            </Text>
+                                        </Stack>
+                                    </Center>
+                                )}
+                            </Stack>
+                        </Paper>
+                    </Grid.Col>
+                </Grid>
             </Stack>
-          </Group>
 
-          <Group gap="xl" wrap="nowrap" style={{ flexShrink: 0 }}>
-            <Stack gap={0} align="flex-end">
-              <Text fw={700} size="sm">
-                {item.amount_due ? item.amount_due.toLocaleString() : "-"}원
-              </Text>
-              <Text size="xs" c="dimmed">
-                {item.status === "PROCESSING" ? stageLabel(item.processing_stage) : "처리 완료"}
-              </Text>
-            </Stack>
-
-            <Badge variant="filled" color={statusColor(item.status)} size="md">
-              {statusLabel(item.status)}
-            </Badge>
-          </Group>
-        </Group>
-      </Paper>
-    ));
-  }, [items, router]);
-
-  return (
-    <Container size={880} py="xl">
-      <Group justify="space-between" mb="lg">
-        <div>
-          <Title order={2}>공과금 고지서</Title>
-          <Text c="dimmed" size="sm">
-            촬영/업로드한 고지서를 자동으로 분석해 기록합니다.
-          </Text>
-        </div>
-        <Group>
-          <Button leftSection={<IconRefresh size={16} />} variant="light" color="gray" size="sm" onClick={() => void load()} loading={loading}>
-            새로고침
-          </Button>
-          <Button leftSection={<IconPlus size={16} />} color="gray" onClick={() => router.push("/utility-bills/new")}>
-            업로드
-          </Button>
-        </Group>
-      </Group>
-
-      <Paper withBorder radius="md" p="md" mb="lg">
-        <Group align="flex-end" wrap="wrap">
-          <Group gap={6}>
-            {["all", "PROCESSING", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"].map((status) => (
-              <Badge
-                key={status}
-                variant={statusFilter === status ? "filled" : "light"}
-                color={status === "all" ? "gray" : statusColor(status as UtilityBill["status"])}
-                size="md"
-                style={{ cursor: "pointer" }}
-                onClick={() => setStatusFilter(status as UtilityBill["status"] | "all")}
-              >
-                {status === "all" ? "전체" : statusLabel(status as UtilityBill["status"])}
-              </Badge>
-            ))}
-          </Group>
-          <MonthPickerInput
-            label="월 필터"
-            placeholder="YYYY-MM"
-            value={monthFilter}
-            onChange={(val: any) => setMonthFilter(val ? new Date(val) : null)}
-            valueFormat="YYYY-MM"
-            size="sm"
-          />
-          <TextInput
-            label="현장"
-            placeholder="site_id"
-            value={siteFilter}
-            onChange={(event) => setSiteFilter(event.currentTarget.value)}
-            size="sm"
-          />
-          <Button variant="light" color="gray" size="sm" onClick={() => void load()} loading={loading}>
-            필터 적용
-          </Button>
-        </Group>
-      </Paper>
-
-      <Stack gap="xs">
-        {rows}
-        {!items.length && !loading && (
-          <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
-            <Text size="sm" c="dimmed">
-              조건에 맞는 공과금 고지서가 없습니다.
-            </Text>
-          </Paper>
-        )}
-      </Stack>
-    </Container>
-  );
+            <Modal
+                opened={lightboxOpened}
+                onClose={closeLightbox}
+                size="auto"
+                padding={0}
+                withCloseButton={false}
+                centered
+            >
+                {(modalFile || sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url)) && (
+                    <Image
+                        src={modalFile ? URL.createObjectURL(modalFile) : (sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url))}
+                        alt="Bill Preview Full"
+                        fit="contain"
+                        mah="90vh"
+                        maw="90vw"
+                        onClick={closeLightbox}
+                        style={{ cursor: 'zoom-out' }}
+                    />
+                )}
+            </Modal>
+        </Container>
+    );
 }

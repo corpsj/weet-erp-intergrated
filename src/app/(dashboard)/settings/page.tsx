@@ -48,6 +48,11 @@ type InviteCodeItem = {
   created_at: string;
 };
 
+type AiModelResponse = {
+  model?: string;
+  message?: string;
+};
+
 const formatDateTime = (value: string | null) => {
   if (!value) return "-";
   return dayjs(value).format("YYYY-MM-DD HH:mm");
@@ -89,6 +94,7 @@ export default function SettingsPage() {
   const [creating, setCreating] = useState(false);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [savingAiModel, setSavingAiModel] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,10 +136,19 @@ export default function SettingsPage() {
     }
   }, []);
 
+  const loadAiModel = useCallback(async () => {
+    // Removed
+  }, []);
+
+  const saveAiModel = useCallback(async () => {
+    // Removed
+  }, []);
+
   useEffect(() => {
     void load();
     void loadUsers();
-  }, [load, loadUsers]);
+    void loadAiModel();
+  }, [load, loadUsers, loadAiModel]);
 
   const createInvite = useCallback(async () => {
     const days = normalizeInt(expiresInDays) ?? 3;
@@ -498,13 +513,6 @@ export default function SettingsPage() {
               >
                 보안 및 관리
               </Tabs.Tab>
-              <Tabs.Tab
-                value="advanced"
-                leftSection={<IconSettings size={18} />}
-                style={navStyles.tab}
-              >
-                고급 설정
-              </Tabs.Tab>
             </Tabs.List>
           </Grid.Col>
 
@@ -705,27 +713,10 @@ export default function SettingsPage() {
                 </Stack>
               </Tabs.Panel>
 
-              <Tabs.Panel value="advanced">
-                <Stack gap="xl">
-                  <Box>
-                    <Title order={3} mb="xs">
-                      고급 설정
-                    </Title>
-                    <Text size="sm" c="dimmed" mb="xl">
-                      데이터 싱크 및 시스템 연동 설정을 구성합니다.
-                    </Text>
-                  </Box>
-                  <Paper withBorder p="xl" radius="md" style={{ borderStyle: "dashed" }}>
-                    <Text size="sm" ta="center" c="dimmed" py="xl">
-                      고급 설정 기능은 곧 추가될 예정입니다.
-                    </Text>
-                  </Paper>
-                </Stack>
-              </Tabs.Panel>
             </Box>
           </Grid.Col>
         </Grid>
-      </Tabs>
-    </Box>
+      </Tabs >
+    </Box >
   );
 }

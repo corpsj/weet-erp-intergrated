@@ -99,31 +99,17 @@ export type EstimateItem = {
   material_id: string | null;
 };
 
-export type UtilityBillStatus = "PROCESSING" | "NEEDS_REVIEW" | "CONFIRMED" | "REJECTED";
 
 export type UtilityBill = {
   id: string;
   company_id: string;
-  site_id: string | null;
-  vendor_name: string | null;
-  bill_type: "ELECTRICITY" | "WATER" | "GAS" | "TELECOM" | "TAX" | "ETC" | null;
-  amount_due: number | null;
-  due_date: string | null;
-  billing_period_start: string | null;
-  billing_period_end: string | null;
-  customer_no: string | null;
-  payment_account: string | null;
-  status: UtilityBillStatus;
-  confidence: number | null;
-  ocr_mode: "TEMPLATE" | "GENERAL" | null;
-  template_id: string | null;
-  raw_ocr_text: string | null;
-  extracted_json: Record<string, unknown> | null;
-  file_url: string | null;
-  processed_file_url: string | null;
-  processing_stage: "PREPROCESS" | "TEMPLATE_OCR" | "GENERAL_OCR" | "GEMINI" | "VALIDATE" | "DONE" | null;
-  last_error_code: string | null;
-  last_error_message: string | null;
+  category: string;
+  billing_month: string;
+  amount: number;
+  image_url: string | null;
+  note: string | null;
+  status: "processed" | "manual" | "processing";
+  is_paid: boolean;
   created_at: string;
   updated_at: string;
 };

@@ -1,46 +1,58 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { processUtilityBill } from "@/lib/utilityBillPipeline";
+import { requireUserId } from "@/app/api/settings/_auth";
+import { callOpenRouter } from "@/lib/openrouter";
 
-export const runtime = "nodejs";
-export const maxDuration = 300;
+export async function POST(request: Request) {
+    const auth = await requireUserId(request);
+    if (!auth.ok) return auth.response;
 
-const isAuthorized = (request: Request) => {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
-  const header = request.headers.get("x-cron-secret");
-  const param = new URL(request.url).searchParams.get("cron_secret");
-  return header === secret || param === secret;
-};
+    try {
+        const formData = await request.formData();
+        const file = formData.get("file") as File;
+        if (!file) {
+            return NextResponse.json({ message: "No file provided" }, { status: 400 });
+        }
 
-export async function GET(request: Request) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
-  }
+        const bytes = await file.arrayBuffer();
+        const base64 = Buffer.from(bytes).toString("base64");
+        const mimeType = file.type || "image/jpeg";
 
-  const { searchParams } = new URL(request.url);
-  const limit = Math.min(Number(searchParams.get("limit") ?? "3") || 3, 10);
-  const targetId = searchParams.get("id");
+        const prompt = `Analyze this utility bill image and extract information in JSON format.
+Possible categories: "전기세", "건강보험", "세금" (Choose the most appropriate one).
+Required fields:
+{
+  "category": "전기세" | "건강보험" | "세금",
+  "billing_month": "YYYY-MM",
+  "amount": number
+}
+Response must be valid JSON only.`;
 
-  if (targetId) {
-    await processUtilityBill(targetId);
-    return NextResponse.json({ processed: 1 });
-  }
+        const messages = [
+            {
+                role: "user",
+                content: [
+                    { type: "text", text: prompt },
+                    {
+                        type: "image_url",
+                        image_url: {
+                            url: `data:${mimeType};base64,${base64}`
+                        }
+                    }
+                ]
+            }
+        ];
 
-  const { data, error } = await supabaseAdmin
-    .from("utility_bills")
-    .select("id")
-    .eq("status", "PROCESSING")
-    .order("created_at", { ascending: true })
-    .limit(limit);
+        // Using google/gemini-2.5-flash as requested by user
+        const aiResponse = await callOpenRouter(messages, "google/gemini-2.5-flash");
 
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+        let content = aiResponse.choices[0].message.content;
+        // Remove markdown code blocks if any
+        content = content.replace(/```json\n?|```/g, "").trim();
+        const result = JSON.parse(content);
 
-  let processed = 0;
-  for (const item of data ?? []) {
-    await processUtilityBill(item.id);
-    processed += 1;
-  }
-
-  return NextResponse.json({ processed });
+        return NextResponse.json({ result });
+    } catch (error: any) {
+        console.error("AI Processing Error:", error);
+        return NextResponse.json({ message: error.message }, { status: 500 });
+    }
 }

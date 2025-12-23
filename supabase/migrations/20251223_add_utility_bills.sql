@@ -1,40 +1,34 @@
-create table if not exists utility_bills (
+-- [공과금 테이블 초기화 및 재설정]
+-- 기존 테이블이 구버전일 경우 컬럼 누락 에러가 발생할 수 있습니다.
+-- 이 스크립트는 기존 테이블을 삭제하고 최신 스키마로 다시 생성합니다.
+-- 주의: 기존에 업로드된 공과금 데이터가 있다면 삭제됩니다.
+
+-- 1. 기존 테이블 및 관련 설정 삭제 (초기화)
+drop table if exists utility_bills cascade;
+
+-- 2. 최신 스키마로 테이블 생성
+create table utility_bills (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null,
-  site_id uuid,
-  vendor_name text,
-  bill_type text check (bill_type in ('ELECTRICITY', 'WATER', 'GAS', 'TELECOM', 'TAX', 'ETC')),
-  amount_due bigint,
-  due_date date,
-  billing_period_start date,
-  billing_period_end date,
-  customer_no text,
-  payment_account text,
-  status text not null default 'PROCESSING' check (status in ('PROCESSING', 'NEEDS_REVIEW', 'CONFIRMED', 'REJECTED')),
-  confidence numeric not null default 0,
-  ocr_mode text check (ocr_mode in ('TEMPLATE', 'GENERAL')),
-  template_id text,
-  raw_ocr_text text,
-  extracted_json jsonb not null default '{}'::jsonb,
-  file_url text not null,
-  processed_file_url text,
-  processing_stage text not null default 'PREPROCESS' check (processing_stage in ('PREPROCESS', 'TEMPLATE_OCR', 'GENERAL_OCR', 'GEMINI', 'VALIDATE', 'DONE')),
-  last_error_code text,
-  last_error_message text,
+  category text not null,
+  billing_month text not null,
+  amount numeric not null default 0,
+  image_url text,
+  note text,
+  status text not null default 'processed' check (status in ('processed', 'manual', 'processing')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
-create index if not exists utility_bills_company_id_idx on utility_bills (company_id);
-create index if not exists utility_bills_status_idx on utility_bills (status);
-create index if not exists utility_bills_due_date_idx on utility_bills (due_date);
-create index if not exists utility_bills_created_at_idx on utility_bills (created_at);
+-- 3. 인덱스 생성
+create index utility_bills_company_id_idx on utility_bills (company_id);
+create index utility_bills_category_idx on utility_bills (category);
+create index utility_bills_billing_month_idx on utility_bills (billing_month);
 
+-- 4. RLS(Row Level Security) 설정
 alter table utility_bills enable row level security;
 
-drop policy if exists utility_bills_by_company on utility_bills;
+-- 5. 보안 정책(Policy) 설정 - 업체별 데이터 분리
 create policy "utility_bills_by_company" on utility_bills for all
   using (company_id = auth.uid())
   with check (company_id = auth.uid());
-
--- NOTE: Storage bucket(`utility-bills`) 생성은 Supabase Dashboard에서 진행하세요.

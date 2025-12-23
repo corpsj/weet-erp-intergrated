@@ -1,113 +1,84 @@
 import { NextResponse } from "next/server";
 import { requireUserId } from "@/app/api/settings/_auth";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import { triggerUtilityBillProcessing } from "@/lib/utilityBillPipeline";
-import crypto from "node:crypto";
-
-export const runtime = "nodejs";
-export const maxDuration = 60;
-
-const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-
-const parseMonthRange = (value: string) => {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const match = trimmed.match(/(\d{4})-(\d{1,2})/);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  if (!year || month < 1 || month > 12) return null;
-  const mm = String(month).padStart(2, "0");
-  const start = `${year}-${mm}-01`;
-  const endDate = new Date(year, month, 0);
-  const endDay = String(endDate.getDate()).padStart(2, "0");
-  const end = `${year}-${mm}-${endDay}`;
-  return { start, end };
-};
 
 export async function GET(request: Request) {
-  const auth = await requireUserId(request);
-  if (!auth.ok) return auth.response;
+    const auth = await requireUserId(request);
+    if (!auth.ok) return auth.response;
 
-  const { searchParams } = new URL(request.url);
-  const status = searchParams.get("status") ?? "";
-  const month = searchParams.get("month") ?? "";
-  const siteId = searchParams.get("site_id") ?? "";
+    const { data: items, error } = await supabaseAdmin
+        .from("utility_bills")
+        .select("*")
+        .eq("company_id", auth.userId)
+        .order("created_at", { ascending: false });
 
-  let query = supabaseAdmin
-    .from("utility_bills")
-    .select("*")
-    .eq("company_id", auth.userId)
-    .order("created_at", { ascending: false });
+    if (error) return NextResponse.json({ message: error.message }, { status: 500 });
+    if (!items || items.length === 0) return NextResponse.json({ items: [] });
 
-  if (status) query = query.eq("status", status);
-  if (siteId) query = query.eq("site_id", siteId);
+    // Generate signed URLs for items that have an image_url (path)
+    const itemsWithUrls = await Promise.all(items.map(async (item: any) => {
+        if (!item.image_url) return item;
 
-  const range = month ? parseMonthRange(month) : null;
-  if (range) {
-    query = query.gte("due_date", range.start).lte("due_date", range.end);
-  }
+        // If it's already a full URL (though we aim for paths), keep it
+        if (item.image_url.startsWith('http')) return item;
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ message: error.message }, { status: 500 });
-  return NextResponse.json({ items: data ?? [] });
+        const { data: signedData } = await supabaseAdmin.storage
+            .from("receipts")
+            .createSignedUrl(item.image_url, 3600); // 1 hour expiry
+
+        return { ...item, image_url: signedData?.signedUrl || null };
+    }));
+
+    return NextResponse.json({ items: itemsWithUrls });
 }
 
 export async function POST(request: Request) {
-  const auth = await requireUserId(request);
-  if (!auth.ok) return auth.response;
+    const auth = await requireUserId(request);
+    if (!auth.ok) return auth.response;
 
-  const contentTypeHeader = request.headers.get("content-type") ?? "";
-  if (!contentTypeHeader.toLowerCase().includes("multipart/form-data")) {
-    return NextResponse.json({ message: "Unsupported content-type" }, { status: 415 });
-  }
+    const body: any = await request.json().catch(() => null);
+    const category = body?.category || "";
+    const billingMonth = body?.billing_month || "";
+    const amount = Number(body?.amount || 0);
+    // Prefer relative path if it's sent, or extract from full URL
+    let imageUrl = body?.image_url || null;
+    if (imageUrl && imageUrl.includes('/public/receipts/')) {
+        imageUrl = imageUrl.split('/public/receipts/').pop();
+    }
 
-  const form = await request.formData();
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return NextResponse.json({ message: "file is required" }, { status: 400 });
-  }
+    const note = body?.note || "";
+    const status = body?.status || "processed";
 
-  const siteIdValue = form.get("site_id");
-  const siteId = typeof siteIdValue === "string" && siteIdValue.trim() ? siteIdValue.trim() : null;
-  if (siteId && !isUuid(siteId)) {
-    return NextResponse.json({ message: "site_id is invalid" }, { status: 400 });
-  }
+    if (!category || !billingMonth) {
+        return NextResponse.json({ message: "category and billing_month are required" }, { status: 400 });
+    }
 
-  const ext = file.name.includes(".") ? file.name.split(".").pop() : "png";
-  const safeName = file.name ? file.name.replace(/[^\w.-]+/g, "_") : `upload.${ext}`;
-  const billId = crypto.randomUUID();
-  const objectPath = `${auth.userId}/${billId}/original/${Date.now()}-${safeName}`;
+    const { data, error } = await supabaseAdmin
+        .from("utility_bills")
+        .insert({
+            company_id: auth.userId,
+            category,
+            billing_month: billingMonth,
+            amount,
+            image_url: imageUrl,
+            note,
+            status,
+            is_paid: !!body?.is_paid,
+            updated_at: new Date().toISOString()
+        })
+        .select("*")
+        .single();
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const { error: uploadError } = await supabaseAdmin.storage.from("utility-bills").upload(objectPath, buffer, {
-    contentType: file.type || "application/octet-stream",
-    upsert: false,
-  });
+    if (error) return NextResponse.json({ message: error.message }, { status: 400 });
 
-  if (uploadError) {
-    return NextResponse.json({ message: uploadError.message }, { status: 400 });
-  }
+    // Generate a signed URL for the newly created item as well
+    let signedUrl = data.image_url;
+    if (data.image_url && !data.image_url.startsWith('http')) {
+        const { data: signedData } = await supabaseAdmin.storage
+            .from("receipts")
+            .createSignedUrl(data.image_url, 3600);
+        signedUrl = signedData?.signedUrl || null;
+    }
 
-  const { data, error } = await supabaseAdmin
-    .from("utility_bills")
-    .insert({
-      id: billId,
-      company_id: auth.userId,
-      site_id: siteId,
-      status: "PROCESSING",
-      processing_stage: "PREPROCESS",
-      file_url: objectPath,
-      processed_file_url: null,
-      confidence: 0,
-      extracted_json: {},
-    })
-    .select("*")
-    .single();
-
-  if (error) return NextResponse.json({ message: error.message }, { status: 400 });
-
-  triggerUtilityBillProcessing(billId);
-
-  return NextResponse.json({ item: data }, { status: 201 });
+    return NextResponse.json({ item: { ...data, image_url: signedUrl } }, { status: 201 });
 }
