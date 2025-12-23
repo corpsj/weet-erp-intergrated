@@ -72,6 +72,11 @@ export default function UtilityBillsPage() {
     const [sessionBlobUrls, setSessionBlobUrls] = useState<Record<string, string>>({});
     const [lightboxOpened, { open: openLightbox, close: closeLightbox }] = useDisclosure(false);
 
+    // Auto-save note states
+    const [localNote, setLocalNote] = useState("");
+    const [savingNote, setSavingNote] = useState(false);
+    const [lastSavedId, setLastSavedId] = useState<string | null>(null);
+
     const load = useCallback(async () => {
         setLoading(true);
         try {
@@ -92,8 +97,37 @@ export default function UtilityBillsPage() {
     }, []);
 
     useEffect(() => {
-        load();
-    }, [load]);
+        const item = items.find(x => x.id === selectedId);
+        if (item && selectedId !== lastSavedId) {
+            setLocalNote(item.note || "");
+            setLastSavedId(selectedId);
+        }
+    }, [selectedId, items, lastSavedId]);
+
+    // Debounced Note Auto-save
+    useEffect(() => {
+        const item = items.find(x => x.id === selectedId);
+        if (!item || localNote === (item.note || "")) return;
+
+        const timer = setTimeout(async () => {
+            setSavingNote(true);
+            try {
+                const res = await fetchWithAuth(`/api/utility-bills/${selectedId}`, {
+                    method: "PATCH",
+                    body: JSON.stringify({ note: localNote }),
+                });
+                if (res.ok) {
+                    setItems(prev => prev.map(x => x.id === selectedId ? { ...x, note: localNote } : x));
+                }
+            } catch (err) {
+                console.error("Auto-save note failed:", err);
+            } finally {
+                setSavingNote(false);
+            }
+        }, 1000);
+
+        return () => clearTimeout(timer);
+    }, [localNote, selectedId, items]);
 
     const onUpload = async (file: File | null) => {
         if (!file) return;
@@ -417,9 +451,9 @@ export default function UtilityBillsPage() {
                                                         <Badge variant="dot" size="xs">분석</Badge>
                                                     ) : (
                                                         <Badge
-                                                            variant={item.is_paid ? "filled" : "light"}
                                                             color={item.is_paid ? "green" : "gray"}
-                                                            size="sm"
+                                                            variant="light"
+                                                            size="lg" // Increased from default/sm
                                                             style={{ cursor: "pointer" }}
                                                             onClick={() => togglePaid(item)}
                                                         >
@@ -591,10 +625,18 @@ export default function UtilityBillsPage() {
                                                     </Stack>
 
                                                     <Stack gap={4}>
-                                                        <Text size="xs" fw={700} c="dimmed">메모</Text>
-                                                        <Paper p="xs" withBorder radius="sm" bg="white">
-                                                            <Text size="sm">{selectedItem?.note || "관련 메모가 없습니다."}</Text>
-                                                        </Paper>
+                                                        <Group justify="space-between" align="center">
+                                                            <Text fw={500} size="sm">메모</Text>
+                                                            {savingNote && <Text size="xs" c="blue">저장 중...</Text>}
+                                                        </Group>
+                                                        <Textarea
+                                                            placeholder="메모를 입력하세요..."
+                                                            value={localNote}
+                                                            onChange={(e) => setLocalNote(e.currentTarget.value)}
+                                                            minRows={3}
+                                                            autosize
+                                                            styles={{ input: { fontSize: 'var(--mantine-font-size-sm)' } }}
+                                                        />
                                                     </Stack>
                                                 </Stack>
                                             )}
