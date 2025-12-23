@@ -444,6 +444,12 @@ export default function SettingsPage() {
       padding: `${rem(10)} ${rem(16)}`,
       borderRadius: "var(--mantine-radius-md)",
       fontWeight: 500,
+    },
+  };
+
+  const tabsStyles = {
+    tab: {
+      ...navStyles.tab,
       "&[data-active]": {
         backgroundColor: "var(--mantine-color-gray-1)",
         color: "var(--mantine-color-black)",
@@ -480,7 +486,7 @@ export default function SettingsPage() {
         value={activeTab}
         onChange={setActiveTab}
         variant="unstyled"
-        styles={navStyles}
+        styles={tabsStyles}
       >
         <Grid gutter={40} style={{ width: "100%" }}>
           <Grid.Col span={{ base: 12, sm: 3 }}>
@@ -488,28 +494,24 @@ export default function SettingsPage() {
               <Tabs.Tab
                 value="profile"
                 leftSection={<IconUser size={18} />}
-                style={navStyles.tab}
               >
                 프로필 설정
               </Tabs.Tab>
               <Tabs.Tab
                 value="invites"
                 leftSection={<IconTicket size={18} />}
-                style={navStyles.tab}
               >
                 승인코드 관리
               </Tabs.Tab>
               <Tabs.Tab
                 value="users"
                 leftSection={<IconUsers size={18} />}
-                style={navStyles.tab}
               >
                 사용자 관리
               </Tabs.Tab>
               <Tabs.Tab
                 value="security"
                 leftSection={<IconShieldLock size={18} />}
-                style={navStyles.tab}
               >
                 보안 및 관리
               </Tabs.Tab>
