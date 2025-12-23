@@ -173,9 +173,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     >
       <AppShell.Header style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-white)' }}>
         <Group h="100%" px="lg" justify="space-between">
-          <Group gap="sm">
+          <Group gap="sm" style={{ zIndex: 1200 }}>
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
-            <Text className="brand-title" fw={900} size="xl" style={{ fontSize: rem(22), color: 'var(--mantine-color-gray-9)' }}>
+            <Text className="brand-title" fw={900} size="xl" style={{ fontSize: rem(20), color: 'var(--mantine-color-gray-9)' }}>
               WE-ET ERP
             </Text>
           </Group>
@@ -206,9 +206,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         background: 'var(--mantine-color-gray-0)',
         width: isMobile ? (opened ? '60%' : '0') : 260,
         maxWidth: isMobile ? '60%' : '100%',
-        transition: 'width 0.2s ease',
+        height: isMobile ? '100dvh' : 'auto',
+        top: isMobile ? 0 : 64,
+        zIndex: isMobile ? 1100 : 100,
+        transition: 'width 0.2s ease, transform 0.2s ease',
         overflow: 'hidden'
       }}>
+        <Box h={64} style={{ display: isMobile ? 'block' : 'none' }} />
+
         <ScrollArea style={{ flex: 1 }} type="scroll">
           {groupedNavItems.map((group) => (
             <Box key={group.group} mb="xl">
