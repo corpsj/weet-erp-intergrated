@@ -406,7 +406,7 @@ export default function UtilityBillsPage() {
                             </Group>
 
                             <ScrollArea h={700} offsetScrollbars>
-                                <Table highlightOnHover verticalSpacing="sm" style={{ cursor: 'pointer' }}>
+                                <Table highlightOnHover verticalSpacing="sm">
                                     <Table.Thead>
                                         <Table.Tr>
                                             <Table.Th>분류</Table.Th>
@@ -464,7 +464,7 @@ export default function UtilityBillsPage() {
                                             </Table.Tr>
                                         ))}
                                         {filtered.length === 0 && (
-                                            <Table.Tr>
+                                            <Table.Tr style={{ pointerEvents: 'none' }}>
                                                 <Table.Td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
                                                     <Text c="dimmed" size="xs">데이터가 없습니다.</Text>
                                                 </Table.Td>
