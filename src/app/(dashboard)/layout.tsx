@@ -1,7 +1,7 @@
 "use client";
 
 import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import {
   IconBolt,
   IconBuildingStore,
@@ -60,6 +60,7 @@ const groupedNavItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [opened, { toggle, close }] = useDisclosure();
+  const isMobile = useMediaQuery("(max-width: 48em)");
   const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -200,7 +201,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Group>
       </AppShell.Header>
 
-      <AppShell.Navbar p="md" style={{ borderRight: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-gray-0)' }}>
+      <AppShell.Navbar p="md" style={{
+        borderRight: '1px solid var(--mantine-color-gray-2)',
+        background: 'var(--mantine-color-gray-0)',
+        width: isMobile ? (opened ? '60%' : '0') : 260,
+        maxWidth: isMobile ? '60%' : '100%',
+        transition: 'width 0.2s ease',
+        overflow: 'hidden'
+      }}>
         <ScrollArea style={{ flex: 1 }} type="scroll">
           {groupedNavItems.map((group) => (
             <Box key={group.group} mb="xl">
