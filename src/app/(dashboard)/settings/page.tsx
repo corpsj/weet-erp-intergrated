@@ -33,6 +33,7 @@ import {
   IconSettings,
   IconUsers,
   IconSparkles,
+  IconShare,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -486,6 +487,29 @@ export default function SettingsPage() {
     },
   };
 
+  const handleShare = useCallback(async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "weet ERP",
+          text: "업무 허브와 견적 산출을 통합한 ERP",
+          url: window.location.origin,
+        });
+      } catch (error) {
+        if ((error as Error).name !== 'AbortError') {
+          notifications.show({ title: '공유 실패', message: '공유 중 오류가 발생했습니다.', color: 'red' });
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.origin);
+        notifications.show({ title: '링크 복사됨', message: '공유 링크가 클립보드에 복사되었습니다.', color: 'gray' });
+      } catch {
+        notifications.show({ title: '공유 불가', message: '이 브라우저에서는 공유 기능을 지원하지 않습니다.', color: 'red' });
+      }
+    }
+  }, []);
+
   return (
     <Container size="xl" py="xl" px={isMobile ? "md" : "xl"} maw={1200} mx="auto">
       <Box hiddenFrom="md" px="md" mb="lg">
@@ -756,6 +780,25 @@ export default function SettingsPage() {
 
                   <Paper withBorder p="xl" radius="md">
                     <Stack gap="lg">
+                      <Box>
+                        <Text fw={600} size="sm" mb="xs">
+                          애플리케이션 공유
+                        </Text>
+                        <Text size="xs" c="dimmed" mb="md">
+                          함께 일하는 동료들에게 서비스 링크를 공유하세요.
+                        </Text>
+                        <Button
+                          variant="light"
+                          color="indigo"
+                          radius="md"
+                          size="sm"
+                          leftSection={<IconShare size={16} />}
+                          onClick={handleShare}
+                        >
+                          동료에게 공유하기
+                        </Button>
+                      </Box>
+                      <Divider />
                       <Box>
                         <Text fw={600} size="sm">
                           비밀번호 변경
