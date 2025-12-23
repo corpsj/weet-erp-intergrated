@@ -25,7 +25,7 @@ import {
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconSearch, IconPlus, IconCheck, IconX, IconTrash } from "@tabler/icons-react";
+import { IconSearch, IconPlus, IconCheck, IconX, IconTrash, IconReceipt2 } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";

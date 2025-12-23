@@ -166,7 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AppShell
       className="app-shell"
       header={{ height: 64 }}
-      navbar={{ width: 260, breakpoint: "sm", collapsed: { mobile: !opened } }}
+      navbar={{ width: { base: '70%', sm: 260 }, breakpoint: "sm", collapsed: { mobile: !opened } }}
       footer={{ height: 80, offset: true }}
       padding="md"
     >
