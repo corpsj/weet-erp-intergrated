@@ -337,7 +337,7 @@ export default function TaxInvoicesPage() {
             </Modal>
 
             {/* Universal FAB - Mobile Only */}
-            <Affix position={{ bottom: 40, right: 40 }} className="mobile-only">
+            <Affix position={{ bottom: 80, right: 40 }} className="mobile-only">
                 <Transition transition="slide-up" mounted={true}>
                     {(transitionStyles) => (
                         <ActionIcon
