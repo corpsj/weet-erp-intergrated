@@ -248,15 +248,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{
             background: 'var(--mantine-color-white)',
             borderTop: '1px solid var(--mantine-color-gray-2)',
-            paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+            paddingBottom: 'env(safe-area-inset-bottom)',
             boxShadow: '0 -2px 10px rgba(0,0,0,0.05)'
           }}
         >
-          <Group grow gap={0} p={4} justify="space-around">
+          <Group grow gap={0} p={0} justify="space-around">
             {[
               { label: "허브", icon: IconHome, link: "/" },
+              { label: "캘린더", icon: IconCalendar, link: "/calendar" },
               { label: "To-Do", icon: IconCheckbox, link: "/todo" },
-              { label: "메모", icon: IconNotes, link: "/memos" },
               { label: "경비", icon: IconReceipt, link: "/expenses" },
               { label: "공과금", icon: IconBolt, link: "/utility-bills" },
             ].map((item) => {
@@ -268,28 +268,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.link}
                   variant="subtle"
                   color={active ? "indigo" : "gray"}
-                  radius="md"
-                  h={60}
+                  radius={0}
+                  h={50}
                   px={0}
                   style={{
                     flexDirection: 'column',
-                    gap: 2,
-                    height: 'auto',
-                    padding: '8px 0',
+                    gap: 0,
+                    height: 50,
+                    padding: '4px 0',
                     backgroundColor: active ? 'var(--mantine-color-indigo-0)' : 'transparent',
                     transition: 'all 0.2s ease',
+                    borderTop: active ? '2px solid var(--mantine-color-indigo-6)' : '2px solid transparent',
                   }}
                 >
                   <item.icon
-                    size={24}
+                    size={20}
                     stroke={active ? 2.5 : 2}
                     color={active ? 'var(--mantine-color-indigo-6)' : 'var(--mantine-color-gray-6)'}
                   />
                   <Text
                     size="xs"
-                    fw={active ? 800 : 600}
+                    fw={active ? 800 : 500}
                     style={{
-                      fontSize: '10px',
+                      fontSize: '9px',
+                      marginTop: -2,
                       color: active ? 'var(--mantine-color-indigo-7)' : 'var(--mantine-color-gray-6)'
                     }}
                   >
