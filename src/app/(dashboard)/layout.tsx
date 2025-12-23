@@ -201,6 +201,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Group>
       </AppShell.Header>
 
+      {/* Mobile Menu Backdrop */}
+      {isMobile && opened && (
+        <Box
+          onClick={close}
+          style={{
+            position: 'fixed',
+            top: 64,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.05)',
+            zIndex: 1050,
+            cursor: 'pointer'
+          }}
+        />
+      )}
+
       <AppShell.Navbar p="md" style={{
         borderRight: '1px solid var(--mantine-color-gray-2)',
         background: 'var(--mantine-color-gray-0)',
