@@ -196,9 +196,10 @@ const callClovaOcr = async (endpoint: string, image: Buffer, templateIds?: strin
   }
 
   const payload: Record<string, unknown> = {
-    version: "V1",
+    version: "V2",
     requestId: crypto.randomUUID(),
     timestamp: Date.now(),
+    lang: "ko",
     images: [
       {
         format: "png",
@@ -206,6 +207,7 @@ const callClovaOcr = async (endpoint: string, image: Buffer, templateIds?: strin
         data: image.toString("base64"),
       },
     ],
+    enableTableDetection: true,
   };
 
   if (templateIds && templateIds.length > 0) {
