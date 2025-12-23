@@ -755,8 +755,8 @@ export default function TodoPage() {
     ] = await Promise.all([
       supabase
         .from("todos")
-        .select("*")
-        .order("sort_index", { ascending: true })
+        .select("id, title, status, priority, parent_id, assignee_id, due_date, note, sort_index, sort_order, created_at")
+        .order("sort_order", { ascending: true })
         .order("created_at", { ascending: false }),
       supabase.from("app_users").select("*").order("created_at"),
       supabase.auth.getUser(),

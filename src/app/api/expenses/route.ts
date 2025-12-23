@@ -8,7 +8,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from("expense_claims")
-    .select("*")
+    .select("id, title, amount, spent_at, category, status, created_at")
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ message: error.message }, { status: 500 });
