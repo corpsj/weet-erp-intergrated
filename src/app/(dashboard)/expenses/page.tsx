@@ -24,10 +24,11 @@ import {
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
-import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar, IconPlus, IconTrash, IconPaperclip } from "@tabler/icons-react";
+import { IconSearch, IconReceipt, IconPlus, IconTrash, IconPaperclip } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type ExpenseClaim = {
   id: string;
@@ -68,8 +69,7 @@ const statusLabel = (status: ExpenseClaim["status"]) => {
 
 export default function ExpensesPage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<ExpenseClaim[]>([]);
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<ExpenseClaim["status"] | "all">("all");
 
   const [opened, setOpened] = useState(false);
@@ -82,46 +82,30 @@ export default function ExpensesPage() {
   const [category, setCategory] = useState("");
   const [note, setNote] = useState("");
 
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [uploading, setUploading] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: items = [], isLoading: loading } = useQuery<ExpenseClaim[]>({
+    queryKey: ["expenses"],
+    queryFn: async () => {
       const response = await fetchWithAuth("/api/expenses");
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "불러오기 실패");
-      setItems((payload?.items ?? []) as ExpenseClaim[]);
-    } catch (error) {
-      notifications.show({
-        title: "불러오기 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (payload?.items ?? []) as ExpenseClaim[];
+    },
+  });
 
-  const loadReceipts = useCallback(async (claimId: string) => {
-    try {
-      const response = await fetchWithAuth(`/api/expenses/${claimId}/receipts`);
+  const { data: receipts = [] } = useQuery<Receipt[]>({
+    queryKey: ["receipts", editing?.id],
+    queryFn: async () => {
+      if (!editing?.id) return [];
+      const response = await fetchWithAuth(`/api/expenses/${editing.id}/receipts`);
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "영수증 불러오기 실패");
-      setReceipts((payload?.items ?? []) as Receipt[]);
-    } catch (error) {
-      notifications.show({
-        title: "영수증 불러오기 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+      return (payload?.items ?? []) as Receipt[];
+    },
+    enabled: !!editing?.id,
+  });
 
   const openCreate = useCallback(() => {
     setEditing(null);
@@ -130,7 +114,6 @@ export default function ExpensesPage() {
     setSpentAt(new Date());
     setCategory("");
     setNote("");
-    setReceipts([]);
     setPendingFile(null);
     setOpened(true);
   }, []);
@@ -143,12 +126,11 @@ export default function ExpensesPage() {
       setSpentAt(new Date(item.spent_at));
       setCategory(item.category ?? "");
       setNote(item.note ?? "");
-      setReceipts([]);
       setPendingFile(null);
       setOpened(true);
-      await loadReceipts(item.id);
+      // Receipts are fetched automatically by useQuery
     },
-    [loadReceipts]
+    []
   );
 
   const uploadReceipt = useCallback(
@@ -169,9 +151,8 @@ export default function ExpensesPage() {
         });
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) throw new Error(payload?.message ?? "등록 실패");
-        if (editing?.id === targetId) {
-          await loadReceipts(targetId);
-        }
+
+        await queryClient.invalidateQueries({ queryKey: ["receipts", targetId] });
         notifications.show({ title: "업로드 완료", message: "영수증이 업로드되었습니다.", color: "gray" });
       } catch (error) {
         notifications.show({
@@ -183,7 +164,7 @@ export default function ExpensesPage() {
         setUploading(false);
       }
     },
-    [editing, loadReceipts]
+    [editing, queryClient]
   );
 
   const save = useCallback(async () => {
@@ -227,7 +208,7 @@ export default function ExpensesPage() {
       }
 
       setOpened(false);
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
       notifications.show({ title: "저장 완료", message: "경비가 저장되었습니다.", color: "gray" });
     } catch (error) {
       notifications.show({
@@ -238,7 +219,7 @@ export default function ExpensesPage() {
     } finally {
       setSaving(false);
     }
-  }, [amount, category, editing, load, note, pendingFile, spentAt, title, uploadReceipt]);
+  }, [amount, category, editing, note, pendingFile, spentAt, title, uploadReceipt, queryClient]);
 
   const action = useCallback(
     async (item: ExpenseClaim, nextStatus: "unpaid" | "paid") => {
@@ -250,8 +231,8 @@ export default function ExpensesPage() {
         });
         const payload = (await response.json().catch(() => null)) as any;
         if (!response.ok) throw new Error(payload?.message ?? "처리 실패");
-        const updated = payload?.item as ExpenseClaim;
-        setItems((prev) => prev.map((x) => (x.id === item.id ? updated : x)));
+
+        await queryClient.invalidateQueries({ queryKey: ["expenses"] });
         notifications.show({ title: "상태 변경", message: `상태가 ${statusLabel(nextStatus)}로 변경되었습니다.`, color: "blue" });
       } catch (error) {
         notifications.show({
@@ -261,7 +242,7 @@ export default function ExpensesPage() {
         });
       }
     },
-    []
+    [queryClient]
   );
 
   const remove = useCallback(async (id: string) => {
@@ -271,7 +252,8 @@ export default function ExpensesPage() {
       const response = await fetchWithAuth(`/api/expenses/${id}`, { method: "DELETE" });
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "삭제 실패");
-      setItems((prev) => prev.filter((x) => x.id !== id));
+
+      await queryClient.invalidateQueries({ queryKey: ["expenses"] });
       notifications.show({ title: "삭제 완료", message: "삭제되었습니다.", color: "gray" });
     } catch (error) {
       notifications.show({
@@ -280,20 +262,7 @@ export default function ExpensesPage() {
         color: "red",
       });
     }
-  }, []);
-
-  const stats = useMemo(() => {
-    return items.reduce(
-      (acc, item) => {
-        const amt = Number(item.amount) || 0;
-        acc.total += amt;
-        if (item.status === "unpaid") acc.unpaidTotal += amt;
-        if (item.status === "paid") acc.paidTotal += amt;
-        return acc;
-      },
-      { total: 0, unpaidTotal: 0, paidTotal: 0 }
-    );
-  }, [items]);
+  }, [queryClient]);
 
   const filteredItems = useMemo(() => {
     if (statusFilter === "all") return items;

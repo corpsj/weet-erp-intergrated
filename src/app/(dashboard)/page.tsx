@@ -1,15 +1,15 @@
 ﻿"use client";
 
-import { Badge, Button, Container, Grid, Group, Paper, Stack, Table, Text, TextInput, Textarea, Title, SimpleGrid, ScrollArea, Box, rem, Divider } from "@mantine/core";
+import { Badge, Button, Container, Grid, Group, Paper, Stack, Text, TextInput, Title, SimpleGrid, ScrollArea, Box, rem, Divider } from "@mantine/core";
 import { Calendar, type DateStringValue } from "@mantine/dates";
-import { notifications } from "@mantine/notifications";
-import { IconCalendar as IconCalendarTabler, IconCheckbox, IconSearch, IconReceipt, IconChartBar } from "@tabler/icons-react";
+import { IconCheckbox, IconSearch, IconReceipt, IconChartBar } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import "dayjs/locale/ko";
 import { supabase } from "@/lib/supabaseClient";
 import type { AppUser, CalendarEvent, Todo, TodoPriority, TodoStatus } from "@/lib/types";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 
 dayjs.locale("ko");
 
@@ -62,116 +62,102 @@ const priorityColor = (priority: TodoPriority) => {
 
 export default function HubPage() {
   const router = useRouter();
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [currentDate, setCurrentDate] = useState<DateStringValue>(dayjs().format("YYYY-MM-DD"));
-  const [hoveredDate, setHoveredDate] = useState<DateStringValue | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [expenseStats, setExpenseStats] = useState<ExpenseStats>({ total: 0, pending: 0, approved: 0 });
-  const [utilityStats, setUtilityStats] = useState<UtilityStats>({ total: 0, unpaidCount: 0 });
-  const [loadingExpenses, setLoadingExpenses] = useState(false);
-  const [displayName, setDisplayName] = useState<string | null>(null);
 
-  const loadExpenseStats = useCallback(async () => {
-    setLoadingExpenses(true);
-    try {
+  const { data: todos = [] } = useQuery<Todo[]>({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("todos")
+        .select("*")
+        .order("due_date", { ascending: true })
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: users = [] } = useQuery<AppUser[]>({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("app_users").select("*").order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: events = [] } = useQuery<CalendarEvent[]>({
+    queryKey: ["events", currentDate],
+    queryFn: async () => {
+      const startDate = dayjs(currentDate).startOf("month").format("YYYY-MM-DD");
+      const endDate = dayjs(currentDate).endOf("month").format("YYYY-MM-DD");
+
+      const { data, error } = await supabase
+        .from("calendar_events")
+        .select("*")
+        .gte("event_date", startDate)
+        .lte("event_date", endDate)
+        .order("event_date", { ascending: true });
+
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  const { data: stats = { expense: { total: 0, pending: 0, approved: 0 }, utility: { total: 0, unpaidCount: 0 } } } = useQuery({
+    queryKey: ["hubStats"],
+    queryFn: async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      if (!token) return;
+      if (!token) throw new Error("No session");
 
       const [expRes, utilRes] = await Promise.all([
         fetch("/api/expenses", { headers: { authorization: `Bearer ${token}` } }),
-        fetch("/api/utility-bills", { headers: { authorization: `Bearer ${token}` } })
+        fetch("/api/utility-bills", { headers: { authorization: `Bearer ${token}` } }),
       ]);
 
-      const expPayload = await expRes.json();
-      if (expRes.ok && expPayload.items) {
-        const stats = (expPayload.items as any[]).reduce(
-          (acc, item) => {
-            const amt = Number(item.amount) || 0;
-            acc.total += amt;
-            if (item.status === "unpaid") acc.pending += amt;
-            if (item.status === "paid") acc.approved += amt;
-            return acc;
-          },
-          { total: 0, pending: 0, approved: 0 }
-        );
-        setExpenseStats(stats);
+      let expense = { total: 0, pending: 0, approved: 0 };
+      if (expRes.ok) {
+        const expPayload = await expRes.json();
+        if (expPayload.items) {
+          expense = (expPayload.items as any[]).reduce(
+            (acc, item) => {
+              const amt = Number(item.amount) || 0;
+              acc.total += amt;
+              if (item.status === "unpaid") acc.pending += amt;
+              if (item.status === "paid") acc.approved += amt;
+              return acc;
+            },
+            { total: 0, pending: 0, approved: 0 }
+          );
+        }
       }
 
-      const utilPayload = await utilRes.json();
-      if (utilRes.ok && utilPayload.items) {
-        const stats = (utilPayload.items as any[]).reduce(
-          (acc, item) => {
-            const amt = Number(item.amount) || 0;
-            acc.total += amt;
-            if (!item.is_paid) acc.unpaidCount += 1;
-            return acc;
-          },
-          { total: 0, unpaidCount: 0 }
-        );
-        setUtilityStats(stats);
+      let utility = { total: 0, unpaidCount: 0 };
+      if (utilRes.ok) {
+        const utilPayload = await utilRes.json();
+        if (utilPayload.items) {
+          utility = (utilPayload.items as any[]).reduce(
+            (acc, item) => {
+              const amt = Number(item.amount) || 0;
+              acc.total += amt;
+              if (!item.is_paid) acc.unpaidCount += 1;
+              return acc;
+            },
+            { total: 0, unpaidCount: 0 }
+          );
+        }
       }
-    } catch (error) {
-      console.error("Failed to load stats:", error);
-    } finally {
-      setLoadingExpenses(false);
-    }
-  }, []);
 
-  const loadTodos = useCallback(async () => {
-    const { data, error } = await supabase
-      .from("todos")
-      .select("*")
-      .order("due_date", { ascending: true })
-      .order("created_at", { ascending: false });
+      return { expense, utility };
+    },
+  });
 
-    if (error) {
-      notifications.show({ title: "To-Do 불러오기 실패", message: error.message, color: "red" });
-      return;
-    }
-
-    setTodos(data ?? []);
-  }, []);
-
-  const loadUsers = useCallback(async () => {
-    const { data, error } = await supabase.from("app_users").select("*").order("created_at");
-
-    if (error) {
-      notifications.show({ title: "사용자 불러오기 실패", message: error.message, color: "red" });
-      return;
-    }
-
-    setUsers(data ?? []);
-  }, []);
-
-  const loadEvents = useCallback(async (targetDate: DateStringValue) => {
-    const startDate = dayjs(targetDate).startOf("month").format("YYYY-MM-DD");
-    const endDate = dayjs(targetDate).endOf("month").format("YYYY-MM-DD");
-
-    const { data, error } = await supabase
-      .from("calendar_events")
-      .select("*")
-      .gte("event_date", startDate)
-      .lte("event_date", endDate)
-      .order("event_date", { ascending: true });
-
-    if (error) {
-      notifications.show({ title: "일정 불러오기 실패", message: error.message, color: "red" });
-      return;
-    }
-
-    setEvents(data ?? []);
-  }, []);
-
-  useEffect(() => {
-    loadTodos();
-    loadUsers();
-    loadExpenseStats();
-
-    // Fetch display name
-    const fetchDisplayName = async () => {
+  const { data: displayName } = useQuery({
+    queryKey: ["currentUserProfile"],
+    queryFn: async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: profile } = await supabase
@@ -179,22 +165,11 @@ export default function HubPage() {
           .select("name")
           .eq("id", session.user.id)
           .maybeSingle();
-        setDisplayName(profile?.name || session.user.user_metadata?.name || session.user.email?.split("@")[0] || null);
+        return profile?.name || session.user.user_metadata?.name || session.user.email?.split("@")[0] || null;
       }
-    };
-    fetchDisplayName();
-  }, [loadTodos, loadUsers, loadExpenseStats]);
-
-  useEffect(() => {
-    loadEvents(currentDate);
-  }, [currentDate, loadEvents]);
-
-  const userMap = useMemo(() => {
-    return users.reduce<Record<string, AppUser>>((acc, user) => {
-      acc[user.id] = user;
-      return acc;
-    }, {});
-  }, [users]);
+      return null;
+    },
+  });
 
   const summaryTodos = useMemo(() => {
     const active = todos.filter((todo) => todo.status !== "done");
@@ -501,20 +476,20 @@ export default function HubPage() {
                     <Paper withBorder p="md" radius="md" bg="gray.0" style={{ borderStyle: 'solid' }}>
                       <Group justify="space-between">
                         <Text size="xs" fw={800} c="dimmed" tt="uppercase">전체 청구액</Text>
-                        <Text size="lg" fw={900}>{expenseStats.total.toLocaleString()}원</Text>
+                        <Text size="lg" fw={900}>{stats.expense.total.toLocaleString()}원</Text>
                       </Group>
                     </Paper>
                     <SimpleGrid cols={2} spacing="xs">
                       <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
                         <Stack gap={2}>
                           <Text size="xs" fw={800} c="orange.7">대기</Text>
-                          <Text size="md" fw={900}>{expenseStats.pending.toLocaleString()}원</Text>
+                          <Text size="md" fw={900}>{stats.expense.pending.toLocaleString()}원</Text>
                         </Stack>
                       </Paper>
                       <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
                         <Stack gap={2}>
                           <Text size="xs" fw={800} c="indigo.7">지급</Text>
-                          <Text size="md" fw={900}>{expenseStats.approved.toLocaleString()}원</Text>
+                          <Text size="md" fw={900}>{stats.expense.approved.toLocaleString()}원</Text>
                         </Stack>
                       </Paper>
                     </SimpleGrid>
@@ -536,15 +511,15 @@ export default function HubPage() {
                         <IconChartBar size={14} color="white" />
                       </Box>
                     </Group>
-                    <Badge variant="light" color={utilityStats.unpaidCount > 0 ? "orange" : "gray"} radius="md">
-                      미납 {utilityStats.unpaidCount}건
+                    <Badge variant="light" color={stats.utility.unpaidCount > 0 ? "orange" : "gray"} radius="md">
+                      미납 {stats.utility.unpaidCount}건
                     </Badge>
                   </Group>
                   <Stack gap="xs">
                     <Paper withBorder p="md" radius="md" bg="gray.0" style={{ borderStyle: 'solid' }}>
                       <Group justify="space-between">
                         <Text size="xs" fw={800} c="dimmed" tt="uppercase">총 청구액</Text>
-                        <Text size="lg" fw={900}>{utilityStats.total.toLocaleString()}원</Text>
+                        <Text size="lg" fw={900}>{stats.utility.total.toLocaleString()}원</Text>
                       </Group>
                     </Paper>
                   </Stack>
