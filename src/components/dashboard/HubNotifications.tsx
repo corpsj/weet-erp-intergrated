@@ -119,62 +119,95 @@ export function HubNotifications() {
                     </Box>
                 </Group>
 
-                <Tooltip label="모든 알림 읽음 처리" withArrow position="left" color="indigo">
-                    <ActionIcon
-                        variant="light"
-                        color="indigo"
-                        size="lg"
-                        radius="md"
-                        onClick={() => markAllAsRead()}
-                        aria-label="Mark all as read"
-                    >
-                        <IconCheck size={20} stroke={2} />
-                    </ActionIcon>
-                </Tooltip>
+                <Group gap={8}>
+                    <Tooltip label="알림 테스트 (권한 확인용)" withArrow position="left" color="gray">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="lg"
+                            radius="md"
+                            onClick={() => {
+                                if ("Notification" in window) {
+                                    // Force permission req
+                                    Notification.requestPermission().then(permission => {
+                                        if (permission === "granted") {
+                                            new Notification("🔔 알림 테스트", {
+                                                body: "알림 권한이 정상적으로 설정되었습니다.",
+                                                icon: "/app-icon-192.jpg",
+                                                badge: "/app-icon-192.jpg"
+                                            });
+                                        } else {
+                                            alert("알림 권한이 필요합니다.");
+                                        }
+                                    });
+                                }
+                            }}
+                            aria-label="Test Notification"
+                        >
+                            <IconBell size={20} stroke={2} />
+                        </ActionIcon>
+                    </Tooltip>
+                    <Tooltip label="모든 알림 읽음 처리" withArrow position="left" color="indigo">
+                        <ActionIcon
+                            variant="light"
+                            color="indigo"
+                            size="lg"
+                            radius="md"
+                            onClick={() => markAllAsRead()}
+                            aria-label="Mark all as read"
+                        >
+                            <IconCheck size={20} stroke={2} />
+                        </ActionIcon>
+                    </Tooltip>
+                </Group>
             </Group>
 
             <Box px="lg" pb="lg">
                 <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="sm">
                     {unreadMenus.map((menu) => (
-                        <Group
+                        <Box
                             key={menu}
                             component={Link}
                             href={menuLinks[menu]}
-                            justify="space-between"
-                            p="sm"
-                            style={{
-                                backgroundColor: 'var(--mantine-color-gray-0)',
-                                borderRadius: 'var(--mantine-radius-md)',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s ease',
-                                border: '1px solid transparent',
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-indigo-0)';
-                                e.currentTarget.style.transform = 'translateY(-2px)';
-                                e.currentTarget.style.borderColor = 'var(--mantine-color-indigo-2)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
-                                e.currentTarget.style.transform = 'translateY(0)';
-                                e.currentTarget.style.borderColor = 'transparent';
-                            }}
+                            style={{ textDecoration: 'none', display: 'block' }}
                         >
-                            <Group gap="xs">
-                                <Text size="sm" fw={600} c="dark.3">
-                                    {menuLabels[menu]}
-                                </Text>
-                            </Group>
-                            <Badge
-                                variant="gradient"
-                                gradient={{ from: 'red.5', to: 'pink.5', deg: 45 }}
-                                size="sm"
-                                circle
-                                style={{ boxShadow: '0 2px 8px rgba(250, 82, 82, 0.4)' }}
+                            <Group
+                                justify="space-between"
+                                p="sm"
+                                style={{
+                                    backgroundColor: 'var(--mantine-color-gray-0)',
+                                    borderRadius: 'var(--mantine-radius-md)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s ease',
+                                    border: '1px solid transparent',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--mantine-color-indigo-0)';
+                                    e.currentTarget.style.transform = 'translateY(-2px)';
+                                    e.currentTarget.style.borderColor = 'var(--mantine-color-indigo-2)';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.borderColor = 'transparent';
+                                }}
                             >
-                                {unreadCounts[menu]}
-                            </Badge>
-                        </Group>
+                                <Group gap="xs">
+                                    <Text size="sm" fw={600} c="dark.3">
+                                        {menuLabels[menu]}
+                                    </Text>
+                                </Group>
+                                <Badge
+                                    variant="gradient"
+                                    gradient={{ from: 'red.5', to: 'pink.5', deg: 45 }}
+                                    size="sm"
+                                    circle
+                                    style={{ boxShadow: '0 2px 8px rgba(250, 82, 82, 0.4)' }}
+                                >
+                                    {unreadCounts[menu]}
+                                </Badge>
+                            </Group>
+                        </Box>
                     ))}
                 </SimpleGrid>
             </Box>
