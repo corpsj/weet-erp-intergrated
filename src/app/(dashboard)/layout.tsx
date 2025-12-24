@@ -126,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!session) {
         setDisplayName(null);
         setLoading(true);
-        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+        router.replace(`/login?next=${encodeURIComponent(window.location.pathname)}`);
         return;
       }
       const user = session.user;
@@ -142,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [isLegacyEstimateLogin, pathname, router]);
+  }, [isLegacyEstimateLogin, router]); // Removed pathname from dependency list
 
   if (isLegacyEstimateLogin) {
     return <>{children}</>;

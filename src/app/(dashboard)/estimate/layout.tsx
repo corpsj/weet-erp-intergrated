@@ -1,8 +1,8 @@
 "use client";
 
-import { Box, Button, Group, Paper, Stack, Tabs, Text } from "@mantine/core";
+import { Box, Paper, Stack, Tabs, Text, Group } from "@mantine/core";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -14,89 +14,52 @@ const tabItems = [
 
 export default function EstimateLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState<string | null>(null);
 
   const isLoginPage = pathname.startsWith("/estimate/login");
 
   useEffect(() => {
-    if (isLoginPage) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
+    if (isLoginPage) return;
 
     let mounted = true;
 
-    const ensureSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!mounted) return;
+    const fetchProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted || !session) return;
 
-      if (data.session) {
-        const user = data.session.user;
-        const { data: profile } = await supabase
-          .from("app_users")
-          .select("name")
-          .eq("id", user.id)
-          .maybeSingle();
+      const user = session.user;
+      const { data: profile } = await supabase
+        .from("app_users")
+        .select("name")
+        .eq("id", user.id)
+        .maybeSingle();
 
-        const sessionName = (() => {
-          const meta = user.user_metadata as Record<string, unknown> | undefined;
-          const metaName = meta?.name;
-          if (typeof metaName === "string" && metaName.trim()) return metaName.trim();
-          const email = user.email;
-          if (typeof email === "string" && email.includes("@")) return email.split("@")[0];
-          return null;
-        })();
-
-        const resolvedName = profile?.name ?? sessionName ?? null;
-        setDisplayName(resolvedName);
-
-        if (!profile?.name && resolvedName) {
-          await supabase.from("app_users").upsert(
-            {
-              id: user.id,
-              name: resolvedName,
-              initials: resolvedName.slice(0, 2),
-              color: null,
-            },
-            { onConflict: "id" }
-          );
-        }
-
-        setLoading(false);
-        return;
+      if (profile?.name) {
+        setDisplayName(profile.name);
+      } else {
+        const meta = user.user_metadata;
+        setDisplayName(meta?.name || user.email?.split("@")[0] || null);
       }
-
-      router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     };
 
-    void ensureSession();
+    void fetchProfile();
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       if (!session) {
-        router.replace(`/login?next=${encodeURIComponent(pathname)}`);
         setDisplayName(null);
-        setLoading(true);
         return;
       }
       const user = session.user;
-      const meta = user.user_metadata as Record<string, unknown> | undefined;
-      const metaName = typeof meta?.name === "string" ? (meta.name as string).trim() : "";
-      const email = user.email;
-      const fallback = typeof email === "string" && email.includes("@") ? email.split("@")[0] : null;
-      const nextName = metaName || fallback;
-      setDisplayName(nextName);
-      setLoading(false);
+      const meta = user.user_metadata;
+      setDisplayName(meta?.name || user.email?.split("@")[0] || null);
     });
 
     return () => {
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [isLoginPage, pathname, router]);
+  }, [isLoginPage]);
 
   const activeTab = useMemo(() => {
     if (pathname.startsWith("/estimate/materials")) return "materials";
@@ -106,21 +69,6 @@ export default function EstimateLayout({ children }: { children: React.ReactNode
 
   if (isLoginPage) {
     return <>{children}</>;
-  }
-
-  if (loading) {
-    return (
-      <Box className="app-shell" p="xl">
-        <Paper className="app-surface" p="xl" maw={520}>
-          <Text fw={600} className="brand-title">
-            WE-ET ERP
-          </Text>
-          <Text c="dimmed" mt="xs">
-            인증 정보를 확인하는 중입니다...
-          </Text>
-        </Paper>
-      </Box>
-    );
   }
 
   return (
