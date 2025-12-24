@@ -21,8 +21,7 @@ import {
     Title,
     Affix,
     Transition,
-    Center,
-    Loader,
+    Skeleton,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -157,6 +156,24 @@ export default function TaxInvoicesPage() {
         );
     }, [items]);
 
+    const skeletons = useMemo(() => {
+        return Array(3).fill(0).map((_, i) => (
+            <Paper key={i} p="md" radius="md" withBorder bg="var(--mantine-color-white)">
+                <Stack gap="sm">
+                    <Group justify="space-between">
+                        <Skeleton height={20} width={80} radius="xl" />
+                        <Skeleton height={20} width={100} radius="xl" />
+                    </Group>
+                    <Skeleton height={24} width="70%" radius="xl" />
+                    <Group justify="space-between">
+                        <Skeleton height={14} width={120} radius="xl" />
+                        <Skeleton height={14} width={60} radius="xl" />
+                    </Group>
+                </Stack>
+            </Paper>
+        ));
+    }, []);
+
     const rows = items.map((item) => (
         <Paper
             key={item.id}
@@ -271,14 +288,7 @@ export default function TaxInvoicesPage() {
             </Grid>
 
             <Stack gap="xs">
-                {loading ? (
-                    <Center py="xl">
-                        <Stack align="center" gap="xs">
-                            <Loader size="md" color="indigo" />
-                            <Text size="sm" c="dimmed">세금계산서 내역을 불러오는 중...</Text>
-                        </Stack>
-                    </Center>
-                ) : rows}
+                {loading ? skeletons : rows}
                 {!items.length && !loading && (
                     <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
                         <Text size="sm" c="dimmed">등록된 세금계산서 내역이 없습니다.</Text>

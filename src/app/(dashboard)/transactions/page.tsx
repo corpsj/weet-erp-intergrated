@@ -19,6 +19,7 @@ import {
     Title,
     Affix,
     Transition,
+    Skeleton,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -27,6 +28,7 @@ import { IconPlus, IconTrash, IconTransferIn, IconArrowDownLeft, IconArrowUpRigh
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 type Transaction = {
     id: string;
@@ -50,8 +52,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 export default function TransactionsPage() {
     const isMobile = useMediaQuery("(max-width: 768px)");
-    const [loading, setLoading] = useState(true);
-    const [items, setItems] = useState<Transaction[]>([]);
+    const queryClient = useQueryClient();
     const [opened, setOpened] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -64,23 +65,19 @@ export default function TransactionsPage() {
     const [accountNumber, setAccountNumber] = useState("");
     const [category, setCategory] = useState("");
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
+    const { data: items = [], isLoading: loading } = useQuery<Transaction[]>({
+        queryKey: ["bank-transactions"],
+        queryFn: async () => {
             const response = await fetchWithAuth("/api/bank-transactions");
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || "불러오기 실패");
-            setItems(payload.items || []);
-        } catch (error) {
-            notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+            return payload.items || [];
+        },
+    });
 
-    useEffect(() => {
-        void load();
-    }, [load]);
+    const load = useCallback(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+    }, [queryClient]);
 
     const save = async () => {
         if (!transactionDate || !amount) {
@@ -112,7 +109,7 @@ export default function TransactionsPage() {
             }
 
             setOpened(false);
-            await load();
+            await queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
             notifications.show({ title: "성공", message: "거래 내역이 등록되었습니다.", color: "green" });
         } catch (error) {
             notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
@@ -121,17 +118,35 @@ export default function TransactionsPage() {
         }
     };
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const response = await fetchWithAuth(`/api/bank-transactions/${id}`, { method: "DELETE" });
+            if (!response.ok) throw new Error("삭제 실패");
+        },
+        onMutate: async (id: string) => {
+            await queryClient.cancelQueries({ queryKey: ["bank-transactions"] });
+            const previous = queryClient.getQueryData<Transaction[]>(["bank-transactions"]);
+            queryClient.setQueryData<Transaction[]>(["bank-transactions"], (old) => old?.filter((x) => x.id !== id));
+            return { previous };
+        },
+        onError: (err, id, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["bank-transactions"], context.previous);
+            }
+            notifications.show({ title: "오류", message: err.message, color: "red" });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["bank-transactions"] });
+        },
+        onSuccess: () => {
+            notifications.show({ title: "성공", message: "삭제되었습니다.", color: "gray" });
+        },
+    });
+
     const remove = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!window.confirm("정말 삭제하시겠습니까?")) return;
-        try {
-            const response = await fetchWithAuth(`/api/bank-transactions/${id}`, { method: "DELETE" });
-            if (!response.ok) throw new Error("삭제 실패");
-            setItems((prev) => prev.filter((x) => x.id !== id));
-            notifications.show({ title: "성공", message: "삭제되었습니다.", color: "gray" });
-        } catch (error) {
-            notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
-        }
+        deleteMutation.mutate(id);
     };
 
     const summary = useMemo(() => {
@@ -145,69 +160,91 @@ export default function TransactionsPage() {
         );
     }, [items]);
 
-    const rows = items.map((item) => (
-        <Paper
-            key={item.id}
-            p="md"
-            radius="md"
-            withBorder
-            mb="sm"
-            style={{
-                cursor: "pointer",
-                background: 'var(--mantine-color-white)',
-                boxShadow: 'var(--mantine-shadow-xs)',
-                transition: 'all 0.1s ease'
-            }}
-            className="transaction-row"
-            onClick={() => {/* Edit logic if any */ }}
-        >
-            <Stack gap="sm">
-                <Group justify="space-between" wrap="nowrap" align="center">
-                    <Group gap="md" wrap="nowrap" style={{ flex: 1 }}>
-                        <Box style={{
-                            width: 44,
-                            height: 44,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            borderRadius: 8,
-                            backgroundColor: "var(--mantine-color-gray-1)",
-                            flexShrink: 0
-                        }}>
-                            {item.type === "deposit" ? (
-                                <IconArrowDownLeft size={24} color="var(--mantine-color-blue-6)" />
-                            ) : (
-                                <IconArrowUpRight size={24} color="var(--mantine-color-orange-6)" />
+    const rows = useMemo(() => {
+        if (loading) {
+            return Array(5).fill(0).map((_, i) => (
+                <Paper key={i} p="md" radius="md" withBorder mb="sm">
+                    <Group justify="space-between" wrap="nowrap">
+                        <Group gap="md" wrap="nowrap">
+                            <Skeleton height={44} width={44} radius={8} />
+                            <Stack gap={4}>
+                                <Skeleton height={16} width={120} radius="xl" />
+                                <Skeleton height={12} width={180} radius="xl" />
+                            </Stack>
+                        </Group>
+                        <Stack gap={4} align="flex-end">
+                            <Skeleton height={20} width={80} radius="xl" />
+                            <Skeleton height={14} width={40} radius="xl" />
+                        </Stack>
+                    </Group>
+                </Paper>
+            ));
+        }
+
+        return items.map((item) => (
+            <Paper
+                key={item.id}
+                p="md"
+                radius="md"
+                withBorder
+                mb="sm"
+                style={{
+                    cursor: "pointer",
+                    background: 'var(--mantine-color-white)',
+                    boxShadow: 'var(--mantine-shadow-xs)',
+                    transition: 'all 0.1s ease'
+                }}
+                className="transaction-row"
+                onClick={() => {/* Edit logic if any */ }}
+            >
+                <Stack gap="sm">
+                    <Group justify="space-between" wrap="nowrap" align="center">
+                        <Group gap="md" wrap="nowrap" style={{ flex: 1 }}>
+                            <Box style={{
+                                width: 44,
+                                height: 44,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: 8,
+                                backgroundColor: "var(--mantine-color-gray-1)",
+                                flexShrink: 0
+                            }}>
+                                {item.type === "deposit" ? (
+                                    <IconArrowDownLeft size={24} color="var(--mantine-color-blue-6)" />
+                                ) : (
+                                    <IconArrowUpRight size={24} color="var(--mantine-color-orange-6)" />
+                                )}
+                            </Box>
+                            <Stack gap={0} style={{ overflow: 'hidden' }}>
+                                <Text fw={700} size="sm" c="gray.9" lineClamp={1}>
+                                    {item.description || (item.type === "deposit" ? "입금" : "출금")}
+                                </Text>
+                                <Text size="xs" c="dimmed" fw={600} mt={2}>
+                                    {item.bank_name} • {dayjs(item.transaction_date).format("MM.DD HH:mm")}
+                                </Text>
+                            </Stack>
+                        </Group>
+
+                        <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
+                            <Text fw={800} size="md" c={item.type === "deposit" ? "blue.7" : "orange.7"} style={{ letterSpacing: '-0.02em' }}>
+                                {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
+                            </Text>
+                            {item.category && (
+                                <Badge variant="light" color="gray" size="xs" radius="sm">{item.category}</Badge>
                             )}
-                        </Box>
-                        <Stack gap={0} style={{ overflow: 'hidden' }}>
-                            <Text fw={700} size="sm" c="gray.9" lineClamp={1}>
-                                {item.description || (item.type === "deposit" ? "입금" : "출금")}
-                            </Text>
-                            <Text size="xs" c="dimmed" fw={600} mt={2}>
-                                {item.bank_name} • {dayjs(item.transaction_date).format("MM.DD HH:mm")}
-                            </Text>
                         </Stack>
                     </Group>
 
-                    <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
-                        <Text fw={800} size="md" c={item.type === "deposit" ? "blue.7" : "orange.7"} style={{ letterSpacing: '-0.02em' }}>
-                            {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
-                        </Text>
-                        {item.category && (
-                            <Badge variant="light" color="gray" size="xs" radius="sm">{item.category}</Badge>
-                        )}
-                    </Stack>
-                </Group>
-
-                <Group justify="flex-end">
-                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
-                        <IconTrash size={16} />
-                    </ActionIcon>
-                </Group>
-            </Stack>
-        </Paper>
-    ));
+                    <Group justify="flex-end">
+                        <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
+                            <IconTrash size={16} />
+                        </ActionIcon>
+                    </Group>
+                </Stack>
+            </Paper>
+        ));
+    }, [items, loading, remove]);
 
     return (
         <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>

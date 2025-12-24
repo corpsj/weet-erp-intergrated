@@ -27,6 +27,7 @@ import {
   Popover,
   Select,
   SimpleGrid,
+  Skeleton,
 } from "@mantine/core";
 import { DateInput, type DateStringValue } from "@mantine/dates";
 import { useDisclosure, useHotkeys, useMediaQuery } from "@mantine/hooks";
@@ -52,6 +53,7 @@ dayjs.locale("ko");
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { supabase } from "@/lib/supabaseClient";
 import type { AppUser, Todo, TodoPriority } from "@/lib/types";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 type SortMode = "due" | "priority";
 
@@ -639,10 +641,39 @@ function TodoListItem({
 }
 
 export default function TodoPage() {
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+  const { data: todos = [], isLoading: todosLoading } = useQuery<Todo[]>({
+    queryKey: ["todos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("todos")
+        .select("id, title, status, priority, parent_id, assignee_id, due_date, note, sort_index, sort_order, created_at")
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const { data: users = [], isLoading: usersLoading } = useQuery<AppUser[]>({
+    queryKey: ["app_users"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("app_users").select("*").order("created_at");
+      if (error) throw error;
+      return (data ?? []).filter(u => u.name && (u.initials || u.color));
+    },
+  });
+
+  const { data: currentUser } = useQuery<{ id: string } | null>({
+    queryKey: ["current_user"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user ? { id: user.id } : null;
+    },
+  });
+
+  const loading = todosLoading || usersLoading;
+
   const [viewMode, setViewMode] = useState<"grid" | "list" | "board">("board");
 
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -721,66 +752,12 @@ export default function TodoPage() {
     editorMode.mode === "create" ? editorMode.parentId : currentTodo?.parent_id ?? null;
   const currentParent = currentParentId ? todoById[currentParentId] : null;
 
-  useEffect(() => {
-    if (!editorOpened) return;
-
-    if (editorMode.mode === "edit") {
-      const todo = todoById[editorMode.todoId];
-      if (!todo) return;
-      setForm({
-        title: todo.title ?? "",
-        status: todo.status,
-        priority: todo.priority,
-        assigneeInput: todo.assignee_id ?? "",
-        due_date: todo.due_date ?? null,
-      });
-      return;
-    }
-
-    setForm({
-      title: "",
-      status: currentParent?.status ?? "todo",
-      priority: currentParent?.priority ?? "medium",
-      assigneeInput: currentParent?.assignee_id ?? currentUser?.id ?? "",
-      due_date: null,
-    });
-  }, [currentParent, currentUser, editorMode, editorOpened, todoById, userById]);
-
   const loadAll = useCallback(async () => {
-    setLoading(true);
-    const [
-      { data: todoData, error: todoError },
-      { data: userData, error: userError },
-      { data: { user } },
-    ] = await Promise.all([
-      supabase
-        .from("todos")
-        .select("id, title, status, priority, parent_id, assignee_id, due_date, note, sort_index, sort_order, created_at")
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: false }),
-      supabase.from("app_users").select("*").order("created_at"),
-      supabase.auth.getUser(),
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["todos"] }),
+      queryClient.invalidateQueries({ queryKey: ["app_users"] }),
     ]);
-    setLoading(false);
-
-    if (user) {
-      setCurrentUser({ id: user.id });
-    }
-
-    if (todoError) {
-      notifications.show({ title: "To-Do 불러오기 실패", message: todoError.message, color: "red" });
-      return;
-    }
-    if (userError) {
-      notifications.show({ title: "사용자 불러오기 실패", message: userError.message, color: "red" });
-      return;
-    }
-
-    setTodos(todoData ?? []);
-    // Filter out users who haven't completed profile setup (assuming actual accounts have a name and initials/color)
-    const actualUsers = (userData ?? []).filter(u => u.name && (u.initials || u.color));
-    setUsers(actualUsers);
-  }, []);
+  }, [queryClient]);
 
   useEffect(() => {
     loadAll();
@@ -788,7 +765,9 @@ export default function TodoPage() {
 
   const syncTodo = useCallback(async (todoId: string, updates: Partial<Todo>) => {
     // 1. 로컬 상태 즉시 업데이트 (Optimistic UI)
-    setTodos(prev => prev.map(t => t.id === todoId ? { ...t, ...updates } : t));
+    queryClient.setQueryData<Todo[]>(["todos"], (old) =>
+      old?.map(t => t.id === todoId ? { ...t, ...updates } : t)
+    );
 
     // 2. DB 업데이트
     const { error } = await supabase.from("todos").update(updates).eq("id", todoId);
@@ -797,11 +776,13 @@ export default function TodoPage() {
       notifications.show({ title: "동기화 실패", message: error.message, color: "red" });
       await loadAll(); // 실패 시 서버 상태로 원복
     }
-  }, [loadAll]);
+  }, [loadAll, queryClient]);
 
   const updateTitle = useCallback(async (todoId: string, newTitle: string) => {
     if (!newTitle.trim()) return;
-    setTodos(prev => prev.map(t => t.id === todoId ? { ...t, title: newTitle.trim() } : t));
+    queryClient.setQueryData<Todo[]>(["todos"], (old) =>
+      old?.map(t => t.id === todoId ? { ...t, title: newTitle.trim() } : t)
+    );
     const { error } = await supabase.from("todos").update({ title: newTitle.trim() }).eq("id", todoId);
     if (error) {
       notifications.show({ title: "제목 수정 실패", message: error.message, color: "red" });
@@ -1181,7 +1162,9 @@ export default function TodoPage() {
         newSortOrder = (prev + next) / 2;
       }
 
-      setTodos(prev => prev.map(t => t.id === todoId ? { ...t, status: newStatus, sort_order: newSortOrder } : t));
+      queryClient.setQueryData<Todo[]>(["todos"], (old) =>
+        old?.map(t => t.id === todoId ? { ...t, status: newStatus, sort_order: newSortOrder } : t)
+      );
 
       const { error } = await supabase.from("todos").update({ status: newStatus, sort_order: newSortOrder }).eq("id", todoId);
       if (error) {
@@ -2010,7 +1993,65 @@ export default function TodoPage() {
           }}
         >
           <Box id="todo-scroll-container" ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "4px", position: "relative" }}>
-            {viewMode === "board" ? (
+            {loading ? (
+              <Box p="md">
+                {viewMode === "grid" ? (
+                  <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+                    {Array(6).fill(0).map((_, i) => (
+                      <Paper key={i} p="md" radius="md" withBorder h={180}>
+                        <Stack gap="sm">
+                          <Group justify="space-between"><Skeleton height={20} width={20} /><Skeleton height={20} width={20} /></Group>
+                          <Skeleton height={24} width="80%" />
+                          <Group gap={6}><Skeleton height={18} width={50} radius="md" /><Skeleton height={18} width={50} radius="md" /></Group>
+                          <Group justify="space-between" mt="auto"><Skeleton height={20} width={60} radius="xl" /><Skeleton height={20} width={40} radius="md" /></Group>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </SimpleGrid>
+                ) : viewMode === "list" ? (
+                  <Stack gap="xs">
+                    {Array(8).fill(0).map((_, i) => (
+                      <Paper key={i} p="xs" radius="sm" withBorder shadow="0">
+                        <Group gap="sm" wrap="nowrap">
+                          <Skeleton height={20} width={20} />
+                          <Skeleton height={20} width="60%" />
+                          <Skeleton height={20} width={60} radius="xl" ml="auto" />
+                        </Group>
+                      </Paper>
+                    ))}
+                  </Stack>
+                ) : (
+                  <Box style={{ display: "flex", gap: "1rem", overflowX: "auto" }}>
+                    {["할 일", "진행 중", "완료"].map((label, i) => (
+                      <Box key={i} style={{ minWidth: 320, flex: 1 }}>
+                        <Paper p="sm" radius="md" withBorder bg="gray.0">
+                          <Group justify="space-between" mb="md">
+                            <Text fw={800} size="sm">{label}</Text>
+                          </Group>
+                          <Stack gap="sm">
+                            {Array(3).fill(0).map((_, j) => (
+                              <Paper key={j} p="sm" radius="md" withBorder h={120}>
+                                <Stack gap="xs">
+                                  <Skeleton height={18} width="90%" />
+                                  <Skeleton height={14} width="40%" />
+                                  <Group justify="space-between" mt="sm">
+                                    <Box style={{ display: 'flex', gap: 4 }}>
+                                      <Skeleton height={16} width={16} circle />
+                                      <Skeleton height={16} width={16} circle />
+                                    </Box>
+                                    <Skeleton height={16} width={40} radius="md" />
+                                  </Group>
+                                </Stack>
+                              </Paper>
+                            ))}
+                          </Stack>
+                        </Paper>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+              </Box>
+            ) : viewMode === "board" ? (
               renderBoard()
             ) : (
               renderTree(null, 0) || (

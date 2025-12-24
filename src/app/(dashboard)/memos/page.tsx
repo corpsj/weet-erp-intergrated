@@ -15,12 +15,14 @@ import {
   Textarea,
   Title,
   SimpleGrid,
+  Skeleton,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconPaperclip, IconPlus, IconSearch, IconTrash } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 type Memo = {
   id: string;
@@ -49,9 +51,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 export default function MemosPage() {
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<Memo[]>([]);
-
+  const queryClient = useQueryClient();
   const [opened, setOpened] = useState(false);
   const [editing, setEditing] = useState<Memo | null>(null);
   const [saving, setSaving] = useState(false);
@@ -62,23 +62,19 @@ export default function MemosPage() {
   const [body, setBody] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: items = [], isLoading: loading } = useQuery<Memo[]>({
+    queryKey: ["memos"],
+    queryFn: async () => {
       const response = await fetchWithAuth("/api/memos");
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "불러오기 실패");
-      setItems((payload?.items ?? []) as Memo[]);
-    } catch (error) {
-      notifications.show({
-        title: "불러오기 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (payload?.items ?? []) as Memo[];
+    },
+  });
+
+  const load = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["memos"] });
+  }, [queryClient]);
 
   const loadAttachments = useCallback(async (memoId: string) => {
     const response = await fetchWithAuth(`/api/memos/${memoId}/attachments`);
@@ -124,7 +120,7 @@ export default function MemosPage() {
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "저장 실패");
       setOpened(false);
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ["memos"] });
       notifications.show({ title: "저장 완료", message: "메모가 저장되었습니다.", color: "gray" });
     } catch (error) {
       notifications.show({
@@ -135,25 +131,39 @@ export default function MemosPage() {
     } finally {
       setSaving(false);
     }
-  }, [body, editing, load, title]);
+  }, [body, editing, queryClient, title]);
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetchWithAuth(`/api/memos/${id}`, { method: "DELETE" });
+      const payload = (await response.json().catch(() => null)) as any;
+      if (!response.ok) throw new Error(payload?.message ?? "삭제 실패");
+    },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["memos"] });
+      const previous = queryClient.getQueryData<Memo[]>(["memos"]);
+      queryClient.setQueryData<Memo[]>(["memos"], (old) => old?.filter((x) => x.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["memos"], context.previous);
+      }
+      notifications.show({ title: "삭제 실패", message: err.message, color: "red" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["memos"] });
+    },
+    onSuccess: () => {
+      notifications.show({ title: "삭제 완료", message: "삭제되었습니다.", color: "gray" });
+    },
+  });
 
   const remove = useCallback(async (id: string) => {
     const ok = window.confirm("삭제할까요? (복구 불가)");
     if (!ok) return;
-    try {
-      const response = await fetchWithAuth(`/api/memos/${id}`, { method: "DELETE" });
-      const payload = (await response.json().catch(() => null)) as any;
-      if (!response.ok) throw new Error(payload?.message ?? "삭제 실패");
-      setItems((prev) => prev.filter((x) => x.id !== id));
-      notifications.show({ title: "삭제 완료", message: "삭제되었습니다.", color: "gray" });
-    } catch (error) {
-      notifications.show({
-        title: "삭제 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    }
-  }, []);
+    deleteMutation.mutate(id);
+  }, [deleteMutation]);
 
   const upload = useCallback(
     async (file: File) => {
@@ -211,6 +221,23 @@ export default function MemosPage() {
   }, [items, searchQuery]);
 
   const cards = useMemo(() => {
+    if (loading) {
+      return Array(6).fill(0).map((_, i) => (
+        <Paper key={i} p="lg" radius="md" withBorder shadow="xs">
+          <Stack gap="md">
+            <Skeleton height={20} width="70%" radius="xl" />
+            <Skeleton height={14} width="100%" radius="xl" />
+            <Skeleton height={14} width="100%" radius="xl" />
+            <Skeleton height={14} width="60%" radius="xl" />
+            <Group justify="space-between" mt="auto">
+              <Skeleton height={12} width={60} radius="xl" />
+              <Skeleton height={20} width={40} radius="xl" />
+            </Group>
+          </Stack>
+        </Paper>
+      ));
+    }
+
     return filteredItems.map((item) => (
       <Paper
         key={item.id}
@@ -255,7 +282,7 @@ export default function MemosPage() {
         </Stack>
       </Paper>
     ));
-  }, [filteredItems, openEdit, remove]);
+  }, [filteredItems, loading, openEdit, remove]);
 
   return (
     <>

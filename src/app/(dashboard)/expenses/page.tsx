@@ -22,6 +22,7 @@ import {
   Transition,
   Center,
   Loader,
+  Skeleton,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -428,23 +429,30 @@ export default function ExpensesPage() {
 
           <Box className="mobile-only" p="md">
             {loading ? (
-              <Center py="xl">
-                <Stack align="center" gap="xs">
-                  <Loader size="md" color="indigo" />
-                  <Text size="sm" c="dimmed">경비 내역을 불러오는 중...</Text>
-                </Stack>
-              </Center>
+              <Stack gap="sm">
+                {Array(3).fill(0).map((_, i) => (
+                  <Paper key={i} p="md" radius="md" withBorder shadow="sm">
+                    <Stack gap="xs">
+                      <Group justify="space-between"><Skeleton height={20} width={80} /><Skeleton height={20} width={60} /></Group>
+                      <Skeleton height={24} width="70%" />
+                      <Group justify="space-between"><Skeleton height={14} width={100} /><Skeleton height={24} width={40} /></Group>
+                    </Stack>
+                  </Paper>
+                ))}
+              </Stack>
             ) : mobileRows}
           </Box>
 
-          <Box className="desktop-only">
+          <Box className="desktop-only" p="md">
             {loading ? (
-              <Center py="xl">
-                <Stack align="center" gap="xs">
-                  <Loader size="md" color="indigo" />
-                  <Text size="sm" c="dimmed">경비 내역을 불러오는 중...</Text>
-                </Stack>
-              </Center>
+              <Stack gap="xs">
+                <Group wrap="nowrap" mb="sm">
+                  {Array(6).fill(0).map((_, i) => <Skeleton key={i} height={20} width="15%" />)}
+                </Group>
+                {Array(8).fill(0).map((_, i) => (
+                  <Group key={i} wrap="nowrap"><Skeleton height={40} width="100%" radius="sm" /></Group>
+                ))}
+              </Stack>
             ) : (
               <Table.ScrollContainer minWidth={800}>
                 <Table verticalSpacing="sm" highlightOnHover>

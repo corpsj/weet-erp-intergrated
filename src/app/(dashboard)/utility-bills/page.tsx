@@ -29,6 +29,7 @@ import {
     Drawer,
     Affix,
     Transition,
+    Skeleton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -605,14 +606,14 @@ export default function UtilityBillsPage() {
                                     </Table.Thead>
                                     <Table.Tbody>
                                         {loading ? (
-                                            <Table.Tr>
-                                                <Table.Td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
-                                                    <Stack align="center" gap="xs">
-                                                        <Loader size="md" color="indigo" />
-                                                        <Text size="sm" c="dimmed">고지서 내역을 불러오는 중...</Text>
-                                                    </Stack>
-                                                </Table.Td>
-                                            </Table.Tr>
+                                            Array(5).fill(0).map((_, i) => (
+                                                <Table.Tr key={i}>
+                                                    <Table.Td><Skeleton height={20} width="60%" /></Table.Td>
+                                                    <Table.Td><Skeleton height={20} width="40%" /></Table.Td>
+                                                    <Table.Td><Skeleton height={20} width="50%" /></Table.Td>
+                                                    <Table.Td><Skeleton height={20} width="30%" /></Table.Td>
+                                                </Table.Tr>
+                                            ))
                                         ) : filteredItems.map((item) => (
                                             <Table.Tr
                                                 key={item.id}
@@ -675,12 +676,17 @@ export default function UtilityBillsPage() {
                             {/* Mobile List View */}
                             <Stack hiddenFrom="md" gap="md">
                                 {loading ? (
-                                    <Center py="xl">
-                                        <Stack align="center" gap="xs">
-                                            <Loader size="md" color="indigo" />
-                                            <Text size="sm" c="dimmed">고지서 내역을 불러오는 중...</Text>
-                                        </Stack>
-                                    </Center>
+                                    <Stack gap="sm">
+                                        {Array(3).fill(0).map((_, i) => (
+                                            <Paper key={i} p="md" radius="md" withBorder>
+                                                <Stack gap="xs">
+                                                    <Group justify="space-between"><Skeleton height={20} width={80} /><Skeleton height={20} width={60} /></Group>
+                                                    <Skeleton height={20} width="70%" />
+                                                    <Group justify="space-between"><Skeleton height={14} width={100} /><Skeleton height={24} width={40} /></Group>
+                                                </Stack>
+                                            </Paper>
+                                        ))}
+                                    </Stack>
                                 ) : filteredItems.map(item => (
                                     <Card
                                         key={item.id}

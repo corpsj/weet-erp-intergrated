@@ -15,12 +15,14 @@ import {
   Textarea,
   Title,
   Container,
+  Skeleton,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconCopy, IconEye, IconEyeOff, IconPlus, IconTrash } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 
 type VaultEntry = {
   id: string;
@@ -41,8 +43,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 export default function VaultPage() {
   const isMobile = useMediaQuery("(max-width: 768px)");
-  const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState<VaultEntry[]>([]);
+  const queryClient = useQueryClient();
   const [revealed, setRevealed] = useState<Record<string, string>>({});
 
   const [opened, setOpened] = useState(false);
@@ -77,27 +78,19 @@ export default function VaultPage() {
     setOpened(true);
   }, []);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
+  const { data: items = [], isLoading: loading } = useQuery<VaultEntry[]>({
+    queryKey: ["vault"],
+    queryFn: async () => {
       const response = await fetchWithAuth("/api/vault");
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "불러오기 실패");
-      setItems((payload?.items ?? []) as VaultEntry[]);
-    } catch (error) {
-      notifications.show({
-        title: "불러오기 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return (payload?.items ?? []) as VaultEntry[];
+    },
+  });
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const load = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["vault"] });
+  }, [queryClient]);
 
   const save = useCallback(async () => {
     const cleanTitle = title.trim();
@@ -127,7 +120,7 @@ export default function VaultPage() {
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "저장 실패");
       setOpened(false);
-      await load();
+      await queryClient.invalidateQueries({ queryKey: ["vault"] });
       notifications.show({ title: "저장 완료", message: "계정이 저장되었습니다.", color: "gray" });
     } catch (error) {
       notifications.show({
@@ -177,28 +170,37 @@ export default function VaultPage() {
     [revealed]
   );
 
-  const remove = useCallback(async (id: string) => {
-    const ok = window.confirm("삭제할까요? (복구 불가)");
-    if (!ok) return;
-    try {
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
       const response = await fetchWithAuth(`/api/vault/${id}`, { method: "DELETE" });
       const payload = (await response.json().catch(() => null)) as any;
       if (!response.ok) throw new Error(payload?.message ?? "삭제 실패");
-      setRevealed((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      setItems((prev) => prev.filter((item) => item.id !== id));
+    },
+    onMutate: async (id: string) => {
+      await queryClient.cancelQueries({ queryKey: ["vault"] });
+      const previous = queryClient.getQueryData<VaultEntry[]>(["vault"]);
+      queryClient.setQueryData<VaultEntry[]>(["vault"], (old) => old?.filter((item) => item.id !== id));
+      return { previous };
+    },
+    onError: (err, id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["vault"], context.previous);
+      }
+      notifications.show({ title: "삭제 실패", message: err.message, color: "red" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["vault"] });
+    },
+    onSuccess: () => {
       notifications.show({ title: "삭제 완료", message: "삭제되었습니다.", color: "gray" });
-    } catch (error) {
-      notifications.show({
-        title: "삭제 실패",
-        message: error instanceof Error ? error.message : "알 수 없는 오류",
-        color: "red",
-      });
-    }
-  }, []);
+    },
+  });
+
+  const remove = useCallback(async (id: string) => {
+    const ok = window.confirm("삭제할까요? (복구 불가)");
+    if (!ok) return;
+    deleteMutation.mutate(id);
+  }, [deleteMutation]);
 
 
   const filteredItems = useMemo(() => {
@@ -214,6 +216,18 @@ export default function VaultPage() {
   }, [items, query]);
 
   const desktopRows = useMemo(() => {
+    if (loading) {
+      return Array(5).fill(0).map((_, i) => (
+        <Table.Tr key={i}>
+          <Table.Td><Skeleton height={20} width="60%" /></Table.Td>
+          <Table.Td><Skeleton height={16} width="40%" /></Table.Td>
+          <Table.Td><Skeleton height={20} width="50%" /></Table.Td>
+          <Table.Td><Skeleton height={16} width="80%" /></Table.Td>
+          <Table.Td><Group justify="flex-end"><Skeleton height={20} width={40} /></Group></Table.Td>
+        </Table.Tr>
+      ));
+    }
+
     return filteredItems.map((item) => (
       <Table.Tr key={item.id}>
         <Table.Td>
@@ -288,6 +302,18 @@ export default function VaultPage() {
   }, [copyPassword, filteredItems, remove, reveal, revealed]);
 
   const mobileCards = useMemo(() => {
+    if (loading) {
+      return Array(3).fill(0).map((_, i) => (
+        <Paper key={i} p="md" radius="md" withBorder shadow="xs" mb="sm">
+          <Stack gap="sm">
+            <Skeleton height={20} width="50%" />
+            <Skeleton height={60} radius="md" />
+            <Skeleton height={14} width="80%" />
+          </Stack>
+        </Paper>
+      ));
+    }
+
     return filteredItems.map((item) => (
       <Paper key={item.id} p="md" radius="md" withBorder shadow="xs" mb="sm" style={{ background: 'var(--mantine-color-white)' }}>
         <Stack gap="sm">
