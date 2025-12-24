@@ -58,6 +58,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 export default function TaxInvoicesPage() {
     const isMobile = useMediaQuery("(max-width: 768px)");
     const queryClient = useQueryClient();
+    const [typeFilter, setTypeFilter] = useState<string>("all");
     const [opened, setOpened] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -156,6 +157,11 @@ export default function TaxInvoicesPage() {
         );
     }, [items]);
 
+    const filteredItems = useMemo(() => {
+        if (typeFilter === "all") return items;
+        return items.filter(item => item.type === typeFilter);
+    }, [items, typeFilter]);
+
     const skeletons = useMemo(() => {
         return Array(3).fill(0).map((_, i) => (
             <Paper key={i} p="md" radius="md" withBorder bg="var(--mantine-color-white)">
@@ -174,7 +180,7 @@ export default function TaxInvoicesPage() {
         ));
     }, []);
 
-    const rows = items.map((item) => (
+    const mobileRows = filteredItems.map((item) => (
         <Paper
             key={item.id}
             p="md"
@@ -234,7 +240,37 @@ export default function TaxInvoicesPage() {
             </Group>
         </Paper>
     ));
-
+    const desktopRows = filteredItems.map((item) => (
+        <Table.Tr key={item.id} onClick={(e) => {/* Edit logic if any */ }} style={{ cursor: 'pointer' }}>
+            <Table.Td>
+                <Text size="sm" fw={600}>{dayjs(item.issue_date).format("YYYY.MM.DD")}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Badge color={item.type === "sales" ? "indigo" : "red"} variant="dot" size="sm">
+                    {item.type === "sales" ? "매출" : "매입"}
+                </Badge>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" fw={700}>{item.type === "sales" ? item.receiver_name : item.supplier_name}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" c="dimmed" truncate style={{ maxWidth: 200 }}>{item.description || "-"}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" fw={800} ta="right">{item.amount.toLocaleString()}원</Text>
+            </Table.Td>
+            <Table.Td>
+                <Text size="xs" c="dimmed" ta="right">{item.vat.toLocaleString()}원</Text>
+            </Table.Td>
+            <Table.Td onClick={(e) => e.stopPropagation()}>
+                <Group justify="flex-end">
+                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                </Group>
+            </Table.Td>
+        </Table.Tr>
+    ));
     return (
         <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>
             <Box hiddenFrom="md" px="md" mb="lg">
@@ -287,14 +323,80 @@ export default function TaxInvoicesPage() {
                 </Grid.Col>
             </Grid>
 
-            <Stack gap="xs">
-                {loading ? skeletons : rows}
-                {!items.length && !loading && (
-                    <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
-                        <Text size="sm" c="dimmed">등록된 세금계산서 내역이 없습니다.</Text>
-                    </Paper>
-                )}
-            </Stack>
+            <Paper withBorder radius="md" bg="var(--mantine-color-white)">
+                <Stack gap={0}>
+                    <Box p="md">
+                        <Group justify="space-between" wrap="nowrap">
+                            <Group gap="xs">
+                                {[
+                                    { id: "all", label: "전체", color: "gray" },
+                                    { id: "sales", label: "매출", color: "indigo" },
+                                    { id: "purchase", label: "매입", color: "red" },
+                                ].map((s) => (
+                                    <Button
+                                        key={s.id}
+                                        variant={typeFilter === s.id ? "filled" : "light"}
+                                        color={s.color}
+                                        size="compact-sm"
+                                        radius="xl"
+                                        onClick={() => setTypeFilter(s.id)}
+                                    >
+                                        {s.label}
+                                    </Button>
+                                ))}
+                            </Group>
+                            <Box className="desktop-only">
+                                <Text size="xs" fw={700} c="dimmed">내역: {filteredItems.length}건</Text>
+                            </Box>
+                        </Group>
+                    </Box>
+
+                    <Divider />
+
+                    <Box p="md" hiddenFrom="md">
+                        {loading ? skeletons : mobileRows}
+                        {!filteredItems.length && !loading && (
+                            <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
+                                <Text size="sm" c="dimmed">내역이 없습니다.</Text>
+                            </Paper>
+                        )}
+                    </Box>
+
+                    <Box visibleFrom="md">
+                        {loading ? (
+                            <Box p="md">
+                                <Stack gap="xs">
+                                    {Array(5).fill(0).map((_, i) => <Skeleton key={i} height={40} radius="sm" />)}
+                                </Stack>
+                            </Box>
+                        ) : (
+                            <Table.ScrollContainer minWidth={800}>
+                                <Table verticalSpacing="sm" highlightOnHover>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>발행일</Table.Th>
+                                            <Table.Th>구분</Table.Th>
+                                            <Table.Th>상호(이름)</Table.Th>
+                                            <Table.Th>품목/비고</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>공급가액</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>부가세</Table.Th>
+                                            <Table.Th />
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {desktopRows}
+                                    </Table.Tbody>
+                                </Table>
+                            </Table.ScrollContainer>
+                        )}
+                        {!filteredItems.length && !loading && (
+                            <Paper p="xl" m="md" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
+                                <Text size="sm" c="dimmed">등록된 세금계산서 내역이 없습니다.</Text>
+                            </Paper>
+                        )}
+                    </Box>
+                </Stack>
+            </Paper>
 
             <Modal opened={opened} onClose={() => setOpened(false)} title="세금계산서 등록" centered size="lg">
                 <Stack gap="sm">
@@ -342,7 +444,7 @@ export default function TaxInvoicesPage() {
 
                     <Group justify="flex-end" mt="md">
                         <Button variant="light" color="gray" onClick={() => setOpened(false)}>취소</Button>
-                        <Button color="gray" onClick={() => void save()} loading={saving}>저장하기</Button>
+                        <Button color="indigo" radius="md" onClick={() => void save()} loading={saving} px="xl">저장하기</Button>
                     </Group>
                 </Stack>
             </Modal>

@@ -28,6 +28,8 @@ import {
   Select,
   SimpleGrid,
   Skeleton,
+  Portal,
+  Progress,
 } from "@mantine/core";
 import { DateInput, type DateStringValue } from "@mantine/dates";
 import { useDisclosure, useHotkeys, useMediaQuery } from "@mantine/hooks";
@@ -46,6 +48,7 @@ import {
   IconSearch,
   IconTrash,
   IconX,
+  IconPencil,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import "dayjs/locale/ko";
@@ -851,8 +854,25 @@ export default function TodoPage() {
   }, [editorHandlers]);
 
   useEffect(() => {
-    // Scroll listener removed as per user request to keep popover open during scroll
-  }, []);
+    if (editorMode.mode === "edit" && currentTodo) {
+      setForm({
+        title: currentTodo.title,
+        status: currentTodo.status,
+        priority: currentTodo.priority,
+        assigneeInput: currentTodo.assignee_id ?? "",
+        due_date: currentTodo.due_date,
+      });
+    } else if (editorMode.mode === "create") {
+      setForm({
+        title: "",
+        status: "todo",
+        priority: "medium",
+        assigneeInput: "",
+        due_date: null,
+      });
+    }
+  }, [editorMode.mode, currentTodo]); // editorMode.todoId change will update currentTodo
+
 
   useHotkeys([
     ["n", () => openCreate(null)],
@@ -1008,6 +1028,14 @@ export default function TodoPage() {
 
   const quickAdd = useCallback(async (title: string, parentId: string | null = null, status: Todo["status"] = "todo") => {
     setSaving(true);
+
+    // Calculate new sort_order (max in current column/parent + 1000)
+    const siblings = todos.filter(t => t.parent_id === parentId && (parentId ? true : t.status === status));
+    const maxSortOrder = siblings.length > 0
+      ? Math.max(...siblings.map(t => t.sort_order ?? 0))
+      : 0;
+    const newSortOrder = maxSortOrder + 1000;
+
     const { data, error } = await supabase
       .from("todos")
       .insert({
@@ -1018,6 +1046,7 @@ export default function TodoPage() {
         assignee_id: (parentId ? todoById[parentId]?.assignee_id : null) ?? currentUser?.id ?? null,
         due_date: null,
         note: null,
+        sort_order: newSortOrder,
       })
       .select("*")
       .single();
@@ -1034,7 +1063,7 @@ export default function TodoPage() {
       setEditorMode({ mode: "edit", todoId: data.id });
       editorHandlers.open();
     }
-  }, [loadAll, editorHandlers, todoById, currentUser]);
+  }, [loadAll, editorHandlers, todoById, currentUser, todos]);
 
 
   const renderTree = (parentId: string | null, depth: number): ReactNode => {
@@ -1137,36 +1166,74 @@ export default function TodoPage() {
   };
 
   const onDragEnd = async (result: DropResult) => {
-    const { destination, source, draggableId, type } = result;
+    const { destination, source, draggableId, type, combine } = result;
+
+    // Handle Nesting (Combine)
+    if (combine) {
+      const todoId = draggableId;
+      const targetParentId = combine.draggableId;
+
+      // Prevent nesting into itself or its own descendants (simplified check)
+      if (todoId === targetParentId) return;
+
+      queryClient.setQueryData<Todo[]>(["todos"], (old) =>
+        old?.map(t => t.id === todoId ? { ...t, parent_id: targetParentId } : t)
+      );
+
+      const { error } = await supabase.from("todos").update({ parent_id: targetParentId }).eq("id", todoId);
+      if (error) {
+        notifications.show({ title: "계층 이동 실패", message: error.message, color: "red" });
+        await loadAll();
+      }
+      return;
+    }
+
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     if (type === "card") {
       const todoId = draggableId;
-      const newStatus = destination.droppableId as Todo["status"];
-      // 대상 컬럼의 업무 목록을 가져오되, 현재 드래그 중인 업무는 제외하고 정렬함
-      const targetColumnTodos = todos
-        .filter(t => t.status === newStatus && !t.parent_id && t.id !== todoId)
+      const isSubtaskDestination = destination.droppableId.startsWith("subtasks-");
+      const targetParentId = isSubtaskDestination ? destination.droppableId.replace("subtasks-", "") : null;
+      const newStatus = isSubtaskDestination
+        ? (todoById[targetParentId as string]?.status ?? "todo")
+        : (destination.droppableId as Todo["status"]);
+
+      // 대상 위치의 업무 목록을 가져와서 정렬
+      const siblings = todos
+        .filter(t => {
+          if (isSubtaskDestination) {
+            return t.parent_id === targetParentId;
+          } else {
+            return !t.parent_id && t.status === newStatus;
+          }
+        })
+        .filter(t => t.id !== todoId)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
       let newSortOrder: number;
-      if (targetColumnTodos.length === 0) {
+      if (siblings.length === 0) {
         newSortOrder = 1000;
       } else if (destination.index === 0) {
-        newSortOrder = (targetColumnTodos[0].sort_order ?? 0) - 1000;
-      } else if (destination.index >= targetColumnTodos.length) {
-        newSortOrder = (targetColumnTodos[targetColumnTodos.length - 1].sort_order ?? 0) + 1000;
+        newSortOrder = (siblings[0].sort_order ?? 0) - 1000;
+      } else if (destination.index >= siblings.length) {
+        newSortOrder = (siblings[siblings.length - 1].sort_order ?? 0) + 1000;
       } else {
-        const prev = targetColumnTodos[destination.index - 1].sort_order ?? 0;
-        const next = targetColumnTodos[destination.index].sort_order ?? 0;
+        const prev = siblings[destination.index - 1].sort_order ?? 0;
+        const next = siblings[destination.index].sort_order ?? 0;
         newSortOrder = (prev + next) / 2;
       }
 
       queryClient.setQueryData<Todo[]>(["todos"], (old) =>
-        old?.map(t => t.id === todoId ? { ...t, status: newStatus, sort_order: newSortOrder } : t)
+        old?.map(t => t.id === todoId ? { ...t, status: newStatus, parent_id: targetParentId, sort_order: newSortOrder } : t)
       );
 
-      const { error } = await supabase.from("todos").update({ status: newStatus, sort_order: newSortOrder }).eq("id", todoId);
+      const { error } = await supabase.from("todos").update({
+        status: newStatus,
+        parent_id: targetParentId,
+        sort_order: newSortOrder
+      }).eq("id", todoId);
+
       if (error) {
         notifications.show({ title: "이동 실패", message: error.message, color: "red" });
         await loadAll();
@@ -1175,6 +1242,339 @@ export default function TodoPage() {
   };
 
   const renderBoard = () => {
+    // Recursive function to render a todo item and its children
+    const renderTodoItem = (todo: Todo, index: number, isSubtask: boolean = false) => {
+      const assignee = todo.assignee_id ? userById[todo.assignee_id] : undefined;
+      const isDone = todo.status === "done";
+      const overdue = isOverdue(todo.due_date ?? null, isDone);
+      const subTasks = (fullChildrenMap.get(todo.id) ?? []).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      const hasChildren = subTasks.length > 0;
+      const expanded = expandedById[todo.id] || autoExpandedIds.has(todo.id);
+
+      return (
+        <Draggable key={todo.id} draggableId={todo.id} index={index}>
+          {(provided, snapshot) => {
+            const content = (
+              <Box
+                ref={provided.innerRef}
+                {...provided.draggableProps}
+                {...provided.dragHandleProps}
+                style={{
+                  ...provided.draggableProps.style,
+                  marginBottom: (hasChildren && !expanded && !isSubtask) ? 12 : 8,
+                }}
+              >
+                <Box style={{ position: "relative" }}>
+                  {/* Stack effect layers - Only for top-level tasks with children that are collapsed */}
+                  {!isSubtask && hasChildren && !expanded && (
+                    <>
+                      <Box
+                        style={{
+                          position: "absolute",
+                          top: 3, left: 3, right: -3, bottom: -3,
+                          background: "white",
+                          border: "1px solid var(--mantine-color-gray-3)",
+                          borderRadius: "4px",
+                          zIndex: 0
+                        }}
+                      />
+                      <Box
+                        style={{
+                          position: "absolute",
+                          top: 6, left: 6, right: -6, bottom: -6,
+                          background: "white",
+                          border: "1px solid var(--mantine-color-gray-2)",
+                          borderRadius: "4px",
+                          zIndex: -1,
+                        }}
+                      />
+                    </>
+                  )}
+
+                  <Box style={{ position: "relative" }}>
+                    {/* 계층선 - 하위 업무일 때만 표시 */}
+                    {isSubtask && (
+                      <>
+                        {/* 수평 연결선 (L자형) - 드래그 중이 아닐 때만 표시 */}
+                        {!snapshot.isDragging && (
+                          <Box
+                            style={{
+                              position: "absolute",
+                              left: -12,
+                              top: "50%",
+                              marginTop: -1,
+                              width: 12,
+                              height: 2,
+                              background: "var(--mantine-color-gray-3)",
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+
+                    <Popover
+                      opened={selectedId === todo.id && editorOpened}
+                      onClose={closeEditor}
+                      width={350}
+                      position="right-start"
+                      withArrow
+                      shadow="lg"
+                      withinPortal
+                      closeOnClickOutside={true}
+                      trapFocus={false}
+                    >
+                      <Popover.Target>
+                        <Paper
+                          withBorder
+                          radius="sm"
+                          p="xs"
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button')) return;
+                            setExpandedById((prev) => {
+                              // If effectively closing: keep everything else, just toggle this one off
+                              if (prev[todo.id]) {
+                                return { ...prev, [todo.id]: false };
+                              }
+                              // If opening: clear unrelated, keep ancestors, open this one
+                              const ancestors = collectAncestorIds(todo.id, todoById);
+                              return {
+                                ...ancestors.reduce((acc, id) => ({ ...acc, [id]: true }), {}),
+                                [todo.id]: true
+                              };
+                            });
+                          }}
+                          onDoubleClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          style={{
+                            position: "relative",
+                            zIndex: 1,
+                            cursor: "pointer",
+                            background: (selectedId === todo.id || editingId === todo.id || snapshot.isDragging)
+                              ? "var(--mantine-color-gray-1)"
+                              : snapshot.combineTargetFor
+                                ? "var(--mantine-color-indigo-0)"
+                                : isDone ? "var(--mantine-color-gray-0)" : "white",
+                            opacity: isDone ? (isSubtask ? 0.8 : 1) : 1,
+                            borderColor: snapshot.combineTargetFor
+                              ? "var(--mantine-color-indigo-6)"
+                              : overdue
+                                ? "var(--mantine-color-red-4)"
+                                : isDone ? "var(--mantine-color-gray-2)" : "var(--mantine-color-gray-2)",
+                            borderWidth: snapshot.combineTargetFor ? 2 : 1,
+                            boxShadow: snapshot.combineTargetFor ? "var(--mantine-shadow-md)" : "var(--mantine-shadow-xs)",
+                            transition: 'all 0.15s ease',
+                            transform: snapshot.combineTargetFor ? 'scale(1.02)' : 'scale(1)',
+                          }}
+                        >
+                          <Stack gap={6}>
+                            <Group justify="space-between" wrap="nowrap" align="flex-start">
+                              <Group gap="xs" style={{ flex: 1, minWidth: 0 }} wrap="nowrap" align="flex-start">
+                                <Checkbox
+                                  size="xs"
+                                  radius="xl"
+                                  checked={isDone}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => toggleDone(todo, e.currentTarget.checked)}
+                                  mt={2}
+                                />
+                                <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
+                                  <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"} style={{ flex: 1 }}>
+                                    {todo.title}
+                                  </Text>
+                                </Stack>
+                              </Group>
+                              {/* Edit Button */}
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color="gray"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEdit(todo.id);
+                                }}
+                                style={{ opacity: 0.5, transition: 'opacity 0.2s' }}
+                                className="edit-btn"
+                              >
+                                <IconPencil size={14} />
+                              </ActionIcon>
+                            </Group>
+
+                            <Group justify="space-between" wrap="nowrap">
+                              <Group gap={4} wrap="wrap">
+                                <Badge color={priorityColor(todo.priority)} size="xs" variant="light">
+                                  {priorityLabels[todo.priority]}
+                                </Badge>
+                                {!isSubtask && todo.due_date && (
+                                  <Badge
+                                    color={overdue ? "red" : "gray"}
+                                    size="xs"
+                                    variant={overdue ? "filled" : "light"}
+                                  >
+                                    {(() => {
+                                      const now = dayjs().startOf('day');
+                                      const due = dayjs(todo.due_date).startOf('day');
+                                      const diff = due.diff(now, 'day');
+                                      let dDay = '';
+                                      if (diff < 0) dDay = `D+${Math.abs(diff)}`;
+                                      else if (diff === 0) dDay = 'Today';
+                                      else dDay = `D-${diff}`;
+                                      return `${dayjs(todo.due_date).format("MM/DD")} (${dDay})`;
+                                    })()}
+                                  </Badge>
+                                )}
+                                {!isSubtask && hasChildren && !expanded && (
+                                  <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
+                                    {subTasks.length}
+                                  </Badge>
+                                )}
+                                {isSubtask && !isDone && todo.status !== "todo" && (
+                                  <Badge size="xs" variant="dot" color={statusColumns.find(c => c.id === todo.status)?.color}>
+                                    {statusColumns.find(c => c.id === todo.status)?.label}
+                                  </Badge>
+                                )}
+                              </Group>
+
+                              {assignee ? (
+                                <Avatar
+                                  size={isSubtask ? 24 : "sm"}
+                                  radius="xl"
+                                  color={assignee.color ?? "blue"}
+                                  styles={!isSubtask ? {
+                                    root: { width: 'auto', minWidth: 32, padding: '0 4px' },
+                                    placeholder: { fontSize: '10px', fontWeight: 700 }
+                                  } : undefined}
+                                >
+                                  {isSubtask ? (assignee.initials ?? assignee.name.slice(0, 1)) : assignee.name}
+                                </Avatar>
+                              ) : !isSubtask ? (
+                                <Avatar size="sm" radius="xl" color="gray" title="누구나">
+                                  ?
+                                </Avatar>
+                              ) : null}
+                            </Group>
+
+                            {/* Progress Bar for Parents */}
+                            {!isSubtask && hasChildren && (
+                              (() => {
+                                const total = subTasks.length;
+                                const doneCount = subTasks.filter(s => s.status === 'done').length;
+                                const percent = total > 0 ? (doneCount / total) * 100 : 0;
+                                return (
+                                  <Box mt={4}>
+                                    <Progress value={percent} size="sm" radius="xl" color={percent === 100 ? "green" : "blue"} />
+                                  </Box>
+                                );
+                              })()
+                            )}
+
+                            {hasChildren && (
+                              <Box style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+                                <IconChevronDown
+                                  size={16}
+                                  style={{
+                                    transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                    transition: 'transform 0.2s ease',
+                                    color: 'var(--mantine-color-gray-5)'
+                                  }}
+                                />
+                              </Box>
+                            )}
+                          </Stack>
+                        </Paper>
+                      </Popover.Target>
+                      <Popover.Dropdown>
+                        {renderEditorContent()}
+                      </Popover.Dropdown>
+                    </Popover>
+                  </Box>
+
+                  {expanded && (
+                    <Box mt={4} style={{ position: "relative", paddingLeft: 24 }}>
+                      {/* 수직 계층선 - 하위 업무가 있을 때만 표시 */}
+                      {subTasks.length > 0 && (
+                        <Box
+                          style={{
+                            position: "absolute",
+                            left: 12,
+                            top: -8,
+                            bottom: 24,
+                            width: 1,
+                            borderLeft: "2px solid var(--mantine-color-gray-3)",
+                          }}
+                        />
+                      )}
+                      <Droppable droppableId={`subtasks-${todo.id}`} type="card" isCombineEnabled={true}>
+                        {(provided) => (
+                          <Stack
+                            {...provided.droppableProps}
+                            ref={provided.innerRef}
+                            gap={6}
+                          >
+                            {subTasks.map((sub, subIdx) => renderTodoItem(sub, subIdx, true))}
+                            {provided.placeholder}
+                          </Stack>
+                        )}
+                      </Droppable>
+                      <Box mt={10}>
+                        {addingSubId === todo.id ? (
+                          <Paper withBorder p="xs" radius="sm" shadow="sm">
+                            <TextInput
+                              autoFocus
+                              variant="unstyled"
+                              placeholder="하위 업무 제목 입력 후 Enter..."
+                              size="xs"
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && e.currentTarget.value.trim()) {
+                                  quickAdd(e.currentTarget.value.trim(), todo.id, todo.status);
+                                  e.currentTarget.value = "";
+                                }
+                                if (e.key === "Escape") setAddingSubId(null);
+                              }}
+                              onBlur={() => {
+                                setTimeout(() => setAddingSubId(null), 200);
+                              }}
+                            />
+                          </Paper>
+                        ) : (
+                          <Button
+                            variant="light"
+                            color="gray"
+                            size="xs"
+                            fullWidth
+                            leftSection={<IconPlus size={14} />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setAddingSubId(todo.id);
+                            }}
+                            styles={{
+                              root: {
+                                borderStyle: 'dashed',
+                                backgroundColor: 'transparent',
+                                '&:hover': { backgroundColor: 'var(--mantine-color-gray-0)' }
+                              }
+                            }}
+                          >
+                            하위 업무 추가
+                          </Button>
+                        )}
+                      </Box>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+            );
+
+            if (snapshot.isDragging) {
+              return <Portal>{content}</Portal>;
+            }
+            return content;
+          }
+          }
+        </Draggable >
+      );
+    };
+
     return (
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="board" direction="horizontal" type="column">
@@ -1243,350 +1643,10 @@ export default function TodoPage() {
                           </Group>
                         </Group>
 
-                        <Droppable droppableId={column.id} type="card">
+                        <Droppable droppableId={column.id} type="card" isCombineEnabled={true}>
                           {(provided) => (
                             <Stack {...provided.droppableProps} ref={provided.innerRef} gap="xs" style={{ minHeight: 50 }}>
-                              {filteredTodos.map((todo, idx) => {
-                                const assignee = todo.assignee_id ? userById[todo.assignee_id] : undefined;
-                                const isDone = todo.status === "done";
-                                const overdue = isOverdue(todo.due_date ?? null, isDone);
-                                const subTasks = fullChildrenMap.get(todo.id) ?? [];
-                                const hasChildren = subTasks.length > 0;
-                                const expanded = expandedById[todo.id] || autoExpandedIds.has(todo.id);
-
-                                return (
-                                  <Draggable key={todo.id} draggableId={todo.id} index={idx}>
-                                    {(provided) => (
-                                      <Box
-                                        ref={provided.innerRef}
-                                        {...provided.draggableProps}
-                                        {...provided.dragHandleProps}
-                                        style={{
-                                          ...provided.draggableProps.style,
-                                          marginBottom: hasChildren && !expanded ? 12 : 8
-                                        }}
-                                      >
-                                        <Box style={{ position: "relative" }}>
-                                          {/* Stack effect layers */}
-                                          {hasChildren && !expanded && (
-                                            <>
-                                              <Box
-                                                style={{
-                                                  position: "absolute",
-                                                  top: 3, left: 3, right: -3, bottom: -3,
-                                                  background: "white",
-                                                  border: "1px solid var(--mantine-color-gray-3)",
-                                                  borderRadius: "4px",
-                                                  zIndex: 0
-                                                }}
-                                              />
-                                              <Box
-                                                style={{
-                                                  position: "absolute",
-                                                  top: 6, left: 6, right: -6, bottom: -6,
-                                                  background: "white",
-                                                  border: "1px solid var(--mantine-color-gray-2)",
-                                                  borderRadius: "4px",
-                                                  zIndex: -1,
-                                                }}
-                                              />
-                                            </>
-                                          )}
-
-                                          <Popover
-                                            opened={selectedId === todo.id && editorOpened}
-                                            onClose={closeEditor}
-                                            width={340}
-                                            position="right-start"
-                                            withArrow
-                                            shadow="md"
-                                            withinPortal
-                                            portalProps={{ target: "#todo-scroll-container" }}
-                                            closeOnClickOutside={true}
-                                            clickOutsideEvents={['mousedown', 'touchstart']}
-                                          >
-                                            <Popover.Target>
-                                              <Paper
-                                                withBorder
-                                                radius="sm"
-                                                p="xs"
-                                                onClick={(e) => {
-                                                  if (e.detail > 1) return;
-                                                  if ((e.target as HTMLElement).closest('button')) return;
-                                                  openEdit(todo.id);
-                                                  if (hasChildren) {
-                                                    setExpandedById((prev) => ({ ...prev, [todo.id]: !prev[todo.id] }));
-                                                  }
-                                                }}
-                                                onDoubleClick={(e) => {
-                                                  e.stopPropagation();
-                                                  setEditingId(todo.id);
-                                                }}
-                                                style={{
-                                                  position: "relative",
-                                                  zIndex: 1,
-                                                  cursor: "pointer",
-                                                  background: selectedId === todo.id || editingId === todo.id ? "var(--mantine-color-gray-1)" : "white",
-                                                  borderColor: overdue ? "var(--mantine-color-red-4)" : "var(--mantine-color-gray-2)",
-                                                  boxShadow: "var(--mantine-shadow-xs)",
-                                                  transition: 'all 0.1s ease'
-                                                }}
-                                              >
-                                                <Stack gap={6}>
-                                                  <Group justify="space-between" wrap="nowrap">
-                                                    {editingId === todo.id ? (
-                                                      <TextInput
-                                                        autoFocus
-                                                        size="xs"
-                                                        defaultValue={todo.title}
-                                                        onKeyDown={(e) => {
-                                                          if (e.key === "Enter") updateTitle(todo.id, e.currentTarget.value);
-                                                          if (e.key === "Escape") setEditingId(null);
-                                                        }}
-                                                        onBlur={(e) => updateTitle(todo.id, e.currentTarget.value)}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        style={{ flex: 1 }}
-                                                      />
-                                                    ) : (
-                                                      <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"} style={{ flex: 1 }}>
-                                                        {todo.title}
-                                                      </Text>
-                                                    )}
-                                                    {hasChildren && (
-                                                      <ActionIcon
-                                                        size="xs"
-                                                        variant="filled"
-                                                        color={expanded ? "blue.1" : "gray.1"}
-                                                        onClick={(e) => {
-                                                          e.stopPropagation();
-                                                          toggleExpanded(todo.id);
-                                                        }}
-                                                        style={{
-                                                          color: expanded ? "var(--mantine-color-blue-6)" : "var(--mantine-color-gray-6)",
-                                                          transition: "all 0.2s ease"
-                                                        }}
-                                                      >
-                                                        {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
-                                                      </ActionIcon>
-                                                    )}
-                                                  </Group>
-                                                  <Group justify="space-between" wrap="nowrap">
-                                                    <Group gap={4} wrap="wrap">
-                                                      <Badge color={priorityColor(todo.priority)} size="xs" variant="light">
-                                                        {priorityLabels[todo.priority]}
-                                                      </Badge>
-                                                      {todo.due_date && (
-                                                        <Badge
-                                                          color={overdue ? "red" : "gray"}
-                                                          size="xs"
-                                                          variant={overdue ? "filled" : "light"}
-                                                        >
-                                                          {dayjs(todo.due_date).format("MM/DD")}
-                                                        </Badge>
-                                                      )}
-                                                      {hasChildren && !expanded && (
-                                                        <Badge size="xs" variant="light" color="gray" leftSection={<IconList size={10} />}>
-                                                          {subTasks.length}
-                                                        </Badge>
-                                                      )}
-                                                    </Group>
-                                                    {assignee ? (
-                                                      <Avatar
-                                                        size="sm"
-                                                        radius="xl"
-                                                        color={assignee.color ?? "blue"}
-                                                        styles={{
-                                                          root: { width: 'auto', minWidth: 32, padding: '0 4px' },
-                                                          placeholder: { fontSize: '10px', fontWeight: 700 }
-                                                        }}
-                                                      >
-                                                        {assignee.name}
-                                                      </Avatar>
-                                                    ) : (
-                                                      <Avatar size="sm" radius="xl" color="gray" title="누구나">
-                                                        ?
-                                                      </Avatar>
-                                                    )}
-                                                  </Group>
-                                                </Stack>
-                                              </Paper>
-                                            </Popover.Target>
-                                            <Popover.Dropdown>
-                                              {renderEditorContent()}
-                                            </Popover.Dropdown>
-                                          </Popover>
-
-                                          {expanded && (
-                                            <Box mt={4} style={{ position: "relative", paddingLeft: 16 }}>
-                                              {/* 수직 계층선 */}
-                                              <Box
-                                                style={{
-                                                  position: "absolute",
-                                                  left: 8,
-                                                  top: -8,
-                                                  bottom: 24,
-                                                  width: 1,
-                                                  borderLeft: "2px solid var(--mantine-color-gray-3)",
-                                                }}
-                                              />
-                                              <Stack gap={6}>
-                                                {subTasks.map((sub) => {
-                                                  const subAssignee = sub.assignee_id ? userById[sub.assignee_id] : undefined;
-                                                  const subDone = sub.status === "done";
-                                                  return (
-                                                    <Box key={sub.id} style={{ position: "relative" }}>
-                                                      {/* 수평 연결선 (L자형) */}
-                                                      <Box
-                                                        style={{
-                                                          position: "absolute",
-                                                          left: -8,
-                                                          top: 14,
-                                                          width: 8,
-                                                          height: 2,
-                                                          background: "var(--mantine-color-gray-3)",
-                                                        }}
-                                                      />
-                                                      <Popover
-                                                        opened={selectedId === sub.id && editorOpened}
-                                                        onClose={closeEditor}
-                                                        width={340}
-                                                        position="right-start"
-                                                        withArrow
-                                                        shadow="md"
-                                                        withinPortal
-                                                        portalProps={{ target: "#todo-scroll-container" }}
-                                                        closeOnClickOutside={true}
-                                                        clickOutsideEvents={['mousedown', 'touchstart']}
-                                                      >
-                                                        <Popover.Target>
-                                                          <Paper
-                                                            withBorder
-                                                            radius="sm"
-                                                            p="xs"
-                                                            onClick={(e) => {
-                                                              if ((e.target as HTMLElement).closest('button')) return;
-                                                              openEdit(sub.id);
-                                                            }}
-                                                            style={{
-                                                              cursor: "pointer",
-                                                              background: subDone ? "var(--mantine-color-gray-0)" : "white",
-                                                              opacity: subDone ? 0.8 : 1,
-                                                              boxShadow: "var(--mantine-shadow-xs)",
-                                                              borderColor: subDone ? "var(--mantine-color-gray-2)" : undefined,
-                                                            }}
-                                                          >
-                                                            <Group gap="xs" align="flex-start" wrap="nowrap">
-                                                              <Checkbox
-                                                                size="xs"
-                                                                checked={subDone}
-                                                                onClick={(e) => e.stopPropagation()}
-                                                                onChange={(e) => toggleDone(sub, e.currentTarget.checked)}
-                                                                mt={2}
-                                                              />
-                                                              <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                                                                {editingId === sub.id ? (
-                                                                  <TextInput
-                                                                    autoFocus
-                                                                    size="xs"
-                                                                    defaultValue={sub.title}
-                                                                    onKeyDown={(e) => {
-                                                                      if (e.key === "Enter") updateTitle(sub.id, e.currentTarget.value);
-                                                                      if (e.key === "Escape") setEditingId(null);
-                                                                    }}
-                                                                    onBlur={(e) => updateTitle(sub.id, e.currentTarget.value)}
-                                                                    onClick={(e) => e.stopPropagation()}
-                                                                    style={{ flex: 1 }}
-                                                                  />
-                                                                ) : (
-                                                                  <Text size="sm" fw={700} lineClamp={1} td={subDone ? "line-through" : "none"} c={subDone ? "dimmed" : "dark"}>
-                                                                    {sub.title}
-                                                                  </Text>
-                                                                )}
-                                                                <Group justify="space-between" wrap="nowrap">
-                                                                  <Group gap={4}>
-                                                                    <Badge color={priorityColor(sub.priority)} size="xs" variant="light">
-                                                                      {priorityLabels[sub.priority]}
-                                                                    </Badge>
-                                                                    {!subDone && sub.status !== "todo" && (
-                                                                      <Badge size="xs" variant="dot" color={statusColumns.find(c => c.id === sub.status)?.color}>
-                                                                        {statusColumns.find(c => c.id === sub.status)?.label}
-                                                                      </Badge>
-                                                                    )}
-                                                                  </Group>
-                                                                  {subAssignee && (
-                                                                    <Avatar
-                                                                      size={24}
-                                                                      radius="xl"
-                                                                      color={subAssignee.color ?? "blue"}
-                                                                    >
-                                                                      {subAssignee.initials ?? subAssignee.name.slice(0, 1)}
-                                                                    </Avatar>
-                                                                  )}
-                                                                </Group>
-                                                              </Stack>
-                                                            </Group>
-                                                          </Paper>
-                                                        </Popover.Target>
-                                                        <Popover.Dropdown>
-                                                          {renderEditorContent()}
-                                                        </Popover.Dropdown>
-                                                      </Popover>
-                                                    </Box>
-                                                  );
-                                                })}
-                                              </Stack>
-                                              <Box mt={10}>
-                                                {addingSubId === todo.id ? (
-                                                  <Paper withBorder p="xs" radius="sm" shadow="sm">
-                                                    <TextInput
-                                                      autoFocus
-                                                      variant="unstyled"
-                                                      placeholder="하위 업무 제목 입력 후 Enter..."
-                                                      size="xs"
-                                                      onKeyDown={(e) => {
-                                                        if (e.key === "Enter" && e.currentTarget.value.trim()) {
-                                                          quickAdd(e.currentTarget.value.trim(), todo.id, todo.status);
-                                                          e.currentTarget.value = "";
-                                                        }
-                                                        if (e.key === "Escape") setAddingSubId(null);
-                                                      }}
-                                                      onBlur={() => {
-                                                        // Delay to allow quickAdd to finish if Enter was pressed
-                                                        setTimeout(() => setAddingSubId(null), 200);
-                                                      }}
-                                                    />
-                                                  </Paper>
-                                                ) : (
-                                                  <Button
-                                                    variant="light"
-                                                    color="gray"
-                                                    size="xs"
-                                                    fullWidth
-                                                    leftSection={<IconPlus size={14} />}
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      setAddingSubId(todo.id);
-                                                    }}
-                                                    styles={{
-                                                      root: {
-                                                        borderStyle: 'dashed',
-                                                        backgroundColor: 'transparent',
-                                                        '&:hover': { backgroundColor: 'var(--mantine-color-gray-0)' }
-                                                      }
-                                                    }}
-                                                  >
-                                                    하위 업무 추가
-                                                  </Button>
-                                                )}
-                                              </Box>
-                                            </Box>
-                                          )}
-                                        </Box>
-                                      </Box>
-                                    )}
-                                  </Draggable>
-                                );
-                              })}
+                              {filteredTodos.map((todo, idx) => renderTodoItem(todo, idx))}
                               {provided.placeholder}
 
                               <Paper withBorder p="xs" radius="sm" style={{ borderStyle: "dashed", background: "transparent" }}>
@@ -1606,7 +1666,8 @@ export default function TodoPage() {
                           )}
                         </Droppable>
                       </Paper>
-                    )}
+                    )
+                    }
                   </Draggable>
                 );
               })}
@@ -1614,7 +1675,7 @@ export default function TodoPage() {
             </Box>
           )}
         </Droppable>
-      </DragDropContext>
+      </DragDropContext >
     );
   };
 

@@ -20,6 +20,8 @@ import {
     Affix,
     Transition,
     Skeleton,
+    Table,
+    ScrollArea,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -53,6 +55,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 export default function TransactionsPage() {
     const isMobile = useMediaQuery("(max-width: 768px)");
     const queryClient = useQueryClient();
+    const [typeFilter, setTypeFilter] = useState<string>("all");
     const [opened, setOpened] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -149,6 +152,11 @@ export default function TransactionsPage() {
         deleteMutation.mutate(id);
     };
 
+    const filteredItems = useMemo(() => {
+        if (typeFilter === "all") return items;
+        return items.filter(item => item.type === typeFilter);
+    }, [items, typeFilter]);
+
     const summary = useMemo(() => {
         return items.reduce(
             (acc, cur) => {
@@ -160,91 +168,119 @@ export default function TransactionsPage() {
         );
     }, [items]);
 
-    const rows = useMemo(() => {
-        if (loading) {
-            return Array(5).fill(0).map((_, i) => (
-                <Paper key={i} p="md" radius="md" withBorder mb="sm">
-                    <Group justify="space-between" wrap="nowrap">
-                        <Group gap="md" wrap="nowrap">
-                            <Skeleton height={44} width={44} radius={8} />
-                            <Stack gap={4}>
-                                <Skeleton height={16} width={120} radius="xl" />
-                                <Skeleton height={12} width={180} radius="xl" />
-                            </Stack>
-                        </Group>
-                        <Stack gap={4} align="flex-end">
-                            <Skeleton height={20} width={80} radius="xl" />
-                            <Skeleton height={14} width={40} radius="xl" />
+    const skeletons = useMemo(() => {
+        return Array(3).fill(0).map((_, i) => (
+            <Paper key={i} p="md" radius="md" withBorder mb="sm">
+                <Group justify="space-between" wrap="nowrap">
+                    <Group gap="md" wrap="nowrap">
+                        <Skeleton height={44} width={44} radius={8} />
+                        <Stack gap={4}>
+                            <Skeleton height={16} width={120} radius="xl" />
+                            <Skeleton height={12} width={180} radius="xl" />
                         </Stack>
                     </Group>
-                </Paper>
-            ));
-        }
-
-        return items.map((item) => (
-            <Paper
-                key={item.id}
-                p="md"
-                radius="md"
-                withBorder
-                mb="sm"
-                style={{
-                    cursor: "pointer",
-                    background: 'var(--mantine-color-white)',
-                    boxShadow: 'var(--mantine-shadow-xs)',
-                    transition: 'all 0.1s ease'
-                }}
-                className="transaction-row"
-                onClick={() => {/* Edit logic if any */ }}
-            >
-                <Stack gap="sm">
-                    <Group justify="space-between" wrap="nowrap" align="center">
-                        <Group gap="md" wrap="nowrap" style={{ flex: 1 }}>
-                            <Box style={{
-                                width: 44,
-                                height: 44,
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: 8,
-                                backgroundColor: "var(--mantine-color-gray-1)",
-                                flexShrink: 0
-                            }}>
-                                {item.type === "deposit" ? (
-                                    <IconArrowDownLeft size={24} color="var(--mantine-color-blue-6)" />
-                                ) : (
-                                    <IconArrowUpRight size={24} color="var(--mantine-color-orange-6)" />
-                                )}
-                            </Box>
-                            <Stack gap={0} style={{ overflow: 'hidden' }}>
-                                <Text fw={700} size="sm" c="gray.9" lineClamp={1}>
-                                    {item.description || (item.type === "deposit" ? "입금" : "출금")}
-                                </Text>
-                                <Text size="xs" c="dimmed" fw={600} mt={2}>
-                                    {item.bank_name} • {dayjs(item.transaction_date).format("MM.DD HH:mm")}
-                                </Text>
-                            </Stack>
-                        </Group>
-
-                        <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
-                            <Text fw={800} size="md" c={item.type === "deposit" ? "blue.7" : "orange.7"} style={{ letterSpacing: '-0.02em' }}>
-                                {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
-                            </Text>
-                            {item.category && (
-                                <Badge variant="light" color="gray" size="xs" radius="sm">{item.category}</Badge>
-                            )}
-                        </Stack>
-                    </Group>
-
-                    <Group justify="flex-end">
-                        <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
-                            <IconTrash size={16} />
-                        </ActionIcon>
-                    </Group>
-                </Stack>
+                    <Stack gap={4} align="flex-end">
+                        <Skeleton height={20} width={80} radius="xl" />
+                        <Skeleton height={14} width={40} radius="xl" />
+                    </Stack>
+                </Group>
             </Paper>
         ));
-    }, [items, loading, remove]);
+    }, []);
+
+    const mobileRows = filteredItems.map((item) => (
+        <Paper
+            key={item.id}
+            p="md"
+            radius="md"
+            withBorder
+            mb="sm"
+            style={{
+                cursor: "pointer",
+                background: 'var(--mantine-color-white)',
+                boxShadow: 'var(--mantine-shadow-xs)',
+                transition: 'all 0.1s ease'
+            }}
+            className="transaction-row"
+            onClick={() => {/* Edit logic if any */ }}
+        >
+            <Stack gap="sm">
+                <Group justify="space-between" wrap="nowrap" align="center">
+                    <Group gap="md" wrap="nowrap" style={{ flex: 1 }}>
+                        <Box style={{
+                            width: 44,
+                            height: 44,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            borderRadius: 8,
+                            backgroundColor: "var(--mantine-color-gray-1)",
+                            flexShrink: 0
+                        }}>
+                            {item.type === "deposit" ? (
+                                <IconArrowDownLeft size={24} color="var(--mantine-color-blue-6)" />
+                            ) : (
+                                <IconArrowUpRight size={24} color="var(--mantine-color-orange-6)" />
+                            )}
+                        </Box>
+                        <Stack gap={0} style={{ overflow: 'hidden' }}>
+                            <Text fw={700} size="sm" c="gray.9" lineClamp={1}>
+                                {item.description || (item.type === "deposit" ? "입금" : "출금")}
+                            </Text>
+                            <Text size="xs" c="dimmed" fw={600} mt={2}>
+                                {item.bank_name} • {dayjs(item.transaction_date).format("MM.DD HH:mm")}
+                            </Text>
+                        </Stack>
+                    </Group>
+
+                    <Stack gap={2} align="flex-end" style={{ flexShrink: 0 }}>
+                        <Text fw={800} size="md" c={item.type === "deposit" ? "blue.7" : "orange.7"} style={{ letterSpacing: '-0.02em' }}>
+                            {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
+                        </Text>
+                        {item.category && (
+                            <Badge variant="light" color="gray" size="xs" radius="sm">{item.category}</Badge>
+                        )}
+                    </Stack>
+                </Group>
+
+                <Group justify="flex-end" mt="xs">
+                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                </Group>
+            </Stack>
+        </Paper>
+    ));
+    const desktopRows = filteredItems.map((item) => (
+        <Table.Tr key={item.id} onClick={(e) => {/* Edit logic if any */ }} style={{ cursor: 'pointer' }}>
+            <Table.Td>
+                <Text size="sm" fw={600}>{dayjs(item.transaction_date).format("YYYY.MM.DD HH:mm")}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Badge color={item.type === "deposit" ? "blue" : "orange"} variant="dot" size="sm">
+                    {item.type === "deposit" ? "입금" : "출금"}
+                </Badge>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" fw={700}>{item.description || (item.type === "deposit" ? "입금" : "출금")}</Text>
+            </Table.Td>
+            <Table.Td>
+                <Badge variant="light" color="gray" size="xs" radius="sm">{item.category || "-"}</Badge>
+            </Table.Td>
+            <Table.Td>
+                <Text size="sm" fw={800} ta="right" c={item.type === "deposit" ? "blue.7" : "orange.7"}>
+                    {item.type === "deposit" ? "+" : "-"}{item.amount.toLocaleString()}원
+                </Text>
+            </Table.Td>
+            <Table.Td onClick={(e) => e.stopPropagation()}>
+                <Group justify="flex-end">
+                    <ActionIcon variant="subtle" color="gray" size="sm" radius="md" onClick={(e) => void remove(item.id, e)}>
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                </Group>
+            </Table.Td>
+        </Table.Tr>
+    ));
 
     return (
         <Container size="xl" py="xl" px={isMobile ? "md" : "xl"}>
@@ -293,14 +329,79 @@ export default function TransactionsPage() {
                 </Grid>
             </Paper>
 
-            <Stack gap="xs">
-                {rows}
-                {!items.length && !loading && (
-                    <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
-                        <Text size="sm" c="dimmed">거래 내역이 없습니다.</Text>
-                    </Paper>
-                )}
-            </Stack>
+            <Paper withBorder radius="md" bg="var(--mantine-color-white)">
+                <Stack gap={0}>
+                    <Box p="md">
+                        <Group justify="space-between" wrap="nowrap">
+                            <Group gap="xs">
+                                {[
+                                    { id: "all", label: "전체", color: "gray" },
+                                    { id: "deposit", label: "입금", color: "blue" },
+                                    { id: "withdrawal", label: "출금", color: "orange" },
+                                ].map((s) => (
+                                    <Button
+                                        key={s.id}
+                                        variant={typeFilter === s.id ? "filled" : "light"}
+                                        color={s.color}
+                                        size="compact-sm"
+                                        radius="xl"
+                                        onClick={() => setTypeFilter(s.id)}
+                                    >
+                                        {s.label}
+                                    </Button>
+                                ))}
+                            </Group>
+                            <Box className="desktop-only">
+                                <Text size="xs" fw={700} c="dimmed">내역: {filteredItems.length}건</Text>
+                            </Box>
+                        </Group>
+                    </Box>
+
+                    <Divider />
+
+                    <Box p="md" hiddenFrom="md">
+                        {loading ? skeletons : mobileRows}
+                        {!filteredItems.length && !loading && (
+                            <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
+                                <Text size="sm" c="dimmed">내역이 없습니다.</Text>
+                            </Paper>
+                        )}
+                    </Box>
+
+                    <Box visibleFrom="md">
+                        {loading ? (
+                            <Box p="md">
+                                <Stack gap="xs">
+                                    {Array(5).fill(0).map((_, i) => <Skeleton key={i} height={40} radius="sm" />)}
+                                </Stack>
+                            </Box>
+                        ) : (
+                            <Table.ScrollContainer minWidth={800}>
+                                <Table verticalSpacing="sm" highlightOnHover>
+                                    <Table.Thead>
+                                        <Table.Tr>
+                                            <Table.Th>거래일시</Table.Th>
+                                            <Table.Th>구분</Table.Th>
+                                            <Table.Th>내용/적요</Table.Th>
+                                            <Table.Th>분류</Table.Th>
+                                            <Table.Th style={{ textAlign: 'right' }}>금액</Table.Th>
+                                            <Table.Th />
+                                        </Table.Tr>
+                                    </Table.Thead>
+                                    <Table.Tbody>
+                                        {desktopRows}
+                                    </Table.Tbody>
+                                </Table>
+                            </Table.ScrollContainer>
+                        )}
+                        {!filteredItems.length && !loading && (
+                            <Paper p="xl" m="md" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
+                                <Text size="sm" c="dimmed">거래 내역이 없습니다.</Text>
+                            </Paper>
+                        )}
+                    </Box>
+                </Stack>
+            </Paper>
 
             <Modal opened={opened} onClose={() => setOpened(false)} title={<Text fw={800}>거래 내역 등록</Text>} centered size="md" radius="md">
                 <Stack gap="md">
