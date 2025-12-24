@@ -67,6 +67,7 @@ export default function UtilityBillsPage() {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("전체");
+    const [statusFilter, setStatusFilter] = useState<"all" | "paid" | "unpaid">("all");
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
@@ -339,11 +340,21 @@ export default function UtilityBillsPage() {
                 (item.billing_month || "").includes(search) ||
                 (item.note || "").includes(search);
 
-            if (categoryFilter === "전체") return matchesSearch;
-            if (categoryFilter === "보험") return matchesSearch && (item.category || "").includes("보험");
-            return matchesSearch && (item.category || "") === categoryFilter;
+            if (categoryFilter !== "전체") {
+                const catMatches = categoryFilter === "보험"
+                    ? (item.category || "").includes("보험")
+                    : (item.category || "") === categoryFilter;
+                if (!catMatches) return false;
+            }
+
+            if (statusFilter !== "all") {
+                const isPaid = statusFilter === "paid";
+                if (item.is_paid !== isPaid) return false;
+            }
+
+            return matchesSearch;
         });
-    }, [items, search, categoryFilter]);
+    }, [items, search, categoryFilter, statusFilter]);
 
     const selectedItem = useMemo(() => items.find(x => x.id === selectedId), [items, selectedId]);
 
@@ -425,18 +436,18 @@ export default function UtilityBillsPage() {
                                     <Text size="xs" fw={700} c="dimmed">납부 상태</Text>
                                     <Group gap="xs">
                                         <Badge
-                                            variant={selectedItem?.is_paid ? "filled" : "light"}
-                                            color={selectedItem?.is_paid ? "green" : "gray"}
-                                            radius="md"
+                                            color={selectedItem?.is_paid ? "green" : "orange"}
+                                            variant="dot"
+                                            size="sm"
                                             style={{ cursor: "pointer" }}
                                             onClick={() => togglePaid(selectedItem!)}
                                         >
-                                            {selectedItem?.is_paid ? "납부 완료" : "납부 전 (클릭하여 전환)"}
+                                            {selectedItem?.is_paid ? "납부 완료" : "미납"}
                                         </Badge>
                                         {selectedItem?.status === 'processing' ? (
-                                            <Badge variant="dot" color="indigo" radius="md">AI 분석 중</Badge>
+                                            <Badge variant="dot" color="indigo" size="sm">AI 분석 중</Badge>
                                         ) : (
-                                            <Badge variant="light" color={selectedItem?.status === "processed" ? "indigo" : "gray"} radius="md">
+                                            <Badge variant="dot" color={selectedItem?.status === "processed" ? "indigo" : "gray"} size="sm">
                                                 {selectedItem?.status === "processed" ? "AI 자동 분석" : "수동 입력"}
                                             </Badge>
                                         )}
@@ -578,21 +589,43 @@ export default function UtilityBillsPage() {
                 <Grid gutter="md" align="stretch">
                     <Grid.Col span={{ base: 12, md: 6 }}>
                         <Paper withBorder p="md" radius="md" h="100%" bg="var(--mantine-color-white)" shadow="xs">
-                            <Group justify="space-between" mb="md">
-                                <SegmentedControl
-                                    value={categoryFilter}
-                                    onChange={setCategoryFilter}
-                                    data={["전체", "전기세", "보험", "세금"]}
-                                    size="sm"
-                                />
-                                <TextInput
-                                    placeholder="검색..."
-                                    leftSection={<IconSearch size={16} />}
-                                    value={search}
-                                    onChange={(e) => setSearch(e.currentTarget.value)}
-                                    style={{ flex: 1, maxWidth: 150 }}
-                                />
-                            </Group>
+                            <Stack gap="xs" mb="md">
+                                <Group gap="xs">
+                                    {[
+                                        { id: "all", label: "전체", color: "gray" },
+                                        { id: "unpaid", label: "미납", color: "orange" },
+                                        { id: "paid", label: "납부 완료", color: "green" },
+                                    ].map((s) => (
+                                        <Button
+                                            key={s.id}
+                                            variant={statusFilter === s.id ? "filled" : "light"}
+                                            color={s.color}
+                                            size="compact-xs"
+                                            radius="xl"
+                                            onClick={() => setStatusFilter(s.id as any)}
+                                        >
+                                            {s.label}
+                                        </Button>
+                                    ))}
+                                </Group>
+                                <Group justify="space-between">
+                                    <SegmentedControl
+                                        value={categoryFilter}
+                                        onChange={setCategoryFilter}
+                                        data={["전체", "전기세", "보험", "세금"]}
+                                        size="xs"
+                                        style={{ flex: 1 }}
+                                    />
+                                    <TextInput
+                                        placeholder="검색..."
+                                        leftSection={<IconSearch size={14} />}
+                                        value={search}
+                                        onChange={(e) => setSearch(e.currentTarget.value)}
+                                        size="xs"
+                                        style={{ width: 120 }}
+                                    />
+                                </Group>
+                            </Stack>
 
                             <ScrollArea h={700} offsetScrollbars visibleFrom="md">
                                 <Table highlightOnHover verticalSpacing="sm">
@@ -646,17 +679,16 @@ export default function UtilityBillsPage() {
                                                 </Table.Td>
                                                 <Table.Td onClick={(e) => e.stopPropagation()}>
                                                     {item.status === 'processing' ? (
-                                                        <Badge variant="dot" size="xs" radius="md">분석 중</Badge>
+                                                        <Badge variant="dot" color="indigo" size="sm">분석 중</Badge>
                                                     ) : (
                                                         <Badge
-                                                            color={item.is_paid ? "green" : "gray"}
-                                                            variant="light"
-                                                            radius="md"
-                                                            size="lg"
+                                                            color={item.is_paid ? "green" : "orange"}
+                                                            variant="dot"
+                                                            size="sm"
                                                             style={{ cursor: "pointer" }}
                                                             onClick={() => togglePaid(item)}
                                                         >
-                                                            {item.is_paid ? "납부" : "납부 전"}
+                                                            {item.is_paid ? "납부 완료" : "미납"}
                                                         </Badge>
                                                     )}
                                                 </Table.Td>
@@ -709,11 +741,10 @@ export default function UtilityBillsPage() {
                                             <Group gap={6}>
                                                 <Badge
                                                     size="xs"
-                                                    variant="light"
-                                                    color={item.status === 'processing' ? "orange" : (item.is_paid ? "indigo" : "gray")}
-                                                    radius="sm"
+                                                    variant="dot"
+                                                    color={item.status === 'processing' ? "indigo" : (item.is_paid ? "green" : "orange")}
                                                 >
-                                                    {item.status === 'processing' ? "분석 중" : (item.is_paid ? "완료" : "미납")}
+                                                    {item.status === 'processing' ? "분석 중" : (item.is_paid ? "납부 완료" : "미납")}
                                                 </Badge>
                                                 <Text fw={700} size="sm">{item.category}</Text>
                                             </Group>
