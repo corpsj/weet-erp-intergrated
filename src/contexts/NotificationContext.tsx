@@ -254,14 +254,21 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     useEffect(() => {
         const currentMenu = getMenuIdFromPath(pathname);
         if (currentMenu) {
-            // We can just unconditionally mark read whenever we are at this path?
-            // Or only if we have unread items?
-            // To be safe and update timestamp to NOW (so we don't see items created while we were viewing),
-            // we should probably update timestamp when we LEAVE? or periodically?
-            // Simplest: Update when entering.
             markAsRead(currentMenu);
         }
     }, [pathname]);
+
+    // App Badge Sync
+    useEffect(() => {
+        if ("setAppBadge" in navigator) {
+            const total = Object.values(unreadCounts).reduce((a, b) => a + b, 0);
+            if (total > 0) {
+                navigator.setAppBadge(total).catch(e => console.error("Badging failed", e));
+            } else {
+                navigator.clearAppBadge().catch(e => console.error("Clear badge failed", e));
+            }
+        }
+    }, [unreadCounts]);
 
 
     return (
