@@ -21,14 +21,17 @@ import {
     Title,
     Affix,
     Transition,
+    Center,
+    Loader,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import { useMediaQuery } from "@mantine/hooks";
 import { IconSearch, IconPlus, IconCheck, IconX, IconTrash, IconReceipt2 } from "@tabler/icons-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import dayjs from "dayjs";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 type TaxInvoice = {
     id: string;
@@ -55,8 +58,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 export default function TaxInvoicesPage() {
     const isMobile = useMediaQuery("(max-width: 768px)");
-    const [loading, setLoading] = useState(true);
-    const [items, setItems] = useState<TaxInvoice[]>([]);
+    const queryClient = useQueryClient();
     const [opened, setOpened] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -71,23 +73,15 @@ export default function TaxInvoicesPage() {
     const [vat, setVat] = useState<number | string>(0);
     const [description, setDescription] = useState("");
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
+    const { data: items = [], isLoading: loading } = useQuery<TaxInvoice[]>({
+        queryKey: ["tax-invoices"],
+        queryFn: async () => {
             const response = await fetchWithAuth("/api/tax-invoices");
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || "불러오기 실패");
-            setItems(payload.items || []);
-        } catch (error) {
-            notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
-        } finally {
-            setLoading(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        void load();
-    }, [load]);
+            return payload.items || [];
+        },
+    });
 
     const save = async () => {
         if (!issueDate || !supplierName || !receiverName) {
@@ -125,7 +119,7 @@ export default function TaxInvoicesPage() {
             }
 
             setOpened(false);
-            await load();
+            await queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
             notifications.show({ title: "성공", message: "세금계산서가 등록되었습니다.", color: "green" });
         } catch (error) {
             notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
@@ -140,7 +134,7 @@ export default function TaxInvoicesPage() {
         try {
             const response = await fetchWithAuth(`/api/tax-invoices/${id}`, { method: "DELETE" });
             if (!response.ok) throw new Error("삭제 실패");
-            setItems((prev) => prev.filter((x) => x.id !== id));
+            await queryClient.invalidateQueries({ queryKey: ["tax-invoices"] });
             notifications.show({ title: "성공", message: "삭제되었습니다.", color: "gray" });
         } catch (error) {
             notifications.show({ title: "오류", message: error instanceof Error ? error.message : "알 수 없는 오류", color: "red" });
@@ -277,7 +271,14 @@ export default function TaxInvoicesPage() {
             </Grid>
 
             <Stack gap="xs">
-                {rows}
+                {loading ? (
+                    <Center py="xl">
+                        <Stack align="center" gap="xs">
+                            <Loader size="md" color="indigo" />
+                            <Text size="sm" c="dimmed">세금계산서 내역을 불러오는 중...</Text>
+                        </Stack>
+                    </Center>
+                ) : rows}
                 {!items.length && !loading && (
                     <Paper p="xl" withBorder radius="md" style={{ textAlign: "center", borderStyle: "dashed" }}>
                         <Text size="sm" c="dimmed">등록된 세금계산서 내역이 없습니다.</Text>

@@ -46,6 +46,7 @@ import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { UtilityBill } from "@/lib/types";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
     const { data } = await supabase.auth.getSession();
@@ -62,8 +63,7 @@ const fetchWithAuth = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 export default function UtilityBillsPage() {
     const isMobile = useMediaQuery("(max-width: 768px)");
-    const [loading, setLoading] = useState(true);
-    const [items, setItems] = useState<UtilityBill[]>([]);
+    const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const [categoryFilter, setCategoryFilter] = useState("전체");
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -83,28 +83,19 @@ export default function UtilityBillsPage() {
     const [savingNote, setSavingNote] = useState(false);
     const [lastSavedId, setLastSavedId] = useState<string | null>(null);
 
-    const load = useCallback(async () => {
-        setLoading(true);
-        try {
+    const { data: items = [], isLoading: loading } = useQuery<UtilityBill[]>({
+        queryKey: ["utility-bills"],
+        queryFn: async () => {
             const response = await fetchWithAuth("/api/utility-bills");
             const payload = await response.json();
             if (!response.ok) throw new Error(payload.message || "불러오기 실패");
-            const fetchedItems = payload.items || [];
-            setItems(fetchedItems);
-        } catch (error: any) {
-            notifications.show({
-                title: "오류",
-                message: error.message,
-                color: "red",
-            });
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+            return payload.items || [];
+        },
+    });
 
-    useEffect(() => {
-        void load();
-    }, [load]);
+    const load = useCallback(async () => {
+        await queryClient.invalidateQueries({ queryKey: ["utility-bills"] });
+    }, [queryClient]);
 
     useEffect(() => {
         const item = items.find(x => x.id === selectedId);
@@ -127,7 +118,9 @@ export default function UtilityBillsPage() {
                     body: JSON.stringify({ note: localNote }),
                 });
                 if (res.ok) {
-                    setItems(prev => prev.map(x => x.id === selectedId ? { ...x, note: localNote } : x));
+                    queryClient.setQueryData<UtilityBill[]>(["utility-bills"], (old) =>
+                        old?.map(x => x.id === selectedId ? { ...x, note: localNote } : x)
+                    );
                 }
             } catch (err) {
                 console.error("Auto-save note failed:", err);
@@ -160,7 +153,7 @@ export default function UtilityBillsPage() {
         };
 
         setSessionBlobUrls(prev => ({ ...prev, [tempId]: localUrl }));
-        setItems(prev => [newItem, ...prev]);
+        queryClient.setQueryData<UtilityBill[]>(["utility-bills"], (old) => [newItem, ...(old || [])]);
         setSelectedId(tempId);
         setIsEditing(false);
         setEditing(null);
@@ -217,14 +210,18 @@ export default function UtilityBillsPage() {
 
             notifications.show({ title: "완료", message: "분석 및 업로드가 완료되었습니다.", color: "green" });
 
-            setItems(prev => prev.map(x => x.id === tempId ? savedItem : x));
+            queryClient.setQueryData<UtilityBill[]>(["utility-bills"], (old) =>
+                old?.map(x => x.id === tempId ? savedItem : x)
+            );
             setSessionBlobUrls(prev => ({ ...prev, [savedItem.id]: localUrl }));
             setSelectedId(savedItem.id);
             setUploadKey(prev => prev + 1);
         } catch (error: any) {
             console.error("고지서 분석 및 저장 오류:", error);
             notifications.show({ title: "실패", message: error.message, color: "red" });
-            setItems(prev => prev.filter(x => x.id !== tempId));
+            queryClient.setQueryData<UtilityBill[]>(["utility-bills"], (old) =>
+                old?.filter(x => x.id !== tempId)
+            );
             setSelectedId(null);
         }
     };
@@ -299,7 +296,9 @@ export default function UtilityBillsPage() {
             });
             if (!res.ok) throw new Error("상태 변경 실패");
 
-            setItems(prev => prev.map(x => x.id === item.id ? { ...x, is_paid: newPaid } : x));
+            queryClient.setQueryData<UtilityBill[]>(["utility-bills"], (old) =>
+                old?.map(x => x.id === item.id ? { ...x, is_paid: newPaid } : x)
+            );
             notifications.show({
                 message: newPaid ? "납부 완료로 표시되었습니다." : "납부 전으로 표시되었습니다.",
                 color: "indigo",
@@ -605,7 +604,16 @@ export default function UtilityBillsPage() {
                                         </Table.Tr>
                                     </Table.Thead>
                                     <Table.Tbody>
-                                        {filteredItems.map((item) => (
+                                        {loading ? (
+                                            <Table.Tr>
+                                                <Table.Td colSpan={4} style={{ textAlign: "center", padding: "40px" }}>
+                                                    <Stack align="center" gap="xs">
+                                                        <Loader size="md" color="indigo" />
+                                                        <Text size="sm" c="dimmed">고지서 내역을 불러오는 중...</Text>
+                                                    </Stack>
+                                                </Table.Td>
+                                            </Table.Tr>
+                                        ) : filteredItems.map((item) => (
                                             <Table.Tr
                                                 key={item.id}
                                                 onClick={() => {
@@ -666,7 +674,14 @@ export default function UtilityBillsPage() {
 
                             {/* Mobile List View */}
                             <Stack hiddenFrom="md" gap="md">
-                                {filteredItems.map(item => (
+                                {loading ? (
+                                    <Center py="xl">
+                                        <Stack align="center" gap="xs">
+                                            <Loader size="md" color="indigo" />
+                                            <Text size="sm" c="dimmed">고지서 내역을 불러오는 중...</Text>
+                                        </Stack>
+                                    </Center>
+                                ) : filteredItems.map(item => (
                                     <Card
                                         key={item.id}
                                         shadow="xs"

@@ -20,6 +20,8 @@ import {
   Container,
   Affix,
   Transition,
+  Center,
+  Loader,
 } from "@mantine/core";
 import { DateInput } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -425,27 +427,43 @@ export default function ExpensesPage() {
           <Divider />
 
           <Box className="mobile-only" p="md">
-            {mobileRows}
+            {loading ? (
+              <Center py="xl">
+                <Stack align="center" gap="xs">
+                  <Loader size="md" color="indigo" />
+                  <Text size="sm" c="dimmed">경비 내역을 불러오는 중...</Text>
+                </Stack>
+              </Center>
+            ) : mobileRows}
           </Box>
 
           <Box className="desktop-only">
-            <Table.ScrollContainer minWidth={800}>
-              <Table verticalSpacing="sm" highlightOnHover>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th style={{ width: 120 }}>사용일</Table.Th>
-                    <Table.Th style={{ width: 140 }}>카테고리</Table.Th>
-                    <Table.Th>제목</Table.Th>
-                    <Table.Th style={{ width: 150, textAlign: 'right' }}>금액</Table.Th>
-                    <Table.Th style={{ width: 120 }}>상태</Table.Th>
-                    <Table.Th style={{ width: 60 }}></Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {desktopRows}
-                </Table.Tbody>
-              </Table>
-            </Table.ScrollContainer>
+            {loading ? (
+              <Center py="xl">
+                <Stack align="center" gap="xs">
+                  <Loader size="md" color="indigo" />
+                  <Text size="sm" c="dimmed">경비 내역을 불러오는 중...</Text>
+                </Stack>
+              </Center>
+            ) : (
+              <Table.ScrollContainer minWidth={800}>
+                <Table verticalSpacing="sm" highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th style={{ width: 120 }}>사용일</Table.Th>
+                      <Table.Th style={{ width: 140 }}>카테고리</Table.Th>
+                      <Table.Th>제목</Table.Th>
+                      <Table.Th style={{ width: 150, textAlign: 'right' }}>금액</Table.Th>
+                      <Table.Th style={{ width: 120 }}>상태</Table.Th>
+                      <Table.Th style={{ width: 60 }}></Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {desktopRows}
+                  </Table.Tbody>
+                </Table>
+              </Table.ScrollContainer>
+            )}
           </Box>
 
           {!filteredItems.length && !loading && (
