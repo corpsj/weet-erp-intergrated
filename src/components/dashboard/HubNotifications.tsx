@@ -67,7 +67,32 @@ export function HubNotifications() {
                     <ThemeIcon color="gray" variant="light" size="md" radius="xl">
                         <IconCheck size={16} />
                     </ThemeIcon>
-                    <Text size="sm" fw={500} c="dimmed">새로운 알림이 없습니다. 오늘도 좋은 하루 되세요!</Text>
+                    <Text size="sm" fw={500} c="dimmed">새로운 알림이 없습니다.</Text>
+
+                    <Tooltip label="알림 테스트 (권한 확인용)" withArrow position="top" color="gray">
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            size="sm"
+                            onClick={() => {
+                                if ("Notification" in window) {
+                                    Notification.requestPermission().then(permission => {
+                                        if (permission === "granted") {
+                                            new Notification("🔔 알림 테스트", {
+                                                body: "알림 권한이 정상적으로 설정되었습니다.",
+                                                icon: "/app-icon-192.jpg",
+                                                badge: "/app-icon-192.jpg"
+                                            });
+                                        } else {
+                                            alert("알림 권한이 필요합니다.");
+                                        }
+                                    });
+                                }
+                            }}
+                        >
+                            <IconBell size={14} />
+                        </ActionIcon>
+                    </Tooltip>
                 </Group>
             </Paper>
         );
