@@ -1,6 +1,6 @@
 "use client";
 
-import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack } from "@mantine/core";
+import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack, Badge } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import {
   IconBolt,
@@ -22,6 +22,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { NotificationProvider, useNotifications, type MenuId } from "@/contexts/NotificationContext";
 
 const groupedNavItems = [
   {
@@ -58,7 +59,80 @@ const groupedNavItems = [
   },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+// Map link path to MenuId
+const linkToMenuId: Record<string, MenuId> = {
+  "/": "notice",
+  "/estimate": "estimate",
+  "/todo": "todo",
+  "/memos": "memo",
+  "/expenses": "expense",
+  "/utility-bills": "utility",
+  "/tax-invoices": "tax",
+  "/transactions": "transaction",
+};
+
+interface SidebarContentProps {
+  close: () => void;
+  pathname: string;
+}
+
+function SidebarContent({ close, pathname }: SidebarContentProps) {
+  const { unreadCounts } = useNotifications();
+
+  return (
+    <ScrollArea style={{ flex: 1 }} type="scroll">
+      {groupedNavItems.map((group) => (
+        <Box key={group.group} mb="xl">
+          <Text size="xs" c="indigo.7" fw={800} tt="uppercase" mb="xs" style={{ letterSpacing: '0.05em' }}>
+            {group.group}
+          </Text>
+          <Stack gap={4}>
+            {group.items.map((item) => {
+              const menuId = linkToMenuId[item.link];
+              const count = menuId ? unreadCounts[menuId] : 0;
+              const isActive = item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link;
+
+              return (
+                <NavLink
+                  key={item.link}
+                  component={Link}
+                  href={item.link}
+                  label={
+                    <Group justify="space-between" wrap="nowrap">
+                      <Text size="sm" fw={600} style={{ fontSize: '14px' }}>{item.label}</Text>
+                      {count > 0 && (
+                        <Badge size="xs" circle color="red">
+                          {count > 99 ? '99+' : count}
+                        </Badge>
+                      )}
+                    </Group>
+                  }
+                  leftSection={<item.icon size={20} stroke={2} color={isActive ? 'inherit' : 'var(--mantine-color-indigo-5)'} />}
+                  active={isActive}
+                  variant="filled"
+                  onClick={close}
+                  styles={{
+                    root: {
+                      transition: 'all 0.1s ease',
+                      borderRadius: 'var(--mantine-radius-md)',
+                      padding: '10px 12px',
+                      backgroundColor: isActive ? 'var(--mantine-color-indigo-6)' : 'transparent',
+                      color: isActive ? 'var(--mantine-color-white)' : 'var(--mantine-color-gray-7)',
+                    },
+                  }}
+                  color="indigo"
+                  className="nav-link"
+                />
+              );
+            })}
+          </Stack>
+        </Box>
+      ))}
+    </ScrollArea>
+  );
+}
+
+function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [opened, { toggle, close }] = useDisclosure();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const pathname = usePathname();
@@ -142,7 +216,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [isLegacyEstimateLogin, router]); // Removed pathname from dependency list
+  }, [isLegacyEstimateLogin, router]);
 
   if (isLegacyEstimateLogin) {
     return <>{children}</>;
@@ -229,45 +303,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         transition: 'width 0.2s ease, transform 0.2s ease',
         overflow: 'hidden'
       }}>
-
-        <ScrollArea style={{ flex: 1 }} type="scroll">
-          {groupedNavItems.map((group) => (
-            <Box key={group.group} mb="xl">
-              <Text size="xs" c="indigo.7" fw={800} tt="uppercase" mb="xs" style={{ letterSpacing: '0.05em' }}>
-                {group.group}
-              </Text>
-              <Stack gap={4}>
-                {group.items.map((item) => (
-                  <NavLink
-                    key={item.link}
-                    component={Link}
-                    href={item.link}
-                    label={item.label}
-                    leftSection={<item.icon size={20} stroke={2} />}
-                    active={item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link}
-                    variant="filled"
-                    onClick={close}
-                    styles={{
-                      root: {
-                        transition: 'all 0.1s ease',
-                        borderRadius: 'var(--mantine-radius-md)',
-                        padding: '10px 12px',
-                        backgroundColor: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link)
-                          ? 'var(--mantine-color-indigo-6)'
-                          : 'transparent',
-                        color: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link)
-                          ? 'var(--mantine-color-white)'
-                          : 'var(--mantine-color-gray-7)',
-                      },
-                      label: { fontWeight: 600, fontSize: '14px' },
-                      section: { color: (item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link) ? 'inherit' : 'var(--mantine-color-indigo-5)' }
-                    }}
-                  />
-                ))}
-              </Stack>
-            </Box>
-          ))}
-        </ScrollArea>
+        <SidebarContent close={close} pathname={pathname} />
       </AppShell.Navbar>
 
       <AppShell.Main style={{ background: 'var(--mantine-color-gray-0)' }}>{children}</AppShell.Main>
@@ -333,5 +369,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Box>
       </AppShell.Footer>
     </AppShell>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <NotificationProvider>
+      <DashboardLayoutContent>{children}</DashboardLayoutContent>
+    </NotificationProvider>
   );
 }

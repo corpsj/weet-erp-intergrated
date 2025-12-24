@@ -113,3 +113,9 @@ export type UtilityBill = {
   created_at: string;
   updated_at: string;
 };
+
+export type UserMenuRead = {
+  user_id: string;
+  menu_id: string;
+  last_read_at: string;
+};
