@@ -39,9 +39,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ko" data-mantine-color-scheme="light" suppressHydrationWarning>
+    <html lang="ko" suppressHydrationWarning>
       <head>
-        <ColorSchemeScript forceColorScheme="light" />
+        <ColorSchemeScript />
       </head>
       <body className={`${bodyFont.variable} ${displayFont.variable}`}>
         <Providers>{children}</Providers>

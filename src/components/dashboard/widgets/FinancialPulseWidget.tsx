@@ -48,28 +48,28 @@ export function FinancialPulseWidget() {
             </Group>
 
             <SimpleGrid cols={2} spacing="md">
-                <Paper p="md" radius="md" bg="red.0" style={{ border: '1px solid var(--mantine-color-red-2)' }}>
+                <Paper p="md" radius="md" bg="var(--mantine-color-red-light)" style={{ border: '1px solid var(--mantine-color-red-light-color)' }}>
                     <Stack gap="xs">
                         <ThemeIcon color="red" variant="white" radius="xl">
                             <IconReceipt size={16} />
                         </ThemeIcon>
-                        <Text size="xs" c="red.8" fw={600} tt="uppercase">승인 대기 경비</Text>
+                        <Text size="xs" c="red" fw={600} tt="uppercase">승인 대기 경비</Text>
                         <Group align="flex-end" gap={4}>
-                            <Title order={2} c="red.9" fw={800}>{stats?.expensePending}</Title>
-                            <Text size="sm" c="red.7" mb={4}>건</Text>
+                            <Title order={2} c="red" fw={800}>{stats?.expensePending}</Title>
+                            <Text size="sm" c="red" mb={4}>건</Text>
                         </Group>
                     </Stack>
                 </Paper>
 
-                <Paper p="md" radius="md" bg="orange.0" style={{ border: '1px solid var(--mantine-color-orange-2)' }}>
+                <Paper p="md" radius="md" bg="var(--mantine-color-orange-light)" style={{ border: '1px solid var(--mantine-color-orange-light-color)' }}>
                     <Stack gap="xs">
                         <ThemeIcon color="orange" variant="white" radius="xl">
                             <IconBolt size={16} />
                         </ThemeIcon>
-                        <Text size="xs" c="orange.8" fw={600} tt="uppercase">미납 공과금</Text>
+                        <Text size="xs" c="orange" fw={600} tt="uppercase">미납 공과금</Text>
                         <Group align="flex-end" gap={4}>
-                            <Title order={2} c="orange.9" fw={800}>{stats?.utilityUnpaid}</Title>
-                            <Text size="sm" c="orange.7" mb={4}>건</Text>
+                            <Title order={2} c="orange" fw={800}>{stats?.utilityUnpaid}</Title>
+                            <Text size="sm" c="orange" mb={4}>건</Text>
                         </Group>
                     </Stack>
                 </Paper>

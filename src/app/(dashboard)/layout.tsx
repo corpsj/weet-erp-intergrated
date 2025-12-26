@@ -23,6 +23,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { NotificationProvider, useNotifications, type MenuId } from "@/contexts/NotificationContext";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const groupedNavItems = [
   {
@@ -245,7 +246,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       footer={{ height: 80, offset: true }}
       padding="md"
     >
-      <AppShell.Header style={{ borderBottom: '1px solid var(--mantine-color-gray-2)', background: 'var(--mantine-color-white)' }}>
+      <AppShell.Header style={{ borderBottom: '1px solid var(--border)', background: 'var(--panel)' }}>
         <Group h="100%" px="lg" justify="space-between">
           <Group gap="sm">
             <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
@@ -254,6 +255,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
             </Text>
           </Group>
           <Group gap="xs">
+            <ThemeToggle />
             {displayName && (
               <Text size="sm" fw={700} c="gray.7" className="desktop-only" mr="xs">
                 {displayName}님 환영합니다
@@ -293,8 +295,8 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       )}
 
       <AppShell.Navbar p="md" style={{
-        borderRight: '1px solid var(--mantine-color-gray-2)',
-        background: 'var(--mantine-color-gray-0)',
+        borderRight: '1px solid var(--border)',
+        background: 'var(--mantine-color-body)',
         width: isMobile ? (opened ? '60%' : '0') : 260,
         maxWidth: isMobile ? '60%' : '100%',
         height: isMobile ? 'calc(100dvh - 64px)' : 'auto',
@@ -306,13 +308,13 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <SidebarContent close={close} pathname={pathname} />
       </AppShell.Navbar>
 
-      <AppShell.Main style={{ background: 'var(--mantine-color-gray-0)' }}>{children}</AppShell.Main>
+      <AppShell.Main style={{ background: 'var(--surface)' }}>{children}</AppShell.Main>
 
       <AppShell.Footer hiddenFrom="sm" p="0" style={{ borderTop: 'none', background: 'transparent', zIndex: 1000, height: 'auto' }}>
         <Box
           style={{
-            background: 'var(--mantine-color-white)',
-            borderTop: '1px solid var(--mantine-color-gray-2)',
+            background: 'var(--panel)',
+            borderTop: '1px solid var(--border)',
             paddingBottom: 'env(safe-area-inset-bottom)',
             boxShadow: '0 -2px 10px rgba(0,0,0,0.05)'
           }}

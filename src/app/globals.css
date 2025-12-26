@@ -1,10 +1,5 @@
 :root {
-  --ink: #0f172a;
-  --muted: #64748b;
-  --surface: #f8fafc;
-  --panel: #ffffff;
-  --accent: #4f46e5;
-  --border: #e2e8f0;
+  /* Common variables */
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 
@@ -13,6 +8,30 @@
   --sar: env(safe-area-inset-right);
   --sab: env(safe-area-inset-bottom);
   --sal: env(safe-area-inset-left);
+}
+
+[data-mantine-color-scheme="light"] {
+  --ink: #0f172a;
+  --muted: #64748b;
+  --surface: #f8fafc;
+  --panel: #ffffff;
+  --accent: #4f46e5;
+  --border: #e2e8f0;
+}
+
+[data-mantine-color-scheme="dark"] {
+  --ink: #e2e8f0;
+  /* slate-200 */
+  --muted: #94a3b8;
+  /* slate-400 */
+  --surface: #0f172a;
+  /* slate-900 */
+  --panel: #1e293b;
+  /* slate-800 */
+  --accent: #6366f1;
+  /* indigo-500 */
+  --border: #334155;
+  /* slate-700 */
 }
 
 html,

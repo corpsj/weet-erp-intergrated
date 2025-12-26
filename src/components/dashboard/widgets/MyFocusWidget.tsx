@@ -127,12 +127,12 @@ export function MyFocusWidget() {
 
             <Stack gap="sm" style={{ flex: 1 }}>
                 {finalItems.length === 0 && (
-                    <Center h={100} bg="gray.0" style={{ borderRadius: 8 }}>
+                    <Center h={100} style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
                         <Text size="sm" c="dimmed">오늘 예정된 업무가 없습니다.</Text>
                     </Center>
                 )}
                 {finalItems.map((todo) => (
-                    <Paper key={todo.id} withBorder p="xs" radius="md" bg="gray.0">
+                    <Paper key={todo.id} withBorder p="xs" radius="md" style={{ backgroundColor: 'var(--surface)' }}>
                         <Group>
                             <Checkbox
                                 checked={todo.status === "done"}
@@ -140,7 +140,7 @@ export function MyFocusWidget() {
                                 color="blue"
                                 radius="xl"
                             />
-                            <Text size="sm" fw={500} td={todo.status === "done" ? "line-through" : undefined} c={todo.status === "done" ? "dimmed" : "dark"}>
+                            <Text size="sm" fw={500} td={todo.status === "done" ? "line-through" : undefined} c={todo.status === "done" ? "dimmed" : "var(--ink)"}>
                                 {todo.title}
                             </Text>
                         </Group>

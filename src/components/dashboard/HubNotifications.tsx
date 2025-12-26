@@ -58,8 +58,8 @@ export function HubNotifications() {
                 p="lg"
                 radius="lg"
                 style={{
-                    backgroundColor: 'var(--mantine-color-gray-0)',
-                    border: '1px dashed var(--mantine-color-gray-3)',
+                    backgroundColor: 'var(--surface)',
+                    border: '1px dashed var(--border)',
                     opacity: 0.8
                 }}
             >
@@ -106,8 +106,8 @@ export function HubNotifications() {
             style={{
                 position: 'relative',
                 overflow: 'hidden',
-                background: 'var(--mantine-color-white)',
-                border: '1px solid var(--mantine-color-gray-2)',
+                background: 'var(--panel)',
+                border: '1px solid var(--border)',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.05)',
             }}
         >
@@ -200,7 +200,7 @@ export function HubNotifications() {
                                 justify="space-between"
                                 p="sm"
                                 style={{
-                                    backgroundColor: 'var(--mantine-color-gray-0)',
+                                    backgroundColor: 'var(--surface)',
                                     borderRadius: 'var(--mantine-radius-md)',
                                     cursor: 'pointer',
                                     transition: 'all 0.2s ease',
@@ -212,13 +212,13 @@ export function HubNotifications() {
                                     e.currentTarget.style.borderColor = 'var(--mantine-color-indigo-2)';
                                 }}
                                 onMouseLeave={(e) => {
-                                    e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
+                                    e.currentTarget.style.backgroundColor = 'var(--surface)';
                                     e.currentTarget.style.transform = 'translateY(0)';
                                     e.currentTarget.style.borderColor = 'transparent';
                                 }}
                             >
                                 <Group gap="xs">
-                                    <Text size="sm" fw={600} c="dark.3">
+                                    <Text size="sm" fw={600} c="var(--ink)">
                                         {menuLabels[menu]}
                                     </Text>
                                 </Group>
