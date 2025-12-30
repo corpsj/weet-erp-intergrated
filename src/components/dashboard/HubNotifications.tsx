@@ -188,7 +188,7 @@ export function HubNotifications() {
             </Group>
 
             <Box px="lg" pb="lg">
-                <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="sm">
+                <Stack gap="sm">
                     {unreadMenus.map((menu) => (
                         <Box
                             key={menu}
@@ -234,7 +234,7 @@ export function HubNotifications() {
                             </Group>
                         </Box>
                     ))}
-                </SimpleGrid>
+                </Stack>
             </Box>
         </Paper>
     );

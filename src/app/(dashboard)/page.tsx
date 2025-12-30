@@ -22,11 +22,16 @@ export default function HubPage() {
           {/* Left Column (Main Focus) */}
           <Grid.Col span={{ base: 12, md: 8 }}>
             <Stack gap="lg">
-              <HubNotifications />
-
-              <Box style={{ height: 400 }}>
-                <MyFocusWidget />
-              </Box>
+              <Grid gutter="lg">
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <HubNotifications />
+                </Grid.Col>
+                <Grid.Col span={{ base: 12, sm: 6 }}>
+                  <Box style={{ height: 400 }}>
+                    <MyFocusWidget />
+                  </Box>
+                </Grid.Col>
+              </Grid>
 
               <Grid gutter="lg">
                 <Grid.Col span={{ base: 12, sm: 6 }}>

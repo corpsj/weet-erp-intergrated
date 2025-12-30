@@ -17,6 +17,7 @@ import {
   Table,
   Text,
   TextInput,
+  Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
