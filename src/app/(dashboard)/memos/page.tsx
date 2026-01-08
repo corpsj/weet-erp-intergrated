@@ -18,6 +18,7 @@ import {
   Tooltip,
   Badge,
   Modal,
+  Menu,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import {
@@ -34,6 +35,8 @@ import {
   IconLayoutSidebarLeftExpand,
   IconArrowBackUp,
   IconX,
+  IconDots,
+  IconPencil,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
@@ -103,8 +106,10 @@ export default function MemosPage() {
   const [folder, setFolder] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
 
-  const [folderModalOpened, setFolderModalOpened] = useState(false);
+  const [isAddingFolder, setIsAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
+  const [editingFolderName, setEditingFolderName] = useState("");
 
   const [uploading, setUploading] = useState(false);
   const editorRef = useRef<HTMLTextAreaElement>(null);
@@ -199,12 +204,54 @@ export default function MemosPage() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["memo_folders"] });
       notifications.show({ title: "폴더 생성", message: `"${data.name}" 폴더가 생성되었습니다.`, color: "indigo" });
-      setFolderModalOpened(false);
+      setIsAddingFolder(false);
       setNewFolderName("");
       setSelectedFolder(data.name);
     },
     onError: (err) => {
       notifications.show({ title: "폴더 생성 실패", message: err.message, color: "red" });
+    }
+  });
+
+  const updateFolderMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const response = await fetchWithAuth(`/api/memos/folders/${id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "폴더 수정 실패");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memo_folders"] });
+      queryClient.invalidateQueries({ queryKey: ["memos"] });
+      setEditingFolderId(null);
+      setEditingFolderName("");
+      notifications.show({ title: "폴더 수정", message: "폴더 이름이 변경되었습니다.", color: "indigo" });
+    },
+    onError: (err) => {
+      notifications.show({ title: "폴더 수정 실패", message: err.message, color: "red" });
+    }
+  });
+
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetchWithAuth(`/api/memos/folders/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("폴더 삭제 실패");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["memo_folders"] });
+      queryClient.invalidateQueries({ queryKey: ["memos"] });
+      if (selectedFolder && selectedFolder !== "all" && selectedFolder !== "pinned" && selectedFolder !== "trash") {
+        setSelectedFolder("all"); // Reset selection if deleted folder was active
+      }
+      notifications.show({ title: "폴더 삭제", message: "폴더가 삭제되었습니다.", color: "gray" });
+    },
+    onError: (err: any) => {
+      notifications.show({ title: "폴더 삭제 실패", message: err.message, color: "red" });
     }
   });
 
@@ -434,15 +481,15 @@ export default function MemosPage() {
   const folderList = (
     <Stack gap={2} p="md">
       <Button
-        variant={selectedFolder === "all" ? "filled" : "subtle"}
-        color={selectedFolder === "all" ? "#EBB036" : "gray"}
+        variant={selectedFolder === "all" ? "light" : "subtle"}
+        color="indigo"
         justify="flex-start"
         leftSection={<IconFolder size={18} />}
         onClick={() => setSelectedFolder("all")}
-        radius="lg"
+        radius="md"
         styles={{
-          root: { height: 36, backgroundColor: selectedFolder === "all" ? "#EBB036" : "transparent" },
-          label: { fontWeight: 600, color: selectedFolder === "all" ? "white" : undefined }
+          root: { height: 36 },
+          label: { fontWeight: 600 }
         }}
       >
         모든 메모
@@ -464,35 +511,197 @@ export default function MemosPage() {
 
       <Text size="xs" fw={700} c="dimmed" px="sm" mt="md" mb={4}>폴더</Text>
 
-      {folders.map((f) => (
-        <Button
-          key={f}
-          variant={selectedFolder === f ? "light" : "subtle"}
-          color="indigo"
-          justify="flex-start"
-          leftSection={<IconFolder size={18} />}
-          onClick={() => setSelectedFolder(f)}
-          radius="md"
-          styles={{
-            root: { height: 36 },
-            label: { fontWeight: 600 }
+      {folders.map((f) => {
+        // Find folder ID from folderItems list if possible. 
+        // Logic: 'folders' array is just strings. 'folderItems' is {id, name}.
+        // We match by name. If no match (legacy string-only folder), we can't delete/rename properly via ID API.
+        // But for newly created ones via API, they exist in folderItems.
+        const folderObj = folderItems?.find((mf) => mf.name === f);
+        const isEditing = editingFolderId === folderObj?.id;
+
+        if (isEditing && folderObj) {
+          return (
+            <Group
+              key={f}
+              gap="xs"
+              wrap="nowrap"
+              style={{
+                height: 36,
+                backgroundColor: '#1E40AF', // Dark blue background for selection
+                borderRadius: 6,
+                paddingLeft: 'calc(var(--mantine-spacing-sm) + 4px)',
+                alignItems: 'center',
+                marginTop: 2,
+                border: '1px solid #60A5FA' // Lighter blue border
+              }}
+            >
+              <IconFolder size={18} color="white" style={{ flexShrink: 0 }} />
+              <TextInput
+                defaultValue={editingFolderName}
+                onChange={(e) => setEditingFolderName(e.currentTarget.value)}
+                variant="unstyled"
+                size="sm"
+                style={{ flex: 1 }}
+                styles={{ input: { fontWeight: 600, height: 36, padding: 0, color: 'white' } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && editingFolderName.trim()) {
+                    updateFolderMutation.mutate({ id: folderObj.id, name: editingFolderName.trim() });
+                  } else if (e.key === "Escape") {
+                    setEditingFolderId(null);
+                  }
+                }}
+                ref={(input) => {
+                  if (input) {
+                    input.focus();
+                    // input.select(); // Auto-select text
+                  }
+                }}
+                onFocus={(e) => e.target.select()}
+                onBlur={() => {
+                  if (editingFolderName.trim() && editingFolderName !== f) {
+                    updateFolderMutation.mutate({ id: folderObj.id, name: editingFolderName.trim() });
+                  } else {
+                    setEditingFolderId(null);
+                  }
+                }}
+              />
+            </Group>
+          );
+        }
+
+        return (
+          <Button
+            key={f}
+            variant={selectedFolder === f ? "light" : "subtle"}
+            color="indigo"
+            justify="flex-start"
+            leftSection={<IconFolder size={18} />}
+            rightSection={
+              folderObj ? (
+                <Menu shadow="md" width={200} position="right-start" withArrow withinPortal>
+                  <Menu.Target>
+                    <ActionIcon
+                      variant="subtle"
+                      color="gray"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                    >
+                      <IconDots size={16} stroke={2.5} />
+                    </ActionIcon>
+                  </Menu.Target>
+
+                  <Menu.Dropdown>
+                    <Menu.Item
+                      leftSection={<IconPencil size={14} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingFolderId(folderObj.id);
+                        setEditingFolderName(folderObj.name);
+                        // Also select it when editing starts? 
+                        setSelectedFolder(f);
+                      }}
+                    >
+                      폴더 이름 변경
+                    </Menu.Item>
+                    <Menu.Divider />
+                    <Menu.Item
+                      color="red"
+                      leftSection={<IconTrash size={14} />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`'${f}' 폴더를 삭제하시겠습니까?\n포함된 메모는 유지되지만 폴더 구분은 사라집니다.`)) {
+                          deleteFolderMutation.mutate(folderObj.id);
+                        }
+                      }}
+                    >
+                      폴더 삭제
+                    </Menu.Item>
+                  </Menu.Dropdown>
+                </Menu>
+              ) : null
+            }
+            onClick={() => setSelectedFolder(f)}
+            radius="md"
+            fullWidth
+            styles={{
+              root: {
+                height: 36,
+                paddingRight: 4
+              },
+              label: { fontWeight: 600, flex: 1 },
+              section: { marginRight: 10 }
+            }}
+          >
+            {f}
+          </Button>
+        );
+      })}
+      {isAddingFolder ? (
+        <Group
+          gap="xs"
+          wrap="nowrap"
+          style={{
+            height: 36,
+            backgroundColor: '#3b5bdb',  // Indigo-7 equivalent
+            borderRadius: 6,
+            paddingLeft: 'calc(var(--mantine-spacing-sm) + 4px)',
+            alignItems: 'center',
+            border: '2px solid #748ffc' // Indigo-4 equivalent
           }}
         >
-          {f}
+          <IconFolder size={18} color="white" style={{ flexShrink: 0 }} />
+          <TextInput
+            defaultValue={newFolderName}
+            onChange={(e) => setNewFolderName(e.currentTarget.value)}
+            variant="unstyled"
+            size="sm"
+            style={{ flex: 1 }}
+            styles={{ input: { fontWeight: 600, height: 36, padding: 0, color: 'white' } }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newFolderName.trim()) {
+                createFolderMutation.mutate(newFolderName.trim());
+              } else if (e.key === "Escape") {
+                setIsAddingFolder(false);
+                setNewFolderName("");
+              }
+            }}
+            ref={(input) => {
+              if (input) {
+                input.focus();
+                // input.select(); 
+              }
+            }}
+            onFocus={(e) => e.target.select()}
+            onBlur={() => {
+              if (!newFolderName.trim()) setIsAddingFolder(false);
+              // Optionally confirm on blur? 
+              // createFolderMutation.mutate(newFolderName.trim());
+            }}
+          />
+        </Group>
+      ) : (
+        <Button
+          variant="subtle"
+          color="gray"
+          size="compact-xs"
+          leftSection={<IconPlus size={14} />}
+          onClick={() => {
+            setIsAddingFolder(true);
+            setNewFolderName("새로운 폴더");
+          }}
+          radius="md"
+          mt={4}
+          justify="flex-start"
+          styles={{
+            root: { height: 36 },
+            label: { fontSize: 13, fontWeight: 500 }
+          }}
+        >
+          새 폴더...
         </Button>
-      ))}
-      <Button
-        variant="subtle"
-        color="gray"
-        size="compact-xs"
-        leftSection={<IconPlus size={14} />}
-        onClick={() => setFolderModalOpened(true)}
-        radius="lg"
-        mt="xs"
-        styles={{ label: { fontSize: 13 } }}
-      >
-        새 폴더...
-      </Button>
+      )}
 
       <Box style={{ flex: 1 }} />
 
@@ -626,50 +835,6 @@ export default function MemosPage() {
     </Stack>
   );
 
-  const folderModal = (
-    <Modal
-      opened={folderModalOpened}
-      onClose={() => setFolderModalOpened(false)}
-      title="새 폴더"
-      centered
-      radius="lg"
-      padding="xl"
-      styles={{
-        title: { fontWeight: 800, fontSize: 18 },
-        inner: { padding: '20px' }
-      }}
-    >
-      <Stack>
-        <TextInput
-          label="폴더 이름을 입력하십시오."
-          placeholder="이름"
-          value={newFolderName}
-          onChange={(e) => setNewFolderName(e.currentTarget.value)}
-          data-autofocus
-          radius="md"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && newFolderName.trim()) {
-              createFolderMutation.mutate(newFolderName.trim());
-            }
-          }}
-        />
-        <Group justify="flex-end" mt="md">
-          <Button variant="subtle" color="gray" onClick={() => setFolderModalOpened(false)} radius="md">
-            취소
-          </Button>
-          <Button
-            color="indigo"
-            onClick={() => createFolderMutation.mutate(newFolderName.trim())}
-            loading={createFolderMutation.isPending}
-            disabled={!newFolderName.trim()}
-            radius="md"
-          >
-            저장
-          </Button>
-        </Group>
-      </Stack>
-    </Modal>
-  );
 
   const editorContent = (
     <Stack gap={0} h="100%">
@@ -788,7 +953,7 @@ export default function MemosPage() {
             placeholder="여기에 내용을 입력하십시오..."
             variant="unstyled"
             autosize
-            minRows={20}
+            minRows={10}
             readOnly={!!selectedMemo?.deleted_at}
             styles={{
               input: {
@@ -802,44 +967,42 @@ export default function MemosPage() {
             onChange={(e) => handleBodyChange(e.currentTarget.value)}
           />
 
-          {selectedId && (
-            <Box mt="xl">
-              <Divider mb="lg" />
-              <Group justify="space-between" mb="xs">
-                <Text fw={800} size="sm" c="dimmed">첨부 파일</Text>
-                {!selectedMemo?.deleted_at && (
-                  <FileButton onChange={(file) => file && void upload(file)} accept="*/*">
-                    {(props) => (
-                      <ActionIcon {...props} variant="subtle" color="#EBB036" loading={uploading}>
-                        <IconPlus size={20} />
-                      </ActionIcon>
-                    )}
-                  </FileButton>
-                )}
-              </Group>
-              <Group gap="xs">
-                {attachments.map((a) => (
-                  <Paper
-                    key={a.id}
-                    p="xs"
-                    radius="md"
-                    withBorder
-                    onClick={() => void openAttachment(a.id)}
-                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                  >
-                    <IconPaperclip size={16} color="#EBB036" />
-                    <Stack gap={0}>
-                      <Text size="xs" fw={700} lineClamp={1}>{a.filename ?? "파일"}</Text>
-                      <Text size="10px" c="dimmed">{a.content_type?.split('/')?.[1]?.toUpperCase() ?? "FILE"}</Text>
-                    </Stack>
-                  </Paper>
-                ))}
-                {!attachments.length && (
-                  <Text size="xs" c="dimmed" fs="italic">첨부가 없습니다.</Text>
-                )}
-              </Group>
-            </Box>
-          )}
+          <Box mt="xl">
+            <Divider mb="lg" />
+            <Group justify="space-between" mb="xs">
+              <Text fw={800} size="sm" c="dimmed">첨부 파일</Text>
+              {!selectedMemo?.deleted_at && (
+                <FileButton onChange={(file) => file && void upload(file)} accept="*/*">
+                  {(props) => (
+                    <ActionIcon {...props} variant="subtle" color="indigo" loading={uploading}>
+                      <IconPlus size={20} />
+                    </ActionIcon>
+                  )}
+                </FileButton>
+              )}
+            </Group>
+            <Group gap="xs">
+              {attachments.map((a) => (
+                <Paper
+                  key={a.id}
+                  p="xs"
+                  radius="md"
+                  withBorder
+                  onClick={() => void openAttachment(a.id)}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <IconPaperclip size={16} color="var(--mantine-color-indigo-6)" />
+                  <Stack gap={0}>
+                    <Text size="xs" fw={700} lineClamp={1}>{a.filename ?? "파일"}</Text>
+                    <Text size="10px" c="dimmed">{a.content_type?.split('/')?.[1]?.toUpperCase() ?? "FILE"}</Text>
+                  </Stack>
+                </Paper>
+              ))}
+              {!attachments.length && (
+                <Text size="xs" c="dimmed" fs="italic">첨부가 없습니다.</Text>
+              )}
+            </Group>
+          </Box>
         </Stack>
       </ScrollArea>
     </Stack>
@@ -906,7 +1069,6 @@ export default function MemosPage() {
       </Box>
 
       {/* Modals */}
-      {folderModal}
     </Paper>
   );
 }
