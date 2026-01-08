@@ -30,22 +30,22 @@ export function QuickLauncherWidget() {
                             justifyContent: 'center',
                             padding: '16px',
                             borderRadius: '12px',
-                            backgroundColor: 'var(--mantine-color-gray-0)',
+                            backgroundColor: 'var(--mantine-color-default)',
                             transition: 'all 0.2s ease',
                         }}
                         onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-1)';
+                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-default-hover)';
                             e.currentTarget.style.transform = 'translateY(-2px)';
                         }}
                         onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
+                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-default)';
                             e.currentTarget.style.transform = 'translateY(0)';
                         }}
                     >
                         <ThemeIcon color={item.color} variant="light" size="lg" radius="md" mb="xs">
                             <item.icon size={20} />
                         </ThemeIcon>
-                        <Text size="xs" fw={600} ta="center" c="dark.3">{item.label}</Text>
+                        <Text size="xs" fw={600} ta="center" c="dimmed">{item.label}</Text>
                     </UnstyledButton>
                 ))}
             </SimpleGrid>

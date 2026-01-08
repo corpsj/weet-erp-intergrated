@@ -230,7 +230,7 @@ export default function CalendarPage() {
         </Text>
       </Box>
 
-      <Paper p={isMobile ? "xs" : "lg"} radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs">
+      <Paper p={isMobile ? "xs" : "lg"} radius="md" withBorder bg="var(--panel)" shadow="xs">
         <Box className="desktop-only">
           <Group align="flex-start" wrap="nowrap" gap="xl">
             {/* Desktop Content - Calendar on Left, Panel on Right */}
@@ -259,7 +259,7 @@ export default function CalendarPage() {
 
         <Stack className="mobile-only" gap="xl">
           {/* Mobile Content - Stacked */}
-          <Paper p="md" radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs">
+          <Paper p="md" radius="md" withBorder bg="var(--panel)" shadow="xs">
             <CalendarContent
               currentDate={currentDate}
               setCurrentDate={setCurrentDate}
@@ -361,9 +361,9 @@ function CalendarContent({ currentDate, setCurrentDate, hoveredDate, setHoveredD
           onMouseLeave: () => setHoveredDate(null),
           style: {
             backgroundColor: isSelected
-              ? "var(--mantine-color-gray-5)"
+              ? "var(--mantine-color-indigo-light)"
               : isHovered
-                ? "var(--mantine-color-gray-2)"
+                ? "var(--mantine-color-default-hover)"
                 : undefined,
           },
         };
@@ -453,7 +453,7 @@ function SidePanel(props: any) {
   } = props;
 
   return (
-    <Paper withBorder={!isMobile} p="md" radius="md" style={{ width: isMobile ? "100%" : 360, flexShrink: 0, border: isMobile ? "none" : undefined, background: isMobile ? "transparent" : undefined }}>
+    <Paper withBorder={!isMobile} p="md" radius="md" style={{ width: isMobile ? "100%" : 360, flexShrink: 0, border: isMobile ? "none" : undefined, background: isMobile ? "transparent" : "var(--panel)" }}>
       <Stack gap="sm">
         <Group justify="space-between">
           <div>

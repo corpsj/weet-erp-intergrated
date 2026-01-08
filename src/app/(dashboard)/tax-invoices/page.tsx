@@ -164,7 +164,7 @@ export default function TaxInvoicesPage() {
 
     const skeletons = useMemo(() => {
         return Array(3).fill(0).map((_, i) => (
-            <Paper key={i} p="md" radius="md" withBorder bg="var(--mantine-color-white)">
+            <Paper key={i} p="md" radius="md" withBorder bg="var(--panel)">
                 <Stack gap="sm">
                     <Group justify="space-between">
                         <Skeleton height={20} width={80} radius="xl" />
@@ -189,7 +189,7 @@ export default function TaxInvoicesPage() {
             mb="sm"
             style={{
                 cursor: "pointer",
-                background: 'var(--mantine-color-white)',
+                background: 'var(--panel)',
                 boxShadow: 'var(--mantine-shadow-xs)',
                 transition: 'all 0.1s ease'
             }}
@@ -204,7 +204,7 @@ export default function TaxInvoicesPage() {
                         alignItems: "center",
                         justifyContent: "center",
                         borderRadius: 8,
-                        backgroundColor: "var(--mantine-color-gray-1)",
+                        backgroundColor: "var(--mantine-color-default)",
                         flexShrink: 0
                     }}>
                         <IconReceipt2 size={22} color="var(--mantine-color-indigo-6)" />
@@ -214,7 +214,7 @@ export default function TaxInvoicesPage() {
                             <Badge color={item.type === "sales" ? "indigo" : "red"} variant="light" size="sm" radius="sm">
                                 {item.type === "sales" ? "매출" : "매입"}
                             </Badge>
-                            <Text fw={700} size="sm" c="gray.9">
+                            <Text fw={700} size="sm" c="var(--ink)">
                                 {item.type === "sales" ? item.receiver_name : item.supplier_name}
                             </Text>
                         </Group>
@@ -297,21 +297,21 @@ export default function TaxInvoicesPage() {
 
             <Grid mb="xl">
                 <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                    <Paper withBorder p="md" radius="md" bg="var(--panel)">
                         <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>총 매출액</Text>
                         <Text size="xl" fw={900} c="indigo.9">{summary.sales.toLocaleString()}원</Text>
                         <Text size="xs" c="dimmed" fw={600}>부가세: {summary.salesVat.toLocaleString()}원</Text>
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 6, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                    <Paper withBorder p="md" radius="md" bg="var(--panel)">
                         <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>총 매입액</Text>
                         <Text size="xl" fw={900} c="red.8">{summary.purchase.toLocaleString()}원</Text>
                         <Text size="xs" c="dimmed" fw={600}>부가세: {summary.purchaseVat.toLocaleString()}원</Text>
                     </Paper>
                 </Grid.Col>
                 <Grid.Col span={{ base: 12, md: 4 }}>
-                    <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)">
+                    <Paper withBorder p="md" radius="md" bg="var(--panel)">
                         <Text size="xs" c="dimmed" fw={800} tt="uppercase" mb={4}>부가세 수지</Text>
                         <Text size="xl" fw={900} c={summary.salesVat - summary.purchaseVat >= 0 ? "indigo.7" : "red.7"}>
                             {(summary.salesVat - summary.purchaseVat).toLocaleString()}원
@@ -323,7 +323,7 @@ export default function TaxInvoicesPage() {
                 </Grid.Col>
             </Grid>
 
-            <Paper withBorder radius="md" bg="var(--mantine-color-white)">
+            <Paper withBorder radius="md" bg="var(--panel)">
                 <Stack gap={0}>
                     <Box p="md">
                         <Group justify="space-between" wrap="nowrap">

@@ -315,7 +315,7 @@ export default function VaultPage() {
     }
 
     return filteredItems.map((item) => (
-      <Paper key={item.id} p="md" radius="md" withBorder shadow="xs" mb="sm" style={{ background: 'var(--mantine-color-white)' }}>
+      <Paper key={item.id} p="md" radius="md" withBorder shadow="xs" mb="sm" style={{ background: 'var(--panel)' }}>
         <Stack gap="sm">
           <Group justify="space-between" wrap="nowrap" align="flex-start">
             <Stack gap={2} style={{ flex: 1 }}>
@@ -345,7 +345,7 @@ export default function VaultPage() {
             </Group>
           </Group>
 
-          <Paper withBorder p="xs" radius="md" bg="gray.0" style={{ borderStyle: 'dashed' }}>
+          <Paper withBorder p="xs" radius="md" bg="var(--mantine-color-default)" style={{ borderStyle: 'dashed' }}>
             <Stack gap={8}>
               <Group justify="space-between">
                 <Text size="xs" c="dimmed" fw={800} tt="uppercase">아이디</Text>
@@ -386,7 +386,7 @@ export default function VaultPage() {
           </Paper>
 
           {item.note && (
-            <Text size="xs" c="dimmed" lineClamp={2} style={{ background: 'var(--mantine-color-gray-0)', padding: '6px 10px', borderRadius: '8px' }}>
+            <Text size="xs" c="dimmed" lineClamp={2} style={{ background: 'var(--mantine-color-default)', padding: '6px 10px', borderRadius: '8px' }}>
               {item.note}
             </Text>
           )}
@@ -419,7 +419,7 @@ export default function VaultPage() {
         </Button>
       </Group>
 
-      <Paper p="md" radius="md" withBorder bg="var(--mantine-color-white)" shadow="xs" mb="lg">
+      <Paper p="md" radius="md" withBorder bg="var(--panel)" shadow="xs" mb="lg">
         <Stack gap="md">
           <TextInput
             placeholder="계정명, 아이디, URL 검색..."
@@ -495,7 +495,7 @@ export default function VaultPage() {
           />
           <Textarea label="추가 메모" radius="md" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} />
 
-          <Paper p="xs" radius="md" bg="blue.0" mt="xs">
+          <Paper p="xs" radius="md" bg="var(--mantine-color-indigo-light)" mt="xs">
             <Text size="xs" c="blue.7" fw={700}>
               비밀번호는 서버에서 암호화되어 안전하게 저장됩니다.
             </Text>

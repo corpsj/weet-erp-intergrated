@@ -491,7 +491,7 @@ export default function UtilityBillsPage() {
                     </ScrollArea>
 
                     <Box mt="md">
-                        <Paper withBorder p="xs" radius="md" bg="white">
+                        <Paper withBorder p="xs" radius="md" bg="var(--mantine-color-default)">
                             {(modalFile || sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url)) ? (
                                 <Image
                                     src={modalFile ? URL.createObjectURL(modalFile) : (sessionBlobUrls[selectedId!] || (isEditing ? editing?.image_url : selectedItem?.image_url))}
@@ -588,7 +588,7 @@ export default function UtilityBillsPage() {
 
                 <Grid gutter="md" align="stretch">
                     <Grid.Col span={{ base: 12, md: 6 }}>
-                        <Paper withBorder p="md" radius="md" h="100%" bg="var(--mantine-color-white)" shadow="xs">
+                        <Paper withBorder p="md" radius="md" h="100%" bg="var(--panel)" shadow="xs">
                             <Stack gap="xs" mb="md">
                                 <Group gap="xs">
                                     {[
@@ -629,7 +629,7 @@ export default function UtilityBillsPage() {
 
                             <ScrollArea h={700} offsetScrollbars visibleFrom="md">
                                 <Table highlightOnHover verticalSpacing="sm">
-                                    <Table.Thead>
+                                    <Table.Thead bg="var(--mantine-color-default)">
                                         <Table.Tr>
                                             <Table.Th>분류</Table.Th>
                                             <Table.Th>청구월</Table.Th>
@@ -655,7 +655,7 @@ export default function UtilityBillsPage() {
                                                     setIsEditing(false);
                                                     setEditing(item);
                                                 }}
-                                                bg={item.status === 'processing' ? 'var(--mantine-color-indigo-0)' : (selectedId === item.id ? 'var(--mantine-color-indigo-light)' : undefined)}
+                                                bg={item.status === 'processing' ? 'var(--mantine-color-indigo-light)' : (selectedId === item.id ? 'var(--mantine-color-indigo-light)' : undefined)}
                                                 style={{
                                                     cursor: 'pointer',
                                                     opacity: item.status === 'processing' ? 0.8 : 1,
@@ -734,7 +734,7 @@ export default function UtilityBillsPage() {
                                         }}
                                         style={{
                                             borderColor: selectedId === item.id ? 'var(--mantine-color-indigo-4)' : undefined,
-                                            backgroundColor: item.status === 'processing' ? 'var(--mantine-color-gray-0)' : 'white'
+                                            backgroundColor: item.status === 'processing' ? 'var(--mantine-color-default)' : 'var(--panel)'
                                         }}
                                     >
                                         <Group justify="space-between" mb={4}>
@@ -770,7 +770,7 @@ export default function UtilityBillsPage() {
                     </Grid.Col>
 
                     <Grid.Col span={{ base: 12, md: 6 }} className="desktop-only">
-                        <Paper p="md" radius="md" h="100%" bg="var(--mantine-color-white)" withBorder shadow="xs">
+                        <Paper p="md" radius="md" h="100%" bg="var(--panel)" withBorder shadow="xs">
                             {renderDetailContent()}
                         </Paper>
                     </Grid.Col>

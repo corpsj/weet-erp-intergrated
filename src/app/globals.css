@@ -20,18 +20,25 @@
 }
 
 [data-mantine-color-scheme="dark"] {
-  --ink: #e2e8f0;
-  /* slate-200 */
+  --ink: #f1f5f9;
+  /* slate-100 */
   --muted: #94a3b8;
   /* slate-400 */
-  --surface: #0f172a;
-  /* slate-900 */
-  --panel: #1e293b;
-  /* slate-800 */
-  --accent: #6366f1;
-  /* indigo-500 */
-  --border: #334155;
-  /* slate-700 */
+  --surface: #0b0f1a;
+  /* deep slate-950 inspired */
+  --panel: #161e2e;
+  /* slate-900ish */
+  --accent: #818cf8;
+  /* indigo-400 */
+  --border: #1f2937;
+  /* gray-800 */
+}
+
+/* Smooth theme transitions */
+*,
+*::before,
+*::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.05s ease;
 }
 
 html,
@@ -148,4 +155,58 @@ textarea {
 
 .soft-card:active {
   transform: scale(0.995);
+}
+
+/* Sidebar Specific Visual Refinements */
+.sidebar-toggle-bookmark {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.sidebar-toggle-bookmark:hover {
+  transform: translateY(-50%) translateX(2px) !important;
+  background-color: var(--mantine-color-indigo-0) !important;
+  box-shadow: 6px 0 15px rgba(0, 0, 0, 0.1) !important;
+}
+
+.sidebar-glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-mantine-color-scheme="dark"] .sidebar-glass {
+  background-color: rgba(22, 30, 46, 0.8) !important;
+}
+
+@keyframes pulse-icon {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px rgba(79, 70, 229, 0));
+  }
+
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(79, 70, 229, 0.4));
+  }
+
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 0px rgba(79, 70, 229, 0));
+  }
+}
+
+.pulse-active {
+  animation: pulse-icon 2s infinite ease-in-out;
+}
+
+.nav-link {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.nav-link:hover {
+  transform: translateX(2px);
+}
+
+.nav-link[data-collapsed="true"]:hover {
+  transform: scale(1.05);
 }

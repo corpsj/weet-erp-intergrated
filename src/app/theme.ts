@@ -2,7 +2,7 @@ import { createTheme, rem } from "@mantine/core";
 
 export const theme = createTheme({
   primaryColor: "indigo",
-  primaryShade: { light: 6, dark: 7 },
+  primaryShade: { light: 6, dark: 5 },
   fontFamily: "var(--font-body)",
   headings: {
     fontFamily: "var(--font-display)",
@@ -24,7 +24,19 @@ export const theme = createTheme({
       "#475569", // 600
       "#334155", // 700
       "#1e293b", // 800
-      "#0f172a", // 900
+      "#0f172a", // 900 (Main dark background if needed)
+    ],
+    dark: [
+      "#C1C2C5",
+      "#A6A7AB",
+      "#909296",
+      "#5c5f66",
+      "#373A40",
+      "#2C2E33",
+      "#25262b",
+      "#1A1B1E",
+      "#141517",
+      "#101113",
     ],
   },
   components: {
@@ -33,12 +45,6 @@ export const theme = createTheme({
         radius: "md",
         withBorder: true,
       },
-      styles: {
-        root: {
-          backgroundColor: "var(--mantine-color-white)",
-          borderColor: "var(--mantine-color-gray-2)",
-        }
-      }
     },
     Button: {
       defaultProps: {

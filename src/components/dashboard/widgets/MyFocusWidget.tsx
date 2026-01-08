@@ -77,12 +77,12 @@ export function MyFocusWidget() {
 
             <Stack gap="sm" style={{ flex: 1 }}>
                 {todos.length === 0 && (
-                    <Center h={100} style={{ borderRadius: 8, border: '1px solid var(--border)' }}>
+                    <Center h={100} style={{ borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel)' }}>
                         <Text size="sm" c="dimmed">할 일이 없습니다.</Text>
                     </Center>
                 )}
                 {todos.map((todo) => (
-                    <Paper key={todo.id} withBorder p="xs" radius="md" style={{ backgroundColor: 'var(--surface)' }}>
+                    <Paper key={todo.id} withBorder p="xs" radius="md" style={{ backgroundColor: 'var(--panel)' }}>
                         <Group>
                             <Checkbox
                                 checked={todo.status === "done"}

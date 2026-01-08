@@ -281,7 +281,7 @@ function TodoCard({
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            background: done ? "var(--mantine-color-gray-0)" : "var(--mantine-color-white)",
+            background: done ? "var(--mantine-color-default)" : "var(--panel)",
             opacity: done ? 0.7 : 1,
             borderColor,
             transition: "all 0.2s ease",
@@ -360,7 +360,7 @@ function TodoCard({
                 size="sm"
                 fw={800}
                 td={done ? "line-through" : "none"}
-                c={done ? "dimmed" : "dark"}
+                c={done ? "dimmed" : "var(--ink)"}
                 lineClamp={3}
                 style={{ flex: 1, letterSpacing: '-0.01em' }}
                 onDoubleClick={(e) => {
@@ -511,12 +511,12 @@ function TodoListItem({
           style={{
             cursor: "pointer",
             background: done
-              ? "var(--mantine-color-gray-1)"
+              ? "var(--mantine-color-default)"
               : depth > 0
-                ? "var(--mantine-color-gray-0)"
-                : "var(--mantine-color-white)",
+                ? "var(--mantine-color-default)"
+                : "var(--panel)",
             opacity: done ? 0.7 : 1,
-            borderColor: overdue ? "var(--mantine-color-red-4)" : "var(--mantine-color-gray-2)",
+            borderColor: overdue ? "var(--mantine-color-red-4)" : "var(--border)",
             marginLeft: depth * (isMobile ? 12 : 24),
             borderLeft: depth > 0 ? `4px solid var(--mantine-color-indigo-1)` : undefined,
             transition: "all 0.1s ease",
@@ -564,7 +564,7 @@ function TodoListItem({
                     size={isMobile ? "xs" : "sm"}
                     fw={700}
                     td={done ? "line-through" : "none"}
-                    c={done ? "dimmed" : "dark"}
+                    c={done ? "dimmed" : "var(--ink)"}
                     lineClamp={1}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
@@ -1272,8 +1272,8 @@ export default function TodoPage() {
                         style={{
                           position: "absolute",
                           top: 3, left: 3, right: -3, bottom: -3,
-                          background: "white",
-                          border: "1px solid var(--mantine-color-gray-3)",
+                          background: "var(--panel)",
+                          border: "1px solid var(--border)",
                           borderRadius: "4px",
                           zIndex: 0
                         }}
@@ -1282,8 +1282,8 @@ export default function TodoPage() {
                         style={{
                           position: "absolute",
                           top: 6, left: 6, right: -6, bottom: -6,
-                          background: "white",
-                          border: "1px solid var(--mantine-color-gray-2)",
+                          background: "var(--mantine-color-default)",
+                          border: "1px solid var(--border)",
                           borderRadius: "4px",
                           zIndex: -1,
                         }}
@@ -1305,7 +1305,7 @@ export default function TodoPage() {
                               marginTop: -1,
                               width: 12,
                               height: 2,
-                              background: "var(--mantine-color-gray-3)",
+                              background: "var(--border)",
                             }}
                           />
                         )}
@@ -1354,13 +1354,13 @@ export default function TodoPage() {
                               ? "var(--mantine-color-gray-1)"
                               : snapshot.combineTargetFor
                                 ? "var(--mantine-color-indigo-0)"
-                                : isDone ? "var(--mantine-color-gray-0)" : "white",
+                                : isDone ? "var(--mantine-color-default)" : "var(--panel)",
                             opacity: isDone ? (isSubtask ? 0.8 : 1) : 1,
                             borderColor: snapshot.combineTargetFor
                               ? "var(--mantine-color-indigo-6)"
                               : overdue
                                 ? "var(--mantine-color-red-4)"
-                                : isDone ? "var(--mantine-color-gray-2)" : "var(--mantine-color-gray-2)",
+                                : isDone ? "var(--border)" : "var(--border)",
                             borderWidth: snapshot.combineTargetFor ? 2 : 1,
                             boxShadow: snapshot.combineTargetFor ? "var(--mantine-shadow-md)" : "var(--mantine-shadow-xs)",
                             transition: 'all 0.15s ease',
@@ -1379,7 +1379,7 @@ export default function TodoPage() {
                                   mt={2}
                                 />
                                 <Stack gap={4} style={{ flex: 1, minWidth: 0 }}>
-                                  <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "dark"} style={{ flex: 1 }}>
+                                  <Text size="sm" fw={700} lineClamp={2} td={isDone ? "line-through" : "none"} c={isDone ? "dimmed" : "var(--ink)"} style={{ flex: 1 }}>
                                     {todo.title}
                                   </Text>
                                 </Stack>
@@ -1500,7 +1500,7 @@ export default function TodoPage() {
                             top: -8,
                             bottom: 24,
                             width: 1,
-                            borderLeft: "2px solid var(--mantine-color-gray-3)",
+                            borderLeft: "2px solid var(--border)",
                           }}
                         />
                       )}
@@ -1611,7 +1611,7 @@ export default function TodoPage() {
                         withBorder
                         radius="md"
                         p="sm"
-                        bg="gray.0"
+                        bg="var(--mantine-color-default)"
                         style={{
                           ...provided.draggableProps.style,
                           width: "320px",
@@ -1729,7 +1729,7 @@ export default function TodoPage() {
         </Group>
 
         {currentParent && (
-          <Paper withBorder p="xs" bg="gray.0">
+          <Paper withBorder p="xs" bg="var(--mantine-color-default)">
             <Text size="xs" c="dimmed">
               상위 업무
             </Text>
@@ -1856,8 +1856,8 @@ export default function TodoPage() {
                   onClick={() => openEdit(child.id)}
                   style={{
                     cursor: "pointer",
-                    background: "white",
-                    borderColor: "var(--mantine-color-gray-2)",
+                    background: "var(--panel)",
+                    borderColor: "var(--border)",
                     boxShadow: 'var(--mantine-shadow-xs)'
                   }}
                 >
@@ -1870,7 +1870,7 @@ export default function TodoPage() {
                         onChange={(e) => toggleDone(child, e.currentTarget.checked)}
                       />
                       <Stack gap={0}>
-                        <Text size="sm" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "dark"} lineClamp={1}>
+                        <Text size="sm" fw={700} td={childDone ? "line-through" : "none"} c={childDone ? "dimmed" : "var(--ink)"} lineClamp={1}>
                           {child.title}
                         </Text>
                         <Group gap={4} mt={2}>
@@ -1969,7 +1969,7 @@ export default function TodoPage() {
         </Group>
       </Group>
 
-      <Paper withBorder radius="md" p="md" bg="var(--mantine-color-white)">
+      <Paper withBorder radius="md" p="md" bg="var(--panel)">
         <Stack gap="md">
           <TextInput
             placeholder="업무 제목, 내용 검색..."
@@ -2050,7 +2050,7 @@ export default function TodoPage() {
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
-            background: 'var(--mantine-color-white)'
+            background: 'var(--panel)'
           }}
         >
           <Box id="todo-scroll-container" ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "4px", position: "relative" }}>
@@ -2085,7 +2085,7 @@ export default function TodoPage() {
                   <Box style={{ display: "flex", gap: "1rem", overflowX: "auto" }}>
                     {["할 일", "진행 중", "완료"].map((label, i) => (
                       <Box key={i} style={{ minWidth: 320, flex: 1 }}>
-                        <Paper p="sm" radius="md" withBorder bg="gray.0">
+                        <Paper p="sm" radius="md" withBorder bg="var(--mantine-color-default)">
                           <Group justify="space-between" mb="md">
                             <Text fw={800} size="sm">{label}</Text>
                           </Group>

@@ -20,7 +20,7 @@ const menuLabels: Record<MenuId, string> = {
 
 const menuLinks: Record<MenuId, string> = {
     notice: "/",
-    estimate: "/estimate",
+    estimate: "/estimate/materials",
     todo: "/todo",
     memo: "/memos",
     expense: "/expenses",

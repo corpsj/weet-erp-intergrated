@@ -1,6 +1,6 @@
 "use client";
 
-import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack, Badge } from "@mantine/core";
+import { AppShell, Burger, Button, Divider, Group, NavLink, Paper, Text, Box, rem, ScrollArea, Stack, Badge, Tooltip } from "@mantine/core";
 import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import {
   IconBolt,
@@ -8,6 +8,8 @@ import {
   IconCalculator,
   IconCalendar,
   IconCheckbox,
+  IconChevronLeft,
+  IconChevronRight,
   IconHome,
   IconKey,
   IconNotes,
@@ -50,7 +52,7 @@ const groupedNavItems = [
   },
   {
     group: "weet Tools",
-    items: [{ label: "견적 시스템", icon: IconCalculator, link: "/estimate" }],
+    items: [{ label: "견적 시스템", icon: IconCalculator, link: "/estimate/materials" }],
   },
   {
     group: "관리",
@@ -63,7 +65,7 @@ const groupedNavItems = [
 // Map link path to MenuId
 const linkToMenuId: Record<string, MenuId> = {
   "/": "notice",
-  "/estimate": "estimate",
+  "/estimate/materials": "estimate",
   "/todo": "todo",
   "/memos": "memo",
   "/expenses": "expense",
@@ -75,56 +77,91 @@ const linkToMenuId: Record<string, MenuId> = {
 interface SidebarContentProps {
   close: () => void;
   pathname: string;
+  collapsed?: boolean;
 }
 
-function SidebarContent({ close, pathname }: SidebarContentProps) {
+function SidebarContent({ close, pathname, collapsed }: SidebarContentProps) {
   const { unreadCounts } = useNotifications();
 
   return (
-    <ScrollArea style={{ flex: 1 }} type="scroll">
+    <ScrollArea style={{ flex: 1, paddingRight: collapsed ? 0 : 4 }} type="scroll" offsetScrollbars>
       {groupedNavItems.map((group) => (
-        <Box key={group.group} mb="xl">
-          <Text size="xs" c="indigo.7" fw={800} tt="uppercase" mb="xs" style={{ letterSpacing: '0.05em' }}>
-            {group.group}
-          </Text>
-          <Stack gap={4}>
+        <Box key={group.group} mb={collapsed ? "md" : "xl"}>
+          {!collapsed && (
+            <Text size="xs" c="indigo.7" fw={800} tt="uppercase" mb="xs" style={{ letterSpacing: '0.05em' }}>
+              {group.group}
+            </Text>
+          )}
+          <Stack gap={collapsed ? 8 : 4} align={collapsed ? "center" : "stretch"}>
             {group.items.map((item) => {
               const menuId = linkToMenuId[item.link];
               const count = menuId ? unreadCounts[menuId] : 0;
-              const isActive = item.link === "/estimate" ? pathname.startsWith("/estimate") : pathname === item.link;
+              const isActive = item.link.startsWith("/estimate") ? pathname.startsWith("/estimate") : pathname === item.link;
 
-              return (
+              const navLink = (
                 <NavLink
                   key={item.link}
                   component={Link}
                   href={item.link}
                   label={
-                    <Group justify="space-between" wrap="nowrap">
-                      <Text size="sm" fw={600} style={{ fontSize: '14px' }}>{item.label}</Text>
-                      {count > 0 && (
-                        <Badge size="xs" circle color="red">
-                          {count > 99 ? '99+' : count}
-                        </Badge>
-                      )}
-                    </Group>
+                    !collapsed ? (
+                      <Group justify="space-between" wrap="nowrap">
+                        <Text size="sm" fw={600} style={{ fontSize: '14px' }}>{item.label}</Text>
+                        {count > 0 && (
+                          <Badge size="xs" circle color="red">
+                            {count > 99 ? '99+' : count}
+                          </Badge>
+                        )}
+                      </Group>
+                    ) : null
                   }
-                  leftSection={<item.icon size={20} stroke={2} color={isActive ? 'inherit' : 'var(--mantine-color-indigo-5)'} />}
+                  leftSection={
+                    <Box className={count > 0 ? "pulse-active" : ""}>
+                      <item.icon size={collapsed ? 22 : 20} stroke={2} color={isActive ? 'var(--mantine-color-white)' : 'var(--mantine-color-indigo-5)'} />
+                    </Box>
+                  }
                   active={isActive}
                   variant="filled"
                   onClick={close}
                   styles={{
                     root: {
-                      transition: 'all 0.1s ease',
+                      transition: 'all 0.2s ease',
                       borderRadius: 'var(--mantine-radius-md)',
-                      padding: '10px 12px',
+                      padding: collapsed ? '10px' : '10px 12px',
                       backgroundColor: isActive ? 'var(--mantine-color-indigo-6)' : 'transparent',
                       color: isActive ? 'var(--mantine-color-white)' : 'var(--mantine-color-gray-7)',
+                      display: 'flex',
+                      justifyContent: collapsed ? 'center' : 'flex-start',
+                      width: collapsed ? 44 : 'auto',
+                      height: collapsed ? 44 : 'auto',
+                      margin: collapsed ? '0 auto' : '0',
                     },
+                    section: {
+                      margin: collapsed ? 0 : undefined,
+                    }
                   }}
                   color="indigo"
                   className="nav-link"
+                  data-collapsed={collapsed}
                 />
               );
+
+              if (collapsed) {
+                return (
+                  <Tooltip
+                    key={item.link}
+                    label={item.label}
+                    position="right"
+                    offset={20}
+                    withArrow
+                    transitionProps={{ transition: 'fade', duration: 200 }}
+                  >
+                    {navLink}
+                  </Tooltip>
+                );
+              }
+
+              return navLink;
             })}
           </Stack>
         </Box>
@@ -135,6 +172,7 @@ function SidebarContent({ close, pathname }: SidebarContentProps) {
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
   const [opened, { toggle, close }] = useDisclosure();
+  const [desktopCollapsed, { toggle: toggleDesktop }] = useDisclosure(false);
   const isMobile = useMediaQuery("(max-width: 48em)");
   const pathname = usePathname();
   const router = useRouter();
@@ -242,14 +280,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
     <AppShell
       className="app-shell"
       header={{ height: 64 }}
-      navbar={{ width: { base: '60%', sm: 260 }, breakpoint: "sm", collapsed: { mobile: !opened } }}
+      navbar={{
+        width: { base: desktopCollapsed ? 80 : 260, sm: desktopCollapsed ? 80 : 260 },
+        breakpoint: "sm",
+        collapsed: { mobile: false }
+      }}
       footer={{ height: 80, offset: true }}
       padding="md"
     >
       <AppShell.Header style={{ borderBottom: '1px solid var(--border)', background: 'var(--panel)' }}>
         <Group h="100%" px="lg" justify="space-between">
           <Group gap="sm">
-            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Text className="brand-title" fw={900} size="xl" style={{ fontSize: rem(22), color: 'var(--mantine-color-gray-9)' }}>
               WE-ET ERP
             </Text>
@@ -257,7 +298,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
           <Group gap="xs">
             <ThemeToggle />
             {displayName && (
-              <Text size="sm" fw={700} c="gray.7" className="desktop-only" mr="xs">
+              <Text size="sm" fw={700} c="dimmed" className="desktop-only" mr="xs">
                 {displayName}님 환영합니다
               </Text>
             )}
@@ -294,18 +335,50 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      <AppShell.Navbar p="md" style={{
+      <AppShell.Navbar p="md" className="sidebar-glass" style={{
         borderRight: '1px solid var(--border)',
-        background: 'var(--mantine-color-body)',
-        width: isMobile ? (opened ? '60%' : '0') : 260,
-        maxWidth: isMobile ? '60%' : '100%',
+        width: isMobile ? (desktopCollapsed ? 80 : 260) : (desktopCollapsed ? 80 : 260),
+        maxWidth: isMobile ? (desktopCollapsed ? 80 : '100%') : '100%',
         height: isMobile ? 'calc(100dvh - 64px)' : 'auto',
         top: 64,
         zIndex: isMobile ? 1100 : 100,
         transition: 'width 0.2s ease, transform 0.2s ease',
-        overflow: 'hidden'
+        overflow: 'visible',
       }}>
-        <SidebarContent close={close} pathname={pathname} />
+        <Box style={{ height: '100%', overflow: 'hidden' }}>
+          <SidebarContent close={close} pathname={pathname} collapsed={desktopCollapsed} />
+        </Box>
+
+        {/* Bookmark style toggle button */}
+        <Box
+          onClick={toggleDesktop}
+          style={{
+            position: 'absolute',
+            right: -20, // More overlap
+            top: '50%',
+            transform: 'translateY(-50%)',
+            width: 20,
+            height: 60,
+            backgroundColor: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderLeft: 'none',
+            borderRadius: '0 12px 12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 1001,
+            boxShadow: '4px 0 10px rgba(0,0,0,0.08)',
+            transition: 'all 0.2s ease',
+          }}
+          className="sidebar-toggle-bookmark"
+        >
+          {desktopCollapsed ? (
+            <IconChevronRight size={14} stroke={3} color="var(--mantine-color-indigo-6)" />
+          ) : (
+            <IconChevronLeft size={14} stroke={3} color="var(--mantine-color-indigo-6)" />
+          )}
+        </Box>
       </AppShell.Navbar>
 
       <AppShell.Main style={{ background: 'var(--surface)' }}>{children}</AppShell.Main>

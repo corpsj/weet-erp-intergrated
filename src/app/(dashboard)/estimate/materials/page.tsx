@@ -11,6 +11,7 @@ import {
   NumberInput,
   Paper,
   Grid,
+  ScrollArea,
   SimpleGrid,
   Stack,
   Table,
@@ -18,14 +19,20 @@ import {
   Text,
   TextInput,
   Textarea,
+  Autocomplete,
+  Combobox,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { useCombobox } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { asNumber, formatCurrency } from "@/lib/format";
 import type { Material } from "@/lib/types";
-import { SearchableSelect } from "@/components/SearchableSelect";
+import {
+  SearchableSelect,
+  type SearchableSelectItem,
+} from "@/components/SearchableSelect";
 
 type SpecTemplateType =
   | "text"
@@ -55,7 +62,8 @@ type InlineEditField =
   | "material_unit_cost"
   | "labor_unit_cost"
   | "expense_unit_cost"
-  | "note";
+  | "note"
+  | "remarks";
 
 const normalizeSpec = (value: string) => {
   return value
@@ -326,12 +334,17 @@ const isSpecComplete = (template: SpecTemplate, values: Record<string, string>) 
   labor_unit_cost: 0,
   expense_unit_cost: 0,
   note: "",
+  remarks: "",
 };
 
 export default function MaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [search, setSearch] = useState("");
   const [opened, { open, close }] = useDisclosure(false);
+  const [categoryManagerOpened, { open: openCategoryManager, close: closeCategoryManager }] =
+    useDisclosure(false);
+  const [itemManagerOpened, { open: openItemManager, close: closeItemManager }] =
+    useDisclosure(false);
   const [editing, setEditing] = useState<Material | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
@@ -349,12 +362,13 @@ export default function MaterialsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [categorySelect, setCategorySelect] = useState<string | null>(null);
-  const [customCategory, setCustomCategory] = useState("");
   const [itemSelect, setItemSelect] = useState<string | null>(null);
-  const [customItem, setCustomItem] = useState("");
   const [unitSelect, setUnitSelect] = useState<string | null>(null);
   const [specTemplate, setSpecTemplate] = useState<SpecTemplate>({ type: "text" });
   const [specValues, setSpecValues] = useState<Record<string, string>>({ text: "" });
+
+  const [customCategory, setCustomCategory] = useState("");
+  const [customItem, setCustomItem] = useState("");
 
   const loadMaterials = useCallback(async () => {
     const { data, error } = await supabase
@@ -412,16 +426,18 @@ export default function MaterialsPage() {
     return categories;
   }, [filtered]);
 
-  const categoryOptionsAll = useMemo(() => {
-    const categories: string[] = [];
+  const categoryOptionsAll = useMemo((): SearchableSelectItem[] => {
+    const categories: SearchableSelectItem[] = [];
     const seen = new Set<string>();
     materials.forEach((material) => {
       const category = material.category?.trim() || "미분류";
       if (!seen.has(category)) {
         seen.add(category);
-        categories.push(category);
+        categories.push({ value: category, label: category });
       }
     });
+
+    categories.push({ value: "__custom__", label: "직접입력" });
     return categories;
   }, [materials]);
 
@@ -442,11 +458,11 @@ export default function MaterialsPage() {
     return items;
   }, [filtered, selectedCategory]);
 
-  const modalItemOptions = useMemo(() => {
-    const currentCategory =
-      categorySelect === "__custom__" ? customCategory.trim() : categorySelect;
+  const modalItemOptions = useMemo((): SearchableSelectItem[] => {
+    const currentCategory = categorySelect?.trim();
     if (!currentCategory) return [];
-    const items: string[] = [];
+
+    const items: SearchableSelectItem[] = [];
     const seen = new Set<string>();
     materials.forEach((material) => {
       const category = material.category?.trim() || "미분류";
@@ -454,12 +470,14 @@ export default function MaterialsPage() {
         const name = material.name?.trim() || "미지정";
         if (!seen.has(name)) {
           seen.add(name);
-          items.push(name);
+          items.push({ value: name, label: name });
         }
       }
     });
+
+    items.push({ value: "__custom__", label: "직접입력" });
     return items;
-  }, [categorySelect, customCategory, materials]);
+  }, [categorySelect, materials]);
 
   const unitOptionsAll = useMemo(() => {
     const units: string[] = [];
@@ -481,9 +499,8 @@ export default function MaterialsPage() {
     return units;
   }, [form.unit, materials]);
 
-  const currentCategory =
-    categorySelect === "__custom__" ? customCategory.trim() : categorySelect ?? "";
-  const currentItem = itemSelect === "__custom__" ? customItem.trim() : itemSelect ?? "";
+  const currentCategory = categorySelect?.trim() ?? "";
+  const currentItem = itemSelect?.trim() ?? "";
   const editingCategory = editing?.category?.trim() ?? "";
   const editingItem = editing?.name?.trim() ?? "";
   const useEditingSpec =
@@ -559,24 +576,23 @@ export default function MaterialsPage() {
       setCategorySelect("__custom__");
       return;
     }
-    if (!categorySelect || !categoryOptionsAll.includes(categorySelect)) {
-      setCategorySelect(categoryOptionsAll[0]);
+    if (!categorySelect || !categoryOptionsAll.find((opt) => opt.value === categorySelect)) {
+      setCategorySelect(categoryOptionsAll[0].value);
     }
   }, [categoryOptionsAll, categorySelect]);
 
   useEffect(() => {
     if (!itemSelect && modalItemOptions.length) {
-      setItemSelect(modalItemOptions[0]);
+      setItemSelect(modalItemOptions[0].value);
     }
   }, [modalItemOptions, itemSelect]);
 
   const openNew = () => {
     setEditing(null);
     setForm(emptyForm);
-    const defaultCategory = categoryOptionsAll[0] ?? "";
-    setCategorySelect(defaultCategory || "__custom__");
+    setCategorySelect(selectedCategory || categoryOptionsAll[0]?.value || "");
     setCustomCategory("");
-    setItemSelect(null);
+    setItemSelect("");
     setCustomItem("");
     setUnitSelect(unitOptionsAll[0] ?? "ea");
     setSpecValues({ text: "" });
@@ -586,14 +602,10 @@ export default function MaterialsPage() {
   const openEdit = (material: Material) => {
     const categoryValue = material.category?.trim() || "";
     const itemValue = material.name?.trim() || "";
-    const categoryExists = categoryOptionsAll.includes(categoryValue);
-    setCategorySelect(categoryExists ? categoryValue : "__custom__");
-    setCustomCategory(categoryExists ? "" : categoryValue);
-    const itemExists = materials.some(
-      (item) => (item.category?.trim() || "미분류") === categoryValue && item.name?.trim() === itemValue
-    );
-    setItemSelect(itemExists ? itemValue : "__custom__");
-    setCustomItem(itemExists ? "" : itemValue);
+    setCategorySelect(categoryValue);
+    setCustomCategory("");
+    setItemSelect(itemValue);
+    setCustomItem("");
     setEditing(material);
     const template = detectTemplate(material.spec ?? "");
     setSpecTemplate(template);
@@ -608,14 +620,15 @@ export default function MaterialsPage() {
       labor_unit_cost: material.labor_unit_cost ?? 0,
       expense_unit_cost: material.expense_unit_cost ?? 0,
       note: material.note ?? "",
+      remarks: material.remarks ?? "",
     });
     open();
   };
 
   const handleSave = async () => {
     const categoryValue =
-      categorySelect === "__custom__" ? customCategory.trim() : categorySelect ?? "";
-    const itemValue = itemSelect === "__custom__" ? customItem.trim() : itemSelect ?? "";
+      categorySelect === "__custom__" ? customCategory.trim() : categorySelect?.trim();
+    const itemValue = itemSelect === "__custom__" ? customItem.trim() : itemSelect?.trim();
 
     if (!categoryValue || !itemValue) {
       notifications.show({
@@ -652,6 +665,7 @@ export default function MaterialsPage() {
       labor_unit_cost: form.labor_unit_cost || 0,
       expense_unit_cost: form.expense_unit_cost || 0,
       note: form.note,
+      remarks: form.remarks,
     };
 
     const { error } = editing
@@ -703,6 +717,130 @@ export default function MaterialsPage() {
       color: "gray",
     });
 
+    await loadMaterials();
+  };
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    if (!newName.trim() || oldName === newName) return;
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("materials")
+      .update({ category: newName.trim() })
+      .eq("category", oldName);
+
+    setLoading(false);
+    if (error) {
+      notifications.show({
+        title: "카테고리 수정 실패",
+        message: error.message,
+        color: "red",
+      });
+      return;
+    }
+
+    notifications.show({
+      title: "카테고리 수정 완료",
+      message: `${oldName} -> ${newName}으로 변경되었습니다.`,
+      color: "gray",
+    });
+
+    if (selectedCategory === oldName) setSelectedCategory(newName);
+    if (categorySelect === oldName) setCategorySelect(newName);
+    await loadMaterials();
+  };
+
+  const handleDeleteCategory = async (category: string) => {
+    const confirmed = window.confirm(`'${category}' 카테고리와 해당되는 모든 자재를 삭제하시겠습니까?`);
+    if (!confirmed) return;
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("materials")
+      .delete()
+      .eq("category", category);
+
+    setLoading(false);
+    if (error) {
+      notifications.show({
+        title: "카테고리 삭제 실패",
+        message: error.message,
+        color: "red",
+      });
+      return;
+    }
+
+    notifications.show({
+      title: "카테고리 삭제 완료",
+      message: "카테고리와 모든 관련 자재가 삭제되었습니다.",
+      color: "gray",
+    });
+
+    if (selectedCategory === category) setSelectedCategory(null);
+    if (categorySelect === category) setCategorySelect(null);
+    await loadMaterials();
+  };
+
+  const handleRenameItem = async (oldName: string, newName: string) => {
+    if (!selectedCategory || !newName.trim() || oldName === newName) return;
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("materials")
+      .update({ name: newName.trim() })
+      .eq("category", selectedCategory)
+      .eq("name", oldName);
+
+    setLoading(false);
+    if (error) {
+      notifications.show({
+        title: "품목 수정 실패",
+        message: error.message,
+        color: "red",
+      });
+      return;
+    }
+
+    notifications.show({
+      title: "품목 수정 완료",
+      message: `${oldName} -> ${newName}으로 변경되었습니다.`,
+      color: "gray",
+    });
+
+    if (selectedItem === oldName) setSelectedItem(newName);
+    if (itemSelect === oldName) setItemSelect(newName);
+    await loadMaterials();
+  };
+
+  const handleDeleteItem = async (itemName: string) => {
+    if (!selectedCategory) return;
+    const confirmed = window.confirm(`'${selectedCategory}'의 '${itemName}' 품목과 해당되는 모든 자재를 삭제하시겠습니까?`);
+    if (!confirmed) return;
+
+    setLoading(true);
+    const { error } = await supabase
+      .from("materials")
+      .delete()
+      .eq("category", selectedCategory)
+      .eq("name", itemName);
+
+    setLoading(false);
+    if (error) {
+      notifications.show({
+        title: "품목 삭제 실패",
+        message: error.message,
+        color: "red",
+      });
+      return;
+    }
+
+    notifications.show({
+      title: "품목 삭제 완료",
+      message: "품목과 모든 관련 자재가 삭제되었습니다.",
+      color: "gray",
+    });
+
+    if (selectedItem === itemName) setSelectedItem(null);
+    if (itemSelect === itemName) setItemSelect(null);
     await loadMaterials();
   };
 
@@ -783,6 +921,16 @@ export default function MaterialsPage() {
     setInlineEdit({
       id: material.id,
       field,
+      value: initialValue,
+      original: initialValue,
+    });
+  };
+
+  const startInlineRemarksEdit = (material: Material) => {
+    const initialValue = material.remarks ?? "";
+    setInlineEdit({
+      id: material.id,
+      field: "remarks",
       value: initialValue,
       original: initialValue,
     });
@@ -895,6 +1043,40 @@ export default function MaterialsPage() {
       const { error } = await supabase
         .from("materials")
         .update({ note: nextValue || null })
+        .eq("id", inlineEdit.id);
+
+      setInlineSaving(false);
+      inlineSavingRef.current = false;
+
+      if (error) {
+        notifications.show({
+          title: "수정 실패",
+          message: error.message,
+          color: "red",
+        });
+        return;
+      }
+
+      setInlineEdit(null);
+      await loadMaterials();
+      return;
+    }
+
+    if (inlineEdit.field === "remarks") {
+      const nextValue = inlineEdit.value.trim();
+      const originalValue = inlineEdit.original.trim();
+
+      if (nextValue === originalValue) {
+        setInlineEdit(null);
+        return;
+      }
+
+      inlineSavingRef.current = true;
+      setInlineSaving(true);
+
+      const { error } = await supabase
+        .from("materials")
+        .update({ remarks: nextValue || null })
         .eq("id", inlineEdit.id);
 
       setInlineSaving(false);
@@ -1551,711 +1733,919 @@ export default function MaterialsPage() {
   );
 
   return (
-    <Stack gap="md">
-      <Paper className="app-surface" p="md" radius="md">
-        <Group justify="space-between" align="center" wrap="wrap" gap="sm">
-          <TextInput
-            placeholder="구분, 품목, 규격 검색"
-            value={search}
-            onChange={(event) => setSearch(getInputValue(event))}
-            w={{ base: "100%", sm: 320 }}
-          />
-          <Group gap="xs">
-            <Text size="sm" c="dimmed">
-              총 {filtered.length}건
-            </Text>
-            <Button color="gray" onClick={openNew}>
-              신규 자재
-            </Button>
+    <ScrollArea>
+      <Stack gap="md" style={{ minWidth: 1200, paddingBottom: 20 }}>
+        <Paper p="md" radius="md" bg="var(--panel)">
+          <Group justify="space-between" align="center" wrap="nowrap" gap="sm">
+            <TextInput
+              placeholder="구분, 품목, 규격 검색"
+              value={search}
+              onChange={(event) => setSearch(getInputValue(event))}
+              w={320}
+            />
+            <Group gap="xs">
+              <Text size="sm" c="dimmed">
+                총 {filtered.length}건
+              </Text>
+              <Button color="gray" onClick={openNew}>
+                신규 자재
+              </Button>
+            </Group>
           </Group>
-        </Group>
-        <Divider my="sm" />
-        <Tabs defaultValue="hierarchy">
-          <Tabs.List>
-            <Tabs.Tab value="hierarchy">단계별</Tabs.Tab>
-            <Tabs.Tab value="list">리스트</Tabs.Tab>
-          </Tabs.List>
-          <Tabs.Panel value="hierarchy" pt="sm">
-            <Grid gutter="md">
-              <Grid.Col span={{ base: 12, md: 3 }}>
-                <Paper withBorder p="md" radius="md">
-                  <Text fw={600} mb="sm">
-                    구분
-                  </Text>
-                  <Box style={{ maxHeight: 520, overflowY: "auto" }}>
-                    <Stack gap="xs">
-                      {categoryOptions.map((category) => (
-                        <Button
-                          key={category}
-                          variant={selectedCategory === category ? "filled" : "light"}
-                          color="gray"
-                          fullWidth
-                          onClick={() => setSelectedCategory(category)}
-                        >
-                          {category}
-                        </Button>
-                      ))}
-                      {!categoryOptions.length && (
-                        <Text size="sm" c="dimmed">
-                          표시할 구분이 없습니다.
-                        </Text>
-                      )}
-                    </Stack>
-                  </Box>
-                </Paper>
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 3 }}>
-                <Paper withBorder p="md" radius="md">
-                  <Text fw={600} mb="sm">
-                    품목
-                  </Text>
-                  <Box style={{ maxHeight: 520, overflowY: "auto" }}>
-                    <Stack gap="xs">
-                      {itemOptions.map((item) => (
-                        <Button
-                          key={item}
-                          variant={selectedItem === item ? "filled" : "light"}
-                          color="gray"
-                          fullWidth
-                          onClick={() => setSelectedItem(item)}
-                        >
-                          {item}
-                        </Button>
-                      ))}
-                      {!itemOptions.length && (
-                        <Text size="sm" c="dimmed">
-                          표시할 품목이 없습니다.
-                        </Text>
-                      )}
-                    </Stack>
-                  </Box>
-                </Paper>
-              </Grid.Col>
-              <Grid.Col span={{ base: 12, md: 6 }}>
-                <Paper withBorder p="md" radius="md">
-                  <Text fw={600} mb="sm">
-                    자재
-                  </Text>
-                  <Box style={{ maxHeight: 520, overflowY: "auto" }}>
-                    <Stack gap="sm">
-                      {selectedMaterials.map((material) => (
-                        <Paper key={material.id} withBorder p="sm" radius="md">
-                          <Group justify="space-between" align="flex-start" wrap="wrap">
-                            <Box>
-                              {inlineEdit?.id === material.id && inlineEdit.field === "name" ? (
-                                <TextInput
-                                  value={inlineEdit.value}
-                                  onChange={(event) =>
-                                    setInlineEdit((prev) =>
-                                      prev ? { ...prev, value: getInputValue(event) } : prev
-                                    )
-                                  }
-                                  onKeyDown={handleInlineKeyDown}
-                                  onBlur={() => void commitInlineEdit()}
-                                  size="xs"
-                                  autoFocus
-                                  disabled={inlineSaving}
-                                />
-                              ) : (
-                                <Text
-                                  fw={600}
-                                  size="sm"
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "name")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "name");
-                                    }
-                                  }}
-                                >
-                                  {material.name}
-                                </Text>
-                              )}
-                              {inlineEdit?.id === material.id && inlineEdit.field === "spec" ? (
-                                renderInlineSpecInput()
-                              ) : (
-                                <Text
-                                  size="xs"
-                                  c={displaySpec(material.spec) ? undefined : "dimmed"}
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "spec")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "spec");
-                                    }
-                                  }}
-                                >
-                                  {displaySpec(material.spec) || "규격 없음"}
-                                </Text>
-                              )}
-                              <Text size="xs" c="dimmed">
-                                {material.unit || "단위 없음"}
-                              </Text>
-                              {inlineEdit?.id === material.id && inlineEdit.field === "note" ? (
-                                <TextInput
-                                  value={inlineEdit.value}
-                                  onChange={(event) =>
-                                    setInlineEdit((prev) =>
-                                      prev ? { ...prev, value: getInputValue(event) } : prev
-                                    )
-                                  }
-                                  onKeyDown={handleInlineKeyDown}
-                                  onBlur={() => void commitInlineEdit()}
-                                  size="xs"
-                                  placeholder="거래처"
-                                  disabled={inlineSaving}
-                                />
-                              ) : (
-                                <Text
-                                  size="xs"
-                                  c={material.note ? undefined : "dimmed"}
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "note")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "note");
-                                    }
-                                  }}
-                                >
-                                  {material.note || "미입력"}
-                                </Text>
-                              )}
-                            </Box>
-                            <Group gap="lg" wrap="wrap">
-                              {inlineEdit?.id === material.id &&
-                                inlineEdit.field === "material_unit_cost" ? (
-                                <NumberInput
-                                  value={inlineEdit.value}
-                                  onChange={(value) =>
-                                    setInlineEdit((prev) =>
-                                      prev
-                                        ? {
-                                          ...prev,
-                                          value: value === null || value === "" ? "" : String(value),
-                                        }
-                                        : prev
-                                    )
-                                  }
-                                  onKeyDown={handleInlineKeyDown}
-                                  onBlur={() => void commitInlineEdit()}
-                                  hideControls
-                                  min={0}
-                                  size="xs"
-                                  w={96}
-                                  disabled={inlineSaving}
-                                />
-                              ) : (
-                                <Text
-                                  size="xs"
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "material_unit_cost")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "material_unit_cost");
-                                    }
-                                  }}
-                                >
-                                  재료 {formatCurrency(material.material_unit_cost ?? 0)}
-                                </Text>
-                              )}
-                              {inlineEdit?.id === material.id && inlineEdit.field === "labor_unit_cost" ? (
-                                <NumberInput
-                                  value={inlineEdit.value}
-                                  onChange={(value) =>
-                                    setInlineEdit((prev) =>
-                                      prev
-                                        ? {
-                                          ...prev,
-                                          value: value === null || value === "" ? "" : String(value),
-                                        }
-                                        : prev
-                                    )
-                                  }
-                                  onKeyDown={handleInlineKeyDown}
-                                  onBlur={() => void commitInlineEdit()}
-                                  hideControls
-                                  min={0}
-                                  size="xs"
-                                  w={96}
-                                  disabled={inlineSaving}
-                                />
-                              ) : (
-                                <Text
-                                  size="xs"
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "labor_unit_cost")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "labor_unit_cost");
-                                    }
-                                  }}
-                                >
-                                  노무 {formatCurrency(material.labor_unit_cost ?? 0)}
-                                </Text>
-                              )}
-                              {inlineEdit?.id === material.id &&
-                                inlineEdit.field === "expense_unit_cost" ? (
-                                <NumberInput
-                                  value={inlineEdit.value}
-                                  onChange={(value) =>
-                                    setInlineEdit((prev) =>
-                                      prev
-                                        ? {
-                                          ...prev,
-                                          value: value === null || value === "" ? "" : String(value),
-                                        }
-                                        : prev
-                                    )
-                                  }
-                                  onKeyDown={handleInlineKeyDown}
-                                  onBlur={() => void commitInlineEdit()}
-                                  hideControls
-                                  min={0}
-                                  size="xs"
-                                  w={96}
-                                  disabled={inlineSaving}
-                                />
-                              ) : (
-                                <Text
-                                  size="xs"
-                                  role="button"
-                                  tabIndex={0}
-                                  style={{ cursor: "pointer" }}
-                                  onClick={() => startInlineEdit(material, "expense_unit_cost")}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter" || event.key === " ") {
-                                      event.preventDefault();
-                                      startInlineEdit(material, "expense_unit_cost");
-                                    }
-                                  }}
-                                >
-                                  경비 {formatCurrency(material.expense_unit_cost ?? 0)}
-                                </Text>
-                              )}
-                            </Group>
-                            <Group gap="xs">
-                              <Button
-                                size="xs"
-                                variant="light"
-                                color="red"
-                                onClick={() => handleDelete(material)}
-                              >
-                                삭제
-                              </Button>
-                            </Group>
-                          </Group>
-                        </Paper>
-                      ))}
-                      {!selectedMaterials.length && (
-                        <Text size="sm" c="dimmed">
-                          표시할 자재가 없습니다.
-                        </Text>
-                      )}
-                    </Stack>
-                  </Box>
-                </Paper>
-              </Grid.Col>
-            </Grid>
-          </Tabs.Panel>
-          <Tabs.Panel value="list" pt="sm">
-            <Table verticalSpacing="sm" highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>구분</Table.Th>
-                  <Table.Th>품목</Table.Th>
-                  <Table.Th>규격</Table.Th>
-                  <Table.Th>단위</Table.Th>
-                  <Table.Th>재료단가</Table.Th>
-                  <Table.Th>노무단가</Table.Th>
-                  <Table.Th>경비단가</Table.Th>
-                  <Table.Th>거래처</Table.Th>
-                  <Table.Th>관리</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {filtered.map((material) => (
-                  <Table.Tr key={material.id}>
-                    <Table.Td>{material.category}</Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id && inlineEdit.field === "name" ? (
-                        <TextInput
-                          value={inlineEdit.value}
-                          onChange={(event) =>
-                            setInlineEdit((prev) =>
-                              prev ? { ...prev, value: getInputValue(event) } : prev
-                            )
-                          }
-                          onKeyDown={handleInlineKeyDown}
-                          onBlur={() => void commitInlineEdit()}
-                          size="xs"
-                          autoFocus
-                          disabled={inlineSaving}
-                        />
-                      ) : (
-                        <Text
-                          size="sm"
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "name")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "name");
-                            }
-                          }}
-                        >
-                          {material.name}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id && inlineEdit.field === "spec" ? (
-                        renderInlineSpecInput()
-                      ) : (
-                        <Text
-                          size="sm"
-                          c={displaySpec(material.spec) ? undefined : "dimmed"}
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "spec")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "spec");
-                            }
-                          }}
-                        >
-                          {displaySpec(material.spec) || "규격 없음"}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>{material.unit}</Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id &&
-                        inlineEdit.field === "material_unit_cost" ? (
-                        <NumberInput
-                          value={inlineEdit.value}
-                          onChange={(value) =>
-                            setInlineEdit((prev) =>
-                              prev
-                                ? {
-                                  ...prev,
-                                  value: value === null || value === "" ? "" : String(value),
-                                }
-                                : prev
-                            )
-                          }
-                          onKeyDown={handleInlineKeyDown}
-                          onBlur={() => void commitInlineEdit()}
-                          hideControls
-                          min={0}
-                          size="xs"
-                          w={96}
-                          disabled={inlineSaving}
-                        />
-                      ) : (
-                        <Text
-                          size="sm"
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "material_unit_cost")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "material_unit_cost");
-                            }
-                          }}
-                        >
-                          {formatCurrency(material.material_unit_cost ?? 0)}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id && inlineEdit.field === "labor_unit_cost" ? (
-                        <NumberInput
-                          value={inlineEdit.value}
-                          onChange={(value) =>
-                            setInlineEdit((prev) =>
-                              prev
-                                ? {
-                                  ...prev,
-                                  value: value === null || value === "" ? "" : String(value),
-                                }
-                                : prev
-                            )
-                          }
-                          onKeyDown={handleInlineKeyDown}
-                          onBlur={() => void commitInlineEdit()}
-                          hideControls
-                          min={0}
-                          size="xs"
-                          w={96}
-                          disabled={inlineSaving}
-                        />
-                      ) : (
-                        <Text
-                          size="sm"
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "labor_unit_cost")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "labor_unit_cost");
-                            }
-                          }}
-                        >
-                          {formatCurrency(material.labor_unit_cost ?? 0)}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id &&
-                        inlineEdit.field === "expense_unit_cost" ? (
-                        <NumberInput
-                          value={inlineEdit.value}
-                          onChange={(value) =>
-                            setInlineEdit((prev) =>
-                              prev
-                                ? {
-                                  ...prev,
-                                  value: value === null || value === "" ? "" : String(value),
-                                }
-                                : prev
-                            )
-                          }
-                          onKeyDown={handleInlineKeyDown}
-                          onBlur={() => void commitInlineEdit()}
-                          hideControls
-                          min={0}
-                          size="xs"
-                          w={96}
-                          disabled={inlineSaving}
-                        />
-                      ) : (
-                        <Text
-                          size="sm"
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "expense_unit_cost")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "expense_unit_cost");
-                            }
-                          }}
-                        >
-                          {formatCurrency(material.expense_unit_cost ?? 0)}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      {inlineEdit?.id === material.id && inlineEdit.field === "note" ? (
-                        <TextInput
-                          value={inlineEdit.value}
-                          onChange={(event) =>
-                            setInlineEdit((prev) =>
-                              prev ? { ...prev, value: getInputValue(event) } : prev
-                            )
-                          }
-                          onKeyDown={handleInlineKeyDown}
-                          onBlur={() => void commitInlineEdit()}
-                          size="xs"
-                          placeholder="거래처"
-                          disabled={inlineSaving}
-                        />
-                      ) : (
-                        <Text
-                          size="sm"
-                          c={material.note ? undefined : "dimmed"}
-                          role="button"
-                          tabIndex={0}
-                          style={{ cursor: "pointer" }}
-                          onClick={() => startInlineEdit(material, "note")}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter" || event.key === " ") {
-                              event.preventDefault();
-                              startInlineEdit(material, "note");
-                            }
-                          }}
-                        >
-                          {material.note || "미입력"}
-                        </Text>
-                      )}
-                    </Table.Td>
-                    <Table.Td>
-                      <Button size="xs" variant="light" color="red" onClick={() => handleDelete(material)}>
-                        삭제
+          <Divider my="sm" />
+          <Tabs defaultValue="hierarchy">
+            <Tabs.List>
+              <Tabs.Tab value="hierarchy">단계별</Tabs.Tab>
+              <Tabs.Tab value="list">리스트</Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="hierarchy" pt="sm">
+              <Grid gutter="md">
+                <Grid.Col span={3}>
+                  <Paper withBorder p="md" radius="md">
+                    <Group justify="space-between" mb="sm" align="center">
+                      <Text fw={600}>
+                        구분
+                      </Text>
+                      <Button size="compact-xs" variant="light" color="gray" onClick={openCategoryManager}>
+                        관리
                       </Button>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Tabs.Panel>
-        </Tabs>
-      </Paper>
+                    </Group>
+                    <Box style={{ maxHeight: 520, overflowY: "auto" }}>
+                      <Stack gap="xs">
+                        {categoryOptions.map((category) => (
+                          <Button
+                            key={category}
+                            variant={selectedCategory === category ? "filled" : "light"}
+                            color="gray"
+                            fullWidth
+                            onClick={() => setSelectedCategory(category)}
+                          >
+                            {category}
+                          </Button>
+                        ))}
+                        {!categoryOptions.length && (
+                          <Text size="sm" c="dimmed">
+                            표시할 구분이 없습니다.
+                          </Text>
+                        )}
+                      </Stack>
+                    </Box>
+                  </Paper>
+                </Grid.Col>
+                <Grid.Col span={3}>
+                  <Paper withBorder p="md" radius="md">
+                    <Group justify="space-between" mb="sm" align="center">
+                      <Text fw={600}>
+                        품목
+                      </Text>
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="gray"
+                        onClick={openItemManager}
+                        disabled={!selectedCategory}
+                      >
+                        관리
+                      </Button>
+                    </Group>
+                    <Box style={{ maxHeight: 520, overflowY: "auto" }}>
+                      <Stack gap="xs">
+                        {itemOptions.map((item) => (
+                          <Button
+                            key={item}
+                            variant={selectedItem === item ? "filled" : "light"}
+                            color="gray"
+                            fullWidth
+                            onClick={() => setSelectedItem(item)}
+                          >
+                            {item}
+                          </Button>
+                        ))}
+                        {!itemOptions.length && (
+                          <Text size="sm" c="dimmed">
+                            표시할 품목이 없습니다.
+                          </Text>
+                        )}
+                      </Stack>
+                    </Box>
+                  </Paper>
+                </Grid.Col>
+                <Grid.Col span={6}>
+                  <Paper withBorder p="md" radius="md">
+                    <Text fw={600} mb="sm">
+                      자재
+                    </Text>
+                    <Box style={{ maxHeight: 520, overflowY: "auto" }}>
+                      <Stack gap="sm">
+                        {selectedMaterials.map((material) => (
+                          <Paper key={material.id} p="sm" radius="md" withBorder bg="var(--panel)">
+                            <Group justify="space-between" align="flex-start" wrap="wrap">
+                              <Box>
+                                {inlineEdit?.id === material.id && inlineEdit.field === "name" ? (
+                                  <TextInput
+                                    value={inlineEdit.value}
+                                    onChange={(event) =>
+                                      setInlineEdit((prev) =>
+                                        prev ? { ...prev, value: getInputValue(event) } : prev
+                                      )
+                                    }
+                                    onKeyDown={handleInlineKeyDown}
+                                    onBlur={() => void commitInlineEdit()}
+                                    size="xs"
+                                    autoFocus
+                                    disabled={inlineSaving}
+                                  />
+                                ) : (
+                                  <Text
+                                    fw={600}
+                                    size="sm"
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => startInlineEdit(material, "name")}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        startInlineEdit(material, "name");
+                                      }
+                                    }}
+                                  >
+                                    {material.name}
+                                  </Text>
+                                )}
+                                {inlineEdit?.id === material.id && inlineEdit.field === "spec" ? (
+                                  renderInlineSpecInput()
+                                ) : (
+                                  <Text
+                                    size="xs"
+                                    c={displaySpec(material.spec) ? undefined : "dimmed"}
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => startInlineEdit(material, "spec")}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        startInlineEdit(material, "spec");
+                                      }
+                                    }}
+                                  >
+                                    {displaySpec(material.spec) || "규격 없음"}
+                                  </Text>
+                                )}
+                                <Text size="xs" c="dimmed">
+                                  {material.unit || "단위 없음"}
+                                </Text>
+                                <Group gap="xs" wrap="nowrap">
+                                  {inlineEdit?.id === material.id && inlineEdit.field === "note" ? (
+                                    <TextInput
+                                      value={inlineEdit.value}
+                                      onChange={(event) =>
+                                        setInlineEdit((prev) =>
+                                          prev ? { ...prev, value: getInputValue(event) } : prev
+                                        )
+                                      }
+                                      onKeyDown={handleInlineKeyDown}
+                                      onBlur={() => void commitInlineEdit()}
+                                      size="xs"
+                                      placeholder="거래처"
+                                      disabled={inlineSaving}
+                                      w={120}
+                                    />
+                                  ) : (
+                                    <Text
+                                      size="xs"
+                                      c={material.note ? undefined : "dimmed"}
+                                      role="button"
+                                      tabIndex={0}
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => startInlineEdit(material, "note")}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault();
+                                          startInlineEdit(material, "note");
+                                        }
+                                      }}
+                                      truncate
+                                    >
+                                      {material.note || "미입력"}
+                                    </Text>
+                                  )}
+                                  <Text size="xs" c="dimmed">•</Text>
+                                  {inlineEdit?.id === material.id && inlineEdit.field === "remarks" ? (
+                                    <TextInput
+                                      value={inlineEdit.value}
+                                      onChange={(event) =>
+                                        setInlineEdit((prev) =>
+                                          prev ? { ...prev, value: getInputValue(event) } : prev
+                                        )
+                                      }
+                                      onKeyDown={handleInlineKeyDown}
+                                      onBlur={() => void commitInlineEdit()}
+                                      size="xs"
+                                      placeholder="비고"
+                                      disabled={inlineSaving}
+                                      w={150}
+                                    />
+                                  ) : (
+                                    <Text
+                                      size="xs"
+                                      c={material.remarks ? undefined : "dimmed"}
+                                      role="button"
+                                      tabIndex={0}
+                                      style={{ cursor: "pointer" }}
+                                      onClick={() => startInlineRemarksEdit(material)}
+                                      onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                          event.preventDefault();
+                                          startInlineRemarksEdit(material);
+                                        }
+                                      }}
+                                      truncate
+                                    >
+                                      {material.remarks || "비고 없음"}
+                                    </Text>
+                                  )}
+                                </Group>
+                              </Box>
+                              <Group gap="lg" wrap="wrap">
+                                {inlineEdit?.id === material.id &&
+                                  inlineEdit.field === "material_unit_cost" ? (
+                                  <NumberInput
+                                    value={inlineEdit.value}
+                                    onChange={(value) =>
+                                      setInlineEdit((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            value: value === null || value === "" ? "" : String(value),
+                                          }
+                                          : prev
+                                      )
+                                    }
+                                    onKeyDown={handleInlineKeyDown}
+                                    onBlur={() => void commitInlineEdit()}
+                                    hideControls
+                                    min={0}
+                                    size="xs"
+                                    w={96}
+                                    disabled={inlineSaving}
+                                  />
+                                ) : (
+                                  <Text
+                                    size="xs"
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => startInlineEdit(material, "material_unit_cost")}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        startInlineEdit(material, "material_unit_cost");
+                                      }
+                                    }}
+                                  >
+                                    재료 {formatCurrency(material.material_unit_cost ?? 0)}
+                                  </Text>
+                                )}
+                                {inlineEdit?.id === material.id && inlineEdit.field === "labor_unit_cost" ? (
+                                  <NumberInput
+                                    value={inlineEdit.value}
+                                    onChange={(value) =>
+                                      setInlineEdit((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            value: value === null || value === "" ? "" : String(value),
+                                          }
+                                          : prev
+                                      )
+                                    }
+                                    onKeyDown={handleInlineKeyDown}
+                                    onBlur={() => void commitInlineEdit()}
+                                    hideControls
+                                    min={0}
+                                    size="xs"
+                                    w={96}
+                                    disabled={inlineSaving}
+                                  />
+                                ) : (
+                                  <Text
+                                    size="xs"
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => startInlineEdit(material, "labor_unit_cost")}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        startInlineEdit(material, "labor_unit_cost");
+                                      }
+                                    }}
+                                  >
+                                    노무 {formatCurrency(material.labor_unit_cost ?? 0)}
+                                  </Text>
+                                )}
+                                {inlineEdit?.id === material.id &&
+                                  inlineEdit.field === "expense_unit_cost" ? (
+                                  <NumberInput
+                                    value={inlineEdit.value}
+                                    onChange={(value) =>
+                                      setInlineEdit((prev) =>
+                                        prev
+                                          ? {
+                                            ...prev,
+                                            value: value === null || value === "" ? "" : String(value),
+                                          }
+                                          : prev
+                                      )
+                                    }
+                                    onKeyDown={handleInlineKeyDown}
+                                    onBlur={() => void commitInlineEdit()}
+                                    hideControls
+                                    min={0}
+                                    size="xs"
+                                    w={96}
+                                    disabled={inlineSaving}
+                                  />
+                                ) : (
+                                  <Text
+                                    size="xs"
+                                    role="button"
+                                    tabIndex={0}
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() => startInlineEdit(material, "expense_unit_cost")}
+                                    onKeyDown={(event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        startInlineEdit(material, "expense_unit_cost");
+                                      }
+                                    }}
+                                  >
+                                    경비 {formatCurrency(material.expense_unit_cost ?? 0)}
+                                  </Text>
+                                )}
+                              </Group>
+                              <Group gap="xs">
+                                <Button
+                                  size="xs"
+                                  variant="light"
+                                  color="red"
+                                  onClick={() => handleDelete(material)}
+                                >
+                                  삭제
+                                </Button>
+                              </Group>
+                            </Group>
+                          </Paper>
+                        ))}
+                        {!selectedMaterials.length && (
+                          <Text size="sm" c="dimmed">
+                            표시할 자재가 없습니다.
+                          </Text>
+                        )}
+                      </Stack>
+                    </Box>
+                  </Paper>
+                </Grid.Col>
+              </Grid>
+            </Tabs.Panel>
+            <Tabs.Panel value="list" pt="sm">
+              <ScrollArea offsetScrollbars>
+                <Table verticalSpacing="sm" highlightOnHover style={{ minWidth: 1000 }}>
+                  <Table.Thead bg="var(--mantine-color-default)">
+                    <Table.Tr>
+                      <Table.Th>구분</Table.Th>
+                      <Table.Th>품목</Table.Th>
+                      <Table.Th>규격</Table.Th>
+                      <Table.Th>단위</Table.Th>
+                      <Table.Th>재료단가</Table.Th>
+                      <Table.Th>노무단가</Table.Th>
+                      <Table.Th>경비단가</Table.Th>
+                      <Table.Th>거래처</Table.Th>
+                      <Table.Th>비고</Table.Th>
+                      <Table.Th>관리</Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {filtered.map((material) => (
+                      <Table.Tr key={material.id}>
+                        <Table.Td>{material.category}</Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id && inlineEdit.field === "name" ? (
+                            <TextInput
+                              value={inlineEdit.value}
+                              onChange={(event) =>
+                                setInlineEdit((prev) =>
+                                  prev ? { ...prev, value: getInputValue(event) } : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              size="xs"
+                              autoFocus
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "name")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "name");
+                                }
+                              }}
+                            >
+                              {material.name}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id && inlineEdit.field === "spec" ? (
+                            renderInlineSpecInput()
+                          ) : (
+                            <Text
+                              size="sm"
+                              c={displaySpec(material.spec) ? undefined : "dimmed"}
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "spec")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "spec");
+                                }
+                              }}
+                            >
+                              {displaySpec(material.spec) || "규격 없음"}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>{material.unit}</Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id &&
+                            inlineEdit.field === "material_unit_cost" ? (
+                            <NumberInput
+                              value={inlineEdit.value}
+                              onChange={(value) =>
+                                setInlineEdit((prev) =>
+                                  prev
+                                    ? {
+                                      ...prev,
+                                      value: value === null || value === "" ? "" : String(value),
+                                    }
+                                    : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              hideControls
+                              min={0}
+                              size="xs"
+                              w={96}
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "material_unit_cost")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "material_unit_cost");
+                                }
+                              }}
+                            >
+                              {formatCurrency(material.material_unit_cost ?? 0)}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id && inlineEdit.field === "labor_unit_cost" ? (
+                            <NumberInput
+                              value={inlineEdit.value}
+                              onChange={(value) =>
+                                setInlineEdit((prev) =>
+                                  prev
+                                    ? {
+                                      ...prev,
+                                      value: value === null || value === "" ? "" : String(value),
+                                    }
+                                    : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              hideControls
+                              min={0}
+                              size="xs"
+                              w={96}
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "labor_unit_cost")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "labor_unit_cost");
+                                }
+                              }}
+                            >
+                              {formatCurrency(material.labor_unit_cost ?? 0)}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id &&
+                            inlineEdit.field === "expense_unit_cost" ? (
+                            <NumberInput
+                              value={inlineEdit.value}
+                              onChange={(value) =>
+                                setInlineEdit((prev) =>
+                                  prev
+                                    ? {
+                                      ...prev,
+                                      value: value === null || value === "" ? "" : String(value),
+                                    }
+                                    : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              hideControls
+                              min={0}
+                              size="xs"
+                              w={96}
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "expense_unit_cost")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "expense_unit_cost");
+                                }
+                              }}
+                            >
+                              {formatCurrency(material.expense_unit_cost ?? 0)}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id && inlineEdit.field === "note" ? (
+                            <TextInput
+                              value={inlineEdit.value}
+                              onChange={(event) =>
+                                setInlineEdit((prev) =>
+                                  prev ? { ...prev, value: getInputValue(event) } : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              size="xs"
+                              placeholder="거래처"
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              c={material.note ? undefined : "dimmed"}
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineEdit(material, "note")}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineEdit(material, "note");
+                                }
+                              }}
+                            >
+                              {material.note || "미입력"}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          {inlineEdit?.id === material.id && inlineEdit.field === "remarks" ? (
+                            <TextInput
+                              value={inlineEdit.value}
+                              onChange={(event) =>
+                                setInlineEdit((prev) =>
+                                  prev ? { ...prev, value: getInputValue(event) } : prev
+                                )
+                              }
+                              onKeyDown={handleInlineKeyDown}
+                              onBlur={() => void commitInlineEdit()}
+                              size="xs"
+                              placeholder="비고"
+                              disabled={inlineSaving}
+                            />
+                          ) : (
+                            <Text
+                              size="sm"
+                              c={material.remarks ? undefined : "dimmed"}
+                              role="button"
+                              tabIndex={0}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => startInlineRemarksEdit(material)}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  startInlineRemarksEdit(material);
+                                }
+                              }}
+                            >
+                              {material.remarks || "미입력"}
+                            </Text>
+                          )}
+                        </Table.Td>
+                        <Table.Td>
+                          <Button size="xs" variant="light" color="red" onClick={() => handleDelete(material)}>
+                            삭제
+                          </Button>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+            </Tabs.Panel>
+          </Tabs>
+        </Paper>
 
-      <Modal opened={opened} onClose={close} title={editing ? "자재 수정" : "자재 추가"} size="lg">
-        <Stack>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-            <Stack gap="xs">
-              <SearchableSelect
-                label="구분"
-                placeholder="구분 선택"
-                data={[
-                  ...categoryOptionsAll.map((category) => ({ value: category, label: category })),
-                  { value: "__custom__", label: "직접 입력" },
-                ]}
-                value={categorySelect}
-                onChange={(value) => {
-                  const nextValue = value ?? "__custom__";
-                  setCategorySelect(nextValue);
-                  if (nextValue !== "__custom__") {
-                    setCustomCategory("");
-                    setItemSelect(null);
-                  } else {
-                    setItemSelect("__custom__");
-                  }
-                }}
-                required
-              />
-              {categorySelect === "__custom__" && (
-                <TextInput
-                  label="구분 직접 입력"
-                  placeholder=""
-                  value={customCategory}
-                  onChange={(event) => setCustomCategory(getInputValue(event))}
+        <Modal opened={opened} onClose={close} title={editing ? "자재 수정" : "자재 추가"} size="lg">
+          <Stack>
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              <Stack gap="xs">
+                <SearchableSelect
+                  label="구분"
+                  placeholder="구분 선택"
+                  data={categoryOptionsAll}
+                  value={categorySelect}
+                  onChange={(value) => {
+                    setCategorySelect(value);
+                    if (value !== "__custom__") {
+                      setCustomCategory("");
+                    }
+                  }}
                   required
                 />
-              )}
-            </Stack>
-            <Stack gap="xs">
-              <SearchableSelect
-                label="품목"
-                placeholder="품목 선택"
-                data={[
-                  ...modalItemOptions.map((item) => ({ value: item, label: item })),
-                  { value: "__custom__", label: "직접 입력" },
-                ]}
-                value={itemSelect}
-                onChange={(value) => {
-                  const nextValue = value ?? "__custom__";
-                  setItemSelect(nextValue);
-                  if (nextValue !== "__custom__") {
-                    setCustomItem("");
-                  }
-                }}
-                required
-              />
-              {itemSelect === "__custom__" && (
-                <TextInput
-                  label="품목 직접 입력"
-                  placeholder=""
-                  value={customItem}
-                  onChange={(event) => setCustomItem(getInputValue(event))}
+                {categorySelect === "__custom__" && (
+                  <TextInput
+                    placeholder="새로운 구분 입력"
+                    value={customCategory}
+                    onChange={(event) => setCustomCategory(getInputValue(event))}
+                    required
+                  />
+                )}
+              </Stack>
+
+              <Stack gap="xs">
+                <SearchableSelect
+                  label="품목"
+                  placeholder="품목 선택"
+                  data={modalItemOptions}
+                  value={itemSelect}
+                  onChange={(value) => {
+                    setItemSelect(value);
+                    if (value !== "__custom__") {
+                      setCustomItem("");
+                    }
+                  }}
                   required
+                  disabled={!categorySelect || (categorySelect === "__custom__" && !customCategory)}
                 />
-              )}
+                {itemSelect === "__custom__" && (
+                  <TextInput
+                    placeholder="새로운 품목 입력"
+                    value={customItem}
+                    onChange={(event) => setCustomItem(getInputValue(event))}
+                    required
+                  />
+                )}
+              </Stack>
+            </SimpleGrid>
+            <Stack gap="xs">
+              <Group align="flex-end" wrap="nowrap">
+                <Box style={{ flex: 1 }}>{renderSpecInput()}</Box>
+                <SearchableSelect
+                  label="단위"
+                  placeholder="단위"
+                  data={unitOptionsAll.map((unit) => ({ value: unit, label: unit }))}
+                  value={unitSelect ?? form.unit}
+                  onChange={(value) => {
+                    setUnitSelect(value);
+                    setForm((prev) => ({ ...prev, unit: value ?? "" }));
+                  }}
+                  w={120}
+                />
+              </Group>
             </Stack>
-          </SimpleGrid>
-          <Stack gap="xs">
-            <Group align="flex-end" wrap="nowrap">
-              <Box style={{ flex: 1 }}>{renderSpecInput()}</Box>
-              <SearchableSelect
-                label="단위"
-                placeholder="단위"
-                data={unitOptionsAll.map((unit) => ({ value: unit, label: unit }))}
-                value={unitSelect ?? form.unit}
-                onChange={(value) => {
-                  setUnitSelect(value);
-                  setForm((prev) => ({ ...prev, unit: value ?? "" }));
+            <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
+              <Stack gap="sm">
+                <NumberInput
+                  label="재료단가"
+                  value={form.material_unit_cost}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      material_unit_cost: typeof value === "number" ? value : 0,
+                    }))
+                  }
+                  thousandSeparator=","
+                  min={0}
+                />
+                <NumberInput
+                  label="노무단가"
+                  value={form.labor_unit_cost}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      labor_unit_cost: typeof value === "number" ? value : 0,
+                    }))
+                  }
+                  thousandSeparator=","
+                  min={0}
+                />
+                <NumberInput
+                  label="경비단가"
+                  value={form.expense_unit_cost}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      expense_unit_cost: typeof value === "number" ? value : 0,
+                    }))
+                  }
+                  thousandSeparator=","
+                  min={0}
+                />
+              </Stack>
+              <Textarea
+                label="거래처"
+                placeholder="거래처"
+                value={form.note}
+                onChange={(event) => {
+                  const note = getInputValue(event);
+                  setForm((prev) => ({ ...prev, note }));
                 }}
-                w={120}
+                minRows={6}
               />
+              <Textarea
+                label="비고"
+                placeholder="비고"
+                value={form.remarks}
+                onChange={(event) => {
+                  const remarks = getInputValue(event);
+                  setForm((prev) => ({ ...prev, remarks }));
+                }}
+                minRows={6}
+              />
+            </SimpleGrid>
+            <Group justify="flex-end">
+              <Button variant="light" onClick={close}>
+                취소
+              </Button>
+              <Button color="gray" onClick={handleSave} loading={loading}>
+                저장
+              </Button>
             </Group>
           </Stack>
-          <SimpleGrid cols={{ base: 1, md: 2 }} spacing="md">
-            <Stack gap="sm">
-              <NumberInput
-                label="재료단가"
-                value={form.material_unit_cost}
-                onChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    material_unit_cost: typeof value === "number" ? value : 0,
-                  }))
-                }
-                thousandSeparator=","
-                min={0}
-              />
-              <NumberInput
-                label="노무단가"
-                value={form.labor_unit_cost}
-                onChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    labor_unit_cost: typeof value === "number" ? value : 0,
-                  }))
-                }
-                thousandSeparator=","
-                min={0}
-              />
-              <NumberInput
-                label="경비단가"
-                value={form.expense_unit_cost}
-                onChange={(value) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    expense_unit_cost: typeof value === "number" ? value : 0,
-                  }))
-                }
-                thousandSeparator=","
-                min={0}
-              />
-            </Stack>
-            <Textarea
-              label="거래처"
-              placeholder="거래처"
-              value={form.note}
-              onChange={(event) => {
-                const note = getInputValue(event);
-                setForm((prev) => ({ ...prev, note }));
-              }}
-              minRows={6}
-            />
-          </SimpleGrid>
-          <Group justify="flex-end">
-            <Button variant="light" onClick={close}>
-              취소
-            </Button>
-            <Button color="gray" onClick={handleSave} loading={loading}>
-              저장
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Stack>
+        </Modal>
+
+        <CategoryAndItemManagerModal
+          opened={categoryManagerOpened}
+          onClose={closeCategoryManager}
+          title="구분 관리"
+          data={categoryOptionsAll.filter((o) => o.value !== "__custom__").map((o) => o.label)}
+          onRename={handleRenameCategory}
+          onDelete={handleDeleteCategory}
+          loading={loading}
+        />
+
+        <CategoryAndItemManagerModal
+          opened={itemManagerOpened}
+          onClose={closeItemManager}
+          title={`${selectedCategory} 품목 관리`}
+          data={itemOptions}
+          onRename={handleRenameItem}
+          onDelete={handleDeleteItem}
+          loading={loading}
+        />
+      </Stack>
+    </ScrollArea>
   );
 }
 
+function CategoryAndItemManagerModal({
+  opened,
+  onClose,
+  title,
+  data,
+  onRename,
+  onDelete,
+  loading,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  title: string;
+  data: string[];
+  onRename: (oldName: string, newName: string) => Promise<void>;
+  onDelete: (name: string) => Promise<void>;
+  loading: boolean;
+}) {
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+
+  return (
+    <Modal opened={opened} onClose={onClose} title={title} size="sm">
+      <Stack gap="md">
+        <ScrollArea.Autosize mah={400}>
+          <Stack gap="xs">
+            {data.length === 0 && (
+              <Text size="sm" c="dimmed" ta="center" py="xl">데이터가 없습니다.</Text>
+            )}
+            {data.map((item) => (
+              <Paper key={item} withBorder p="xs" radius="sm">
+                <Group justify="space-between" align="center" wrap="nowrap">
+                  {editingItem === item ? (
+                    <TextInput
+                      size="xs"
+                      value={newName}
+                      onChange={(e) => setNewName(e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          onRename(item, newName).then(() => setEditingItem(null));
+                        }
+                        if (e.key === "Escape") setEditingItem(null);
+                      }}
+                      autoFocus
+                      style={{ flex: 1 }}
+                    />
+                  ) : (
+                    <Text size="sm" fw={500}>{item}</Text>
+                  )}
+
+                  <Group gap={4}>
+                    {editingItem === item ? (
+                      <Button
+                        size="compact-xs"
+                        variant="filled"
+                        color="gray"
+                        loading={loading}
+                        onClick={() => onRename(item, newName).then(() => setEditingItem(null))}
+                      >
+                        확인
+                      </Button>
+                    ) : (
+                      <Button
+                        size="compact-xs"
+                        variant="light"
+                        color="gray"
+                        onClick={() => {
+                          setEditingItem(item);
+                          setNewName(item);
+                        }}
+                      >
+                        수정
+                      </Button>
+                    )}
+                    <Button
+                      size="compact-xs"
+                      variant="light"
+                      color="red"
+                      disabled={loading}
+                      onClick={() => onDelete(item)}
+                    >
+                      삭제
+                    </Button>
+                  </Group>
+                </Group>
+              </Paper>
+            ))}
+          </Stack>
+        </ScrollArea.Autosize>
+        <Button variant="light" color="gray" fullWidth onClick={onClose}>
+          닫기
+        </Button>
+      </Stack>
+    </Modal>
+  );
+}

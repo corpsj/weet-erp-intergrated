@@ -14,7 +14,7 @@ export default function EstimatesEntryPage() {
               견적 산출은 통합 모듈에서 진행합니다.
             </Text>
           </div>
-          <Button component={Link} href="/estimate" color="gray">
+          <Button component={Link} href="/estimate/materials" color="gray">
             견적 열기
           </Button>
         </Group>

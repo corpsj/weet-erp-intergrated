@@ -42,11 +42,13 @@ export function HeaderWidget() {
         <Paper
             p="xl"
             radius="lg"
+            className="animate-fade-in-up"
             style={{
-                background: "linear-gradient(135deg, var(--mantine-color-indigo-6) 0%, var(--mantine-color-blue-5) 100%)",
-                color: "white",
+                background: "linear-gradient(135deg, var(--mantine-color-indigo-filled) 0%, var(--mantine-color-blue-filled) 100%)",
+                color: "var(--mantine-color-white)",
                 position: "relative",
                 overflow: "hidden",
+                border: "none",
             }}
         >
             {/* Background pattern */}

@@ -283,7 +283,7 @@ export default function ExpensesPage() {
           transition: "transform 0.1s, box-shadow 0.1s",
           cursor: "pointer",
           marginBottom: 6,
-          background: 'var(--mantine-color-white)',
+          background: 'var(--panel)',
         }}
         onClick={() => void openEdit(item)}
       >
@@ -401,7 +401,7 @@ export default function ExpensesPage() {
         <Text c="dimmed" size="xs" fw={700}>경비 청구 내역 관리 및 지급 처리</Text>
       </Box>
 
-      <Paper withBorder radius="md" bg="var(--mantine-color-white)">
+      <Paper withBorder radius="md" bg="var(--panel)">
         <Stack gap={0}>
           <Box p="md">
             <Group justify="space-between" wrap="nowrap">
@@ -495,7 +495,7 @@ export default function ExpensesPage() {
           <Textarea label="상세 메모" placeholder="추가 설명이 필요하다면 적어주세요" value={note} onChange={(e) => setNote(e.currentTarget.value)} autosize minRows={3} radius="md" />
 
           <Box mt="xs">
-            <Paper withBorder p="md" radius="md" bg="gray.0">
+            <Paper withBorder p="md" radius="md" bg="var(--mantine-color-default)">
               <Group justify="space-between" align="center" mb="sm">
                 <Group gap={4}>
                   <Text size="sm" fw={700}>영수증 증빙</Text>

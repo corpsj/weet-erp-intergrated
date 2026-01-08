@@ -197,7 +197,7 @@ export default function TransactionsPage() {
             mb="sm"
             style={{
                 cursor: "pointer",
-                background: 'var(--mantine-color-white)',
+                background: 'var(--panel)',
                 boxShadow: 'var(--mantine-shadow-xs)',
                 transition: 'all 0.1s ease'
             }}
@@ -214,7 +214,7 @@ export default function TransactionsPage() {
                             alignItems: "center",
                             justifyContent: "center",
                             borderRadius: 8,
-                            backgroundColor: "var(--mantine-color-gray-1)",
+                            backgroundColor: "var(--mantine-color-default)",
                             flexShrink: 0
                         }}>
                             {item.type === "deposit" ? (
@@ -304,7 +304,7 @@ export default function TransactionsPage() {
                 </Button>
             </Group>
 
-            <Paper withBorder p="md" radius="md" bg="var(--mantine-color-white)" mb="xl">
+            <Paper withBorder p="md" radius="md" bg="var(--panel)" mb="xl">
                 <Grid gutter="md">
                     <Grid.Col span={{ base: 6, md: 4 }}>
                         <Stack gap={4}>
@@ -329,7 +329,7 @@ export default function TransactionsPage() {
                 </Grid>
             </Paper>
 
-            <Paper withBorder radius="md" bg="var(--mantine-color-white)">
+            <Paper withBorder radius="md" bg="var(--panel)">
                 <Stack gap={0}>
                     <Box p="md">
                         <Group justify="space-between" wrap="nowrap">

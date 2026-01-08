@@ -8,6 +8,7 @@
   labor_unit_cost: number | null;
   expense_unit_cost: number | null;
   note: string | null;
+  remarks: string | null;
   sort_index: number | null;
 };
 
@@ -53,6 +54,7 @@ export type ProcessPreset = {
   name: string;
   description: string | null;
   created_at: string;
+  deleted_at: string | null;
 };
 
 export type ProcessPresetItem = {
@@ -64,6 +66,7 @@ export type ProcessPresetItem = {
   quantity: number;
   unit_cost: number;
   material_id: string | null;
+  sort_index: number | null;
 };
 
 export type PresetWithItems = ProcessPreset & {

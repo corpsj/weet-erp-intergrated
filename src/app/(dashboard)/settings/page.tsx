@@ -469,7 +469,7 @@ export default function SettingsPage() {
 
   const navStyles = {
     tabsList: {
-      borderRight: `1px solid var(--mantine-color-gray-2)`,
+      borderRight: `1px solid var(--border)`,
       paddingRight: "md",
     },
     tab: {
@@ -483,7 +483,7 @@ export default function SettingsPage() {
   const tabsStyles = {
     tab: {
       ...navStyles.tab,
-      color: "var(--mantine-color-indigo-9)",
+      color: "var(--mantine-color-indigo-light-color)",
     },
   };
 
@@ -659,7 +659,7 @@ export default function SettingsPage() {
                     </Title>
                     <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
                       <Table verticalSpacing="sm">
-                        <Table.Thead bg="gray.0">
+                        <Table.Thead bg="var(--mantine-color-default)">
                           <Table.Tr>
                             <Table.Th>상태</Table.Th>
                             <Table.Th>코드</Table.Th>
@@ -702,7 +702,7 @@ export default function SettingsPage() {
                   <Box>
                     <Paper withBorder radius="md" style={{ overflow: "hidden" }}>
                       <Table verticalSpacing="sm">
-                        <Table.Thead bg="gray.0">
+                        <Table.Thead bg="var(--mantine-color-default)">
                           <Table.Tr>
                             <Table.Th>상태</Table.Th>
                             <Table.Th>이름</Table.Th>
