@@ -571,6 +571,8 @@ export default function MemosPage() {
 
         return (
           <Button
+            component="div"
+            role="button"
             key={f}
             variant={selectedFolder === f ? "light" : "subtle"}
             color="indigo"
