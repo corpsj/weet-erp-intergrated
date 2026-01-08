@@ -134,24 +134,34 @@ export default function MemosPage() {
   }, []);
 
   useEffect(() => {
-    if (selectedMemo) {
+    // Only update state when switching memos or fresh load.
+    // If we are already on this ID, we assume local state is more up-to-date (active typing).
+    // However, if we just landed on this ID or it's a new selection:
+    if (selectedId && selectedMemo && selectedMemo.id === selectedId) {
+      // Check if we are "switching" to this ID? 
+      // Simplest fix: Just reset on selectedId change. But useEffect usually runs on mount or dep change.
+      // We can just rely on selectedId dependency.
       setTitle(selectedMemo.title ?? "");
       setBody(selectedMemo.body);
       setIsPinned(selectedMemo.is_pinned);
       setFolder(selectedMemo.folder);
       void loadAttachments(selectedMemo.id);
-    } else {
+    } else if (!selectedId) {
+      // Reset only if actually clearing selection
       setTitle("");
       setBody("");
       setIsPinned(false);
       setFolder(null);
       setAttachments([]);
     }
-  }, [selectedMemo, loadAttachments]);
+    // CRITICAL FIX: Only run this effect when selectedId changes. 
+    // Do NOT include selectedMemo in dependencies to prevent overwriting local state on background revalidations.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   const saveMutation = useMutation({
-    mutationFn: async (payload: Partial<Memo>) => {
-      if (!selectedId) {
+    mutationFn: async ({ id, payload }: { id: string | null; payload: Partial<Memo> }) => {
+      if (!id) {
         const response = await fetchWithAuth("/api/memos", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -161,7 +171,7 @@ export default function MemosPage() {
         if (!response.ok) throw new Error(data.message || "생성 실패");
         return data.item as Memo;
       } else {
-        const response = await fetchWithAuth(`/api/memos/${selectedId}`, {
+        const response = await fetchWithAuth(`/api/memos/${id}`, {
           method: "PATCH",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(payload),
@@ -186,6 +196,7 @@ export default function MemosPage() {
           return dayjs(b.updated_at).unix() - dayjs(a.updated_at).unix();
         });
       });
+      // Only set selectedId if we just created a new one
       if (!selectedId) setSelectedId(data.id);
     },
   });
@@ -255,24 +266,24 @@ export default function MemosPage() {
     }
   });
 
-  const debouncedSave = useDebouncedCallback((currentTitle: string, currentBody: string, currentIsPinned: boolean, currentFolder: string | null) => {
-    saveMutation.mutate({ title: currentTitle.trim() || null, body: currentBody, is_pinned: currentIsPinned, folder: currentFolder });
+  const debouncedSave = useDebouncedCallback((targetId: string | null, currentTitle: string, currentBody: string, currentIsPinned: boolean, currentFolder: string | null) => {
+    saveMutation.mutate({ id: targetId, payload: { title: currentTitle.trim() || null, body: currentBody, is_pinned: currentIsPinned, folder: currentFolder } });
   }, 1000);
 
   const handleTitleChange = (val: string) => {
     setTitle(val);
-    debouncedSave(val, body, isPinned, folder);
+    debouncedSave(selectedId, val, body, isPinned, folder);
   };
 
   const handleBodyChange = (val: string) => {
     setBody(val);
-    debouncedSave(title, val, isPinned, folder);
+    debouncedSave(selectedId, title, val, isPinned, folder);
   };
 
   const togglePin = () => {
     const nextValue = !isPinned;
     setIsPinned(nextValue);
-    saveMutation.mutate({ is_pinned: nextValue });
+    saveMutation.mutate({ id: selectedId, payload: { is_pinned: nextValue } });
   };
 
   const deleteMutation = useMutation({
@@ -897,7 +908,7 @@ export default function MemosPage() {
                       variant="subtle"
                       color={isPinned ? "indigo" : "gray"}
                       onClick={togglePin}
-                      loading={saveMutation.isPending && saveMutation.variables?.is_pinned !== undefined}
+                      loading={saveMutation.isPending && saveMutation.variables?.payload?.is_pinned !== undefined}
                     >
                       {isPinned ? <IconPinnedFilled size={20} /> : <IconPinned size={20} />}
                     </ActionIcon>
@@ -907,7 +918,7 @@ export default function MemosPage() {
                       const newFolder = window.prompt("폴더 이름을 입력하세요 (비우면 폴더 없음)", folder || "");
                       if (newFolder !== null) {
                         setFolder(newFolder.trim() || null);
-                        saveMutation.mutate({ folder: newFolder.trim() || null });
+                        saveMutation.mutate({ id: selectedId, payload: { folder: newFolder.trim() || null } });
                       }
                     }}>
                       <IconFolder size={20} />
@@ -1007,7 +1018,7 @@ export default function MemosPage() {
           </Box>
         </Stack>
       </ScrollArea>
-    </Stack>
+    </Stack >
   );
 
   if (isMobile) {
