@@ -17,7 +17,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (typeof body?.folder === "string") patch.folder = body.folder.trim() || null;
   patch.updated_at = new Date().toISOString();
 
-  const { data, error } = await supabaseAdmin.from("memos").update(patch).eq("id", id).select("*").single();
+  const { data, error } = await supabaseAdmin.from("memos").update(patch).eq("id", id).select("*, author:app_users(name)").single();
   if (error) return NextResponse.json({ message: error.message }, { status: 400 });
   return NextResponse.json({ item: data });
 }
