@@ -283,7 +283,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       navbar={{
         width: { base: desktopCollapsed ? 80 : 260, sm: desktopCollapsed ? 80 : 260 },
         breakpoint: "sm",
-        collapsed: { mobile: false }
+        collapsed: { mobile: !opened }
       }}
       footer={{ height: 80, offset: true }}
       padding="md"
@@ -291,6 +291,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
       <AppShell.Header style={{ borderBottom: '1px solid var(--border)', background: 'var(--panel)' }}>
         <Group h="100%" px="lg" justify="space-between">
           <Group gap="sm">
+            <Burger opened={opened} onClick={toggle} hiddenFrom="sm" size="sm" />
             <Text className="brand-title" fw={900} size="xl" style={{ fontSize: rem(22), color: 'var(--mantine-color-gray-9)' }}>
               WE-ET ERP
             </Text>
@@ -337,11 +338,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
 
       <AppShell.Navbar p="md" className="sidebar-glass" style={{
         borderRight: '1px solid var(--border)',
-        width: isMobile ? (desktopCollapsed ? 80 : 260) : (desktopCollapsed ? 80 : 260),
-        maxWidth: isMobile ? (desktopCollapsed ? 80 : '100%') : '100%',
-        height: isMobile ? 'calc(100dvh - 64px)' : 'auto',
+        width: desktopCollapsed ? 80 : 260,
+        height: 'calc(100dvh - 64px)',
         top: 64,
-        zIndex: isMobile ? 1100 : 100,
+        zIndex: 101, // Ensure above content but below potential modals
         transition: 'width 0.2s ease, transform 0.2s ease',
         overflow: 'visible',
       }}>

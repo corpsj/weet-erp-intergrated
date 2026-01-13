@@ -374,8 +374,9 @@ export default function MaterialsPage() {
     const { data, error } = await supabase
       .from("materials")
       .select("*")
-      .order("sort_index", { ascending: true })
-      .order("created_at", { ascending: true });
+      .order("category", { ascending: true })
+      .order("name", { ascending: true })
+      .order("spec", { ascending: true });
 
     if (error) {
       notifications.show({
