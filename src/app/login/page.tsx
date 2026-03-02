@@ -1,7 +1,5 @@
 "use client";
 
-/* eslint-disable react-hooks/set-state-in-effect */
-
 import {
   Box,
   Button,
@@ -9,7 +7,6 @@ import {
   Checkbox,
   Group,
   Paper,
-  PasswordInput,
   Stack,
   Text,
   TextInput,
@@ -33,9 +30,7 @@ export default function LoginPage() {
   const [nextReady, setNextReady] = useState(false);
 
   const [userId, setUserId] = useState("");
-  const [password, setPassword] = useState("");
   const [rememberId, setRememberId] = useState(true);
-  const [autoLogin, setAutoLogin] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -48,18 +43,13 @@ export default function LoginPage() {
     if (!nextReady) return;
 
     const savedId = localStorage.getItem("we-et-login-id") ?? "";
-    const savedAuto = localStorage.getItem("we-et-auto-login") === "true";
-    const savedPassword = localStorage.getItem("we-et-login-password") ?? "";
     if (savedId) {
       setUserId(savedId);
       setRememberId(true);
     }
-    if (savedAuto) {
-      setAutoLogin(true);
-      if (savedPassword) {
-        setPassword(savedPassword);
-      }
-    }
+
+    localStorage.removeItem("we-et-auto-login");
+    localStorage.removeItem("we-et-login-password");
 
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
@@ -77,55 +67,49 @@ export default function LoginPage() {
       });
       return;
     }
-    if (!password) {
-      notifications.show({
-        title: "비밀번호 필요",
-        message: "비밀번호를 입력하세요.",
-        color: "yellow",
-      });
-      return;
-    }
 
     setLoading(true);
-    const email = `${userId}@we-et.com`;
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
 
-    setLoading(false);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: userId.trim() }),
+      });
 
-    if (error) {
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.message || "로그인 실패");
+      }
+
+      const { access_token, refresh_token } = await res.json();
+
+      const { error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (error) throw error;
+
+      if (rememberId) {
+        localStorage.setItem("we-et-login-id", userId);
+      } else {
+        localStorage.removeItem("we-et-login-id");
+      }
+
+      router.replace(nextPath);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.";
       notifications.show({
         title: "로그인 실패",
-        message: error.message,
+        message,
         color: "red",
       });
-      if (autoLogin) {
-        localStorage.removeItem("we-et-auto-login");
-        localStorage.removeItem("we-et-login-password");
-        setAutoLogin(false);
-      }
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    if (rememberId) {
-      localStorage.setItem("we-et-login-id", userId);
-    } else {
-      localStorage.removeItem("we-et-login-id");
-    }
-
-    if (autoLogin) {
-      localStorage.setItem("we-et-auto-login", "true");
-      localStorage.setItem("we-et-login-password", password);
-    } else {
-      localStorage.removeItem("we-et-auto-login");
-      localStorage.removeItem("we-et-login-password");
-    }
-
-    router.replace(nextPath);
-  }, [autoLogin, nextPath, password, rememberId, router, userId]);
-
+  }, [nextPath, rememberId, router, userId]);
 
   return (
     <Box className="app-shell soft-grid">
@@ -148,6 +132,9 @@ export default function LoginPage() {
                     placeholder="아이디"
                     value={userId}
                     onChange={(event) => setUserId(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") handleLogin();
+                    }}
                     required
                     style={{ flex: 1 }}
                   />
@@ -155,32 +142,11 @@ export default function LoginPage() {
                 </Group>
               </Stack>
 
-              <PasswordInput
-                label="비밀번호"
-                placeholder="비밀번호"
-                value={password}
-                onChange={(event) => setPassword(event.currentTarget.value)}
-                required
+              <Checkbox
+                label="아이디 저장"
+                checked={rememberId}
+                onChange={(event) => setRememberId(event.currentTarget.checked)}
               />
-
-              <Group justify="space-between">
-                <Checkbox
-                  label="아이디 저장"
-                  checked={rememberId}
-                  onChange={(event) => setRememberId(event.currentTarget.checked)}
-                />
-                <Checkbox
-                  label="자동 로그인"
-                  checked={autoLogin}
-                  onChange={(event) => {
-                    const nextValue = event.currentTarget.checked;
-                    setAutoLogin(nextValue);
-                    if (nextValue) {
-                      setRememberId(true);
-                    }
-                  }}
-                />
-              </Group>
             </Stack>
 
             <Stack gap="sm" mt="md">
@@ -206,7 +172,7 @@ export default function LoginPage() {
             </Stack>
 
             <Text size="xs" c="dimmed" ta="center">
-              자동 로그인은 개인 PC에서만 사용하세요.
+              WE-ET 내부 전용 시스템입니다.
             </Text>
           </Stack>
         </Paper>
